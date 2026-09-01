@@ -1,0 +1,175 @@
+from typing import List
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.database.database import get_db
+from app.dependencies.auth import get_current_user, require_admin, require_teacher, require_student
+from app.models import User, Course, Enrollment, Role
+from app.schemas.course import CourseCreate, CourseUpdate, CourseOut, EnrollmentCreate, EnrollmentOut
+
+router = APIRouter(prefix="/api/courses", tags=["Courses"])
+
+
+@router.get("/", response_model=List[CourseOut])
+def list_courses(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List courses based on role."""
+    role = current_user.role.name
+
+    if role == "admin":
+        return db.query(Course).offset(skip).limit(limit).all()
+    elif role == "teacher":
+        return db.query(Course).filter(Course.teacher_id == current_user.id).offset(skip).limit(limit).all()
+    else:  # student
+        enrolled_course_ids = db.query(Enrollment.course_id).filter(
+            Enrollment.student_id == current_user.id,
+            Enrollment.status == "active",
+        ).subquery()
+        return db.query(Course).filter(Course.id.in_(enrolled_course_ids)).offset(skip).limit(limit).all()
+
+
+@router.post("/", response_model=CourseOut, status_code=status.HTTP_201_CREATED)
+def create_course(
+    data: CourseCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Create a new course (admin only)."""
+    existing = db.query(Course).filter(Course.course_code == data.course_code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Course code already exists")
+
+    course_data = data.model_dump(exclude_unset=True)
+    course = Course(**course_data)
+    db.add(course)
+    db.commit()
+    db.refresh(course)
+    return course
+
+
+@router.get("/{course_id}", response_model=CourseOut)
+def get_course(
+    course_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get course details."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    role = current_user.role.name
+    if role == "teacher" and course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if role == "student":
+        enrollment = db.query(Enrollment).filter(
+            Enrollment.student_id == current_user.id,
+            Enrollment.course_id == course_id,
+            Enrollment.status == "active",
+        ).first()
+        if not enrollment:
+            raise HTTPException(status_code=403, detail="Not enrolled in this course")
+
+    return course
+
+
+@router.put("/{course_id}", response_model=CourseOut)
+def update_course(
+    course_id: UUID,
+    data: CourseUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Update course (admin only)."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(course, field, value)
+
+    db.commit()
+    db.refresh(course)
+    return course
+
+
+@router.delete("/{course_id}")
+def delete_course(
+    course_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Delete course (admin only)."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    db.delete(course)
+    db.commit()
+    return {"message": "Course deleted successfully"}
+
+
+# ── Enrollment ────────────────────────────────────────
+@router.post("/{course_id}/enroll", response_model=EnrollmentOut)
+def enroll_student(
+    course_id: UUID,
+    data: EnrollmentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Enroll a student in a course (admin only)."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    existing = db.query(Enrollment).filter(
+        Enrollment.student_id == data.student_id,
+        Enrollment.course_id == course_id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Student already enrolled")
+
+    enrollment = Enrollment(
+        student_id=data.student_id,
+        course_id=course_id,
+    )
+    db.add(enrollment)
+    db.commit()
+    db.refresh(enrollment)
+    return enrollment
+
+
+@router.get("/{course_id}/enrollments", response_model=List[EnrollmentOut])
+def list_enrollments(
+    course_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List enrollments for a course."""
+    role = current_user.role.name
+
+    if role == "admin":
+        pass  # can see all
+    elif role == "teacher":
+        course = db.query(Course).filter(Course.id == course_id).first()
+        if not course or course.teacher_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:  # student
+        enrollment = db.query(Enrollment).filter(
+            Enrollment.student_id == current_user.id,
+            Enrollment.course_id == course_id,
+        ).first()
+        if not enrollment:
+            raise HTTPException(status_code=403, detail="Not enrolled in this course")
+
+    return db.query(Enrollment).filter(
+        Enrollment.course_id == course_id,
+        Enrollment.status == "active",
+    ).all()
