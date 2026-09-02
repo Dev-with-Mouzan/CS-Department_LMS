@@ -372,3 +372,14 @@
   background: rgba(251, 191, 36, 0.3);
   animation-delay: -0.3s;
 }
+
+/* Password strength pulse animation */
+@keyframes strengthPulse {
+  0% { transform: scaleY(1); }
+  50% { transform: scaleY(1.2); }
+  100% { transform: scaleY(1); }
+}
+
+.password-strength-bar {
+  animation: strengthPulse 0.3s ease-out;
+}

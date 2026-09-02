@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatedSection, StaggerContainer } from '../hooks/useScrollReveal.jsx'
+import ChatWidget from '../components/ChatWidget'
+import Tour, { useTour } from '../components/Tour'
+import { landingTourSteps } from '../config/tourSteps'
 import {
   GraduationCap,
   BookOpen,
@@ -129,7 +132,8 @@ function Navbar() {
             >
               Sign In
             </Link>
-            <Link to="/register" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-accent-500 text-white hover:bg-accent-400 transition-colors shadow-md">
+            <Link to="/register"className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-accent-500 text-black hover:bg-accent-400 transition-colors shadow-md"
+            >
               Get Started
               <ArrowRight className="w-4 h-4" />
             </Link>
@@ -168,7 +172,8 @@ function Navbar() {
               <Link to="/login" onClick={() => setMobileOpen(false)} className="text-sm font-medium text-navy-600 hover:text-navy-900 px-4 py-2.5 rounded-lg border border-surface-200 text-center transition-colors">
                 Sign In
               </Link>
-              <Link to="/register" onClick={() => setMobileOpen(false)} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-accent-500 text-white hover:bg-accent-400 transition-colors">
+              <Link to="/register" onClick={() => setMobileOpen(false)}className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-accent-500 text-black hover:bg-accent-400 transition-colors"
+            >
                 Get Started
                 <ArrowRight className="w-4 h-4" />
               </Link>
@@ -283,7 +288,7 @@ function Hero() {
           <div className="hero-animate mt-10 flex flex-wrap gap-4 justify-center lg:justify-start">
             <Link
               to="/register"
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-bold bg-accent-500 text-white hover:bg-accent-400 transition-all duration-200 shadow-lg shadow-accent-500/20"
+              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-bold bg-accent-500 text-black hover:bg-accent-400 transition-all duration-200 shadow-lg shadow-accent-500/20"
             >
               Get Started Free
               <ArrowRight className="w-5 h-5" />
@@ -818,7 +823,8 @@ function CTA() {
           Join hundreds of CS students and faculty already using CS Department LMS. Registration takes less than 60 seconds — start your digital campus experience today.
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <Link to="/register" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-bold bg-accent-500 text-white hover:bg-accent-400 transition-colors shadow-lg shadow-accent-500/20">
+          <Link to="/register"className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-bold bg-accent-500 text-black hover:bg-accent-400 transition-colors shadow-lg shadow-accent-500/20"
+            >
             Create Free Account
             <ArrowRight className="w-5 h-5" />
           </Link>
@@ -909,6 +915,8 @@ function Footer() {
 
 /* ─────────────────────── Exported Landing Page ─────────────────────── */
 export default function LandingPage() {
+  const { showTour, completeTour } = useTour()
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -921,6 +929,8 @@ export default function LandingPage() {
       <FAQ />
       <CTA />
       <Footer />
+      <ChatWidget />
+      {showTour && <Tour steps={landingTourSteps} onComplete={completeTour} />}
     </div>
   )
 }

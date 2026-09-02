@@ -37,7 +37,7 @@ export default function CreateAssignment() {
     <div className="p-6 lg:p-10 max-w-3xl mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent-200 bg-accent-50 text-accent-700 text-[11px] font-bold uppercase tracking-widest mb-3">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
           <ClipboardList className="w-3 h-3" />
           Assignment Management
         </span>
@@ -53,7 +53,7 @@ export default function CreateAssignment() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="bg-white rounded-2xl border border-surface-200 shadow-card p-6 lg:p-8 space-y-5">
+        <div className="border border-surface-200 rounded-xl bg-white p-6 lg:p-8 space-y-5">
           <div>
             <label className="input-label">Course</label>
             <div className="relative">

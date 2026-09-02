@@ -18,18 +18,15 @@ class TokenResponse(BaseModel):
 class RegisterRequest(BaseModel):
     first_name: str
     last_name: str
+    username: str
     email: EmailStr
     phone: str  # required — OTP verification destination
     password: str
-    role_name: str  # "admin", "teacher", "student"
-    # Teacher profile
-    employee_id: Optional[str] = None
+    semester: int  # required — auto-enrollment target
     department: Optional[str] = None
-    qualification: Optional[str] = None
-    # Student profile
     student_id: Optional[str] = None
-    semester: Optional[int] = None
-    enrollment_year: Optional[int] = None
+    roll_number: str  # required — student roll number
+    enrollment_year: int  # required — enrollment year
 
 
 class OTPVerifyRequest(BaseModel):

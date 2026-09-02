@@ -68,6 +68,7 @@ class StudentProfile(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey("users.id"), unique=True, nullable=False)
     student_id = Column(String(50), unique=True)
+    roll_number = Column(String(50))
     department = Column(String(100))
     semester = Column(Integer)
     enrollment_year = Column(Integer)
@@ -83,6 +84,7 @@ class Course(Base):
     course_code = Column(String(20), unique=True, nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text)
+    semester = Column(Integer, index=True)
     teacher_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -196,6 +198,41 @@ class OTPVerification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="otp_records")
+
+
+class StudyMaterial(Base):
+    __tablename__ = "study_materials"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    category = Column(String(50), default="notes")  # notes, slides, assignment, reference, other
+    file_url = Column(String(500), nullable=False)
+    file_name = Column(String(255))
+    course_id = Column(String(36), ForeignKey("courses.id"), nullable=False, index=True)
+    uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    course = relationship("Course")
+    uploader = relationship("User")
+
+
+class Notice(Base):
+    __tablename__ = "notices"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    title = Column(String(255), nullable=False)
+    content = Column(Text)
+    category = Column(String(50), default="news")  # news, photo, document
+    file_url = Column(String(500))
+    posted_by = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    target_semester = Column(Integer, nullable=True)  # null = all, number = specific semester
+    is_pinned = Column(Boolean, default=False)
+    expires_at = Column(DateTime, nullable=True)  # auto-set to created_at + 24h
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    author = relationship("User")
 
 
 class Notification(Base):

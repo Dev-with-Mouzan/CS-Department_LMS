@@ -28,6 +28,7 @@ def create_user(db: Session, user_data: dict) -> User:
     user = User(
         first_name=user_data["first_name"],
         last_name=user_data["last_name"],
+        username=user_data.get("username"),
         email=user_data["email"],
         phone=user_data.get("phone"),
         password_hash=hash_password(user_data["password"]),
@@ -51,6 +52,7 @@ def create_user(db: Session, user_data: dict) -> User:
         profile = StudentProfile(
             user_id=user.id,
             student_id=user_data.get("student_id"),
+            roll_number=user_data.get("roll_number"),
             department=user_data.get("department"),
             semester=user_data.get("semester"),
             enrollment_year=user_data.get("enrollment_year"),

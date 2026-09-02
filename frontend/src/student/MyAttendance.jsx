@@ -1,13 +1,7 @@
 import { useState, useEffect } from 'react'
 import { coursesAPI, attendanceAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
-import {
-  CalendarCheck,
-  BookOpen,
-  CheckCircle2,
-  XCircle,
-  TrendingUp,
-} from 'lucide-react'
+import { CalendarCheck, BookOpen, CheckCircle2, TrendingUp } from 'lucide-react'
 
 export default function MyAttendance() {
   const { user } = useAuth()
@@ -38,8 +32,8 @@ export default function MyAttendance() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
       </div>
     )
   }
@@ -47,92 +41,82 @@ export default function MyAttendance() {
   const totalSessions = Object.values(data).reduce((sum, d) => sum + d.total_sessions, 0)
   const totalPresent = Object.values(data).reduce((sum, d) => sum + d.present_count, 0)
   const overallPct = totalSessions > 0 ? (totalPresent / totalSessions * 100) : 0
-  const pctColor = overallPct >= 75 ? 'text-success' : overallPct >= 50 ? 'text-warning-dark' : 'text-danger'
-  const barColor = overallPct >= 75 ? 'bg-success' : overallPct >= 50 ? 'bg-warning' : 'bg-danger'
+  const pctColor = overallPct >= 75 ? 'text-emerald-600' : overallPct >= 50 ? 'text-amber-600' : 'text-red-500'
+  const barColor = overallPct >= 75 ? 'bg-emerald-500' : overallPct >= 50 ? 'bg-amber-500' : 'bg-red-500'
 
   return (
-    <div className="p-6 lg:p-10 max-w-4xl mx-auto">
+    <div className="p-5 lg:p-8 max-w-5xl mx-auto w-full">
       {/* Header */}
-      <div className="text-center mb-8">
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent-200 bg-accent-50 text-accent-700 text-[11px] font-bold uppercase tracking-widest mb-3">
+      <div className="mb-8 text-center">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
           <CalendarCheck className="w-3 h-3" />
-          Attendance Overview
+          Attendance
         </span>
-        <h1 className="text-3xl font-extrabold text-navy-900 tracking-tight">Attendance</h1>
-        <p className="text-navy-400 mt-1.5">Your attendance across all courses</p>
+        <h1 className="text-3xl font-bold text-navy-900 tracking-tight">My Attendance</h1>
+        <p className="text-sm text-navy-400 mt-1">Your attendance across all courses.</p>
       </div>
 
       {/* Overall stat */}
-      <div className="bg-white rounded-2xl border border-surface-200 shadow-card p-6 lg:p-8 mb-8">
+      <div className="border border-surface-200 rounded-xl bg-white p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-xs font-semibold text-navy-400 uppercase tracking-wider">Overall Attendance</p>
-            <p className={`text-4xl font-extrabold tracking-tight mt-1 ${pctColor}`}>{overallPct.toFixed(1)}%</p>
+            <p className="text-xs font-semibold text-navy-400">Overall Attendance</p>
+            <p className={`text-3xl font-bold tracking-tight mt-1 ${pctColor}`}>{overallPct.toFixed(1)}%</p>
           </div>
-          <div className="text-right">
-            <div className="flex items-center gap-4">
-              <div>
-                <span className="inline-flex items-center gap-1.5 text-sm font-bold text-navy-900">
-                  <CheckCircle2 className="w-4 h-4 text-success" />
-                  {totalPresent}
-                </span>
-                <p className="text-2xs text-navy-400 mt-0.5">present</p>
-              </div>
-              <div>
-                <span className="inline-flex items-center gap-1.5 text-sm font-bold text-navy-900">
-                  <XCircle className="w-4 h-4 text-danger" />
-                  {totalSessions - totalPresent}
-                </span>
-                <p className="text-2xs text-navy-400 mt-0.5">absent / late</p>
-              </div>
+          <div className="flex items-center gap-5">
+            <div className="text-center">
+              <p className="text-lg font-bold text-emerald-600">{totalPresent}</p>
+              <p className="text-[10px] text-navy-400">present</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-navy-500">{totalSessions - totalPresent}</p>
+              <p className="text-[10px] text-navy-400">absent/late</p>
             </div>
           </div>
         </div>
-        <div className="w-full bg-surface-200 rounded-full h-3">
-          <div className={`h-3 rounded-full transition-all duration-500 ${barColor}`}
+        <div className="w-full bg-surface-200 rounded-full h-2.5">
+          <div className={`h-2.5 rounded-full transition-all duration-500 ${barColor}`}
             style={{ width: `${Math.min(overallPct, 100)}%` }} />
         </div>
-        <p className="text-2xs text-navy-400 mt-2 inline-flex items-center gap-1.5">
-          <TrendingUp className="w-3 h-3 text-success" />
-          {totalSessions} total sessions attended
+        <p className="text-[10px] text-navy-400 mt-2 flex items-center gap-1.5">
+          <TrendingUp className="w-3 h-3 text-emerald-500" />
+          {totalSessions} total sessions
         </p>
       </div>
 
       {/* Per-course */}
       {courses.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-surface-200 border-dashed p-16 text-center">
-          <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-            <BookOpen className="w-7 h-7" />
-          </span>
-          <p className="text-navy-500 text-sm font-medium">No courses enrolled yet.</p>
+        <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
+          <BookOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
+          <p className="text-sm text-navy-400">No courses enrolled yet.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {courses.map(course => {
             const att = data[course.id] || { total_sessions: 0, present_count: 0, percentage: 0 }
             const pct = att.percentage
-            const pctColor = pct >= 75 ? 'text-success' : pct >= 50 ? 'text-warning-dark' : 'text-danger'
-            const barColor = pct >= 75 ? 'bg-success' : pct >= 50 ? 'bg-warning' : 'bg-danger'
+            const pColor = pct >= 75 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-500'
+            const bColor = pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
 
             return (
-              <div key={course.id} className="bg-white rounded-2xl border border-surface-200 shadow-card p-5 hover:shadow-card-hover transition-all duration-300">
+              <div key={course.id} className="border border-surface-200 rounded-xl bg-white p-4 hover:border-accent-300 transition-colors">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-navy-900 flex items-center justify-center shrink-0">
-                      <span className="text-white text-2xs font-bold">{course.course_code.slice(0, 2).toUpperCase()}</span>
-                    </div>
+                    <span className="w-9 h-9 rounded-lg bg-accent-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                      {course.course_code.slice(0, 2).toUpperCase()}
+                    </span>
                     <div>
-                      <h3 className="text-sm font-bold text-navy-900">{course.title}</h3>
-                      <p className="text-2xs text-navy-400 font-mono mt-0.5">{course.course_code}</p>
+                      <p className="text-sm font-medium text-navy-900">{course.title}</p>
+                      <p className="text-[10px] text-navy-400 font-mono">{course.course_code}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`text-2xl font-extrabold tracking-tight ${pctColor}`}>{pct.toFixed(1)}%</p>
-                    <p className="text-2xs text-navy-400">{att.present_count}/{att.total_sessions} sessions</p>
+                    <p className={`text-xl font-bold tracking-tight ${pColor}`}>{pct.toFixed(1)}%</p>
+                    <p className="text-[10px] text-navy-400">{att.present_count}/{att.total_sessions}</p>
                   </div>
                 </div>
                 <div className="w-full bg-surface-200 rounded-full h-1.5">
-                  <div className={`h-1.5 rounded-full transition-all duration-500 ${barColor}`}
+                  <div className={`h-1.5 rounded-full transition-all duration-500 ${bColor}`}
                     style={{ width: `${Math.min(pct, 100)}%` }} />
                 </div>
               </div>

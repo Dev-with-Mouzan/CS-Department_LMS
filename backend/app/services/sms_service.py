@@ -31,7 +31,15 @@ async def _send_otp_sms(phone: str, otp_code: str) -> None:
             await client.post(url, data=data, headers=headers, timeout=10)
 
     else:
-        print(f"[SMS OTP] Phone {phone}: {otp_code}")
+        # Console/test provider — print the OTP to the server terminal so it can
+        # be used on the verification screen during development.
+        line = "=" * 58
+        print(line)
+        print(" TEST MODE — SMS DISABLED (SMS_PROVIDER=console)")
+        print(f" OTP for {phone}: {otp_code}")
+        print(f" Valid for {settings.OTP_EXPIRE_MINUTES} minutes")
+        print(" Enter this code on the verification screen")
+        print(line)
 
 
 def send_otp_sms(phone: str, otp_code: str) -> None:

@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { noticesAPI } from '../services/api'
+import Tour, { useTour } from './Tour'
+import { studentTourSteps, teacherTourSteps, adminTourSteps } from '../config/tourSteps'
 import {
   LayoutDashboard,
   Users,
@@ -8,12 +11,16 @@ import {
   ClipboardList,
   Inbox,
   CalendarCheck,
+  Bell,
+  PlusCircle,
+  FolderOpen,
   LogOut,
   GraduationCap,
   Menu,
   X,
   UserPlus,
   ChevronDown,
+  UserCheck,
   Facebook,
   Instagram,
   Twitter,
@@ -27,19 +34,26 @@ const navConfig = {
   admin: [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/users', label: 'Users', icon: Users },
+    { to: '/admin/teachers', label: 'Teachers', icon: UserCheck },
     { to: '/admin/courses', label: 'Courses', icon: BookOpen },
+    { to: '/admin/semesters', label: 'Semesters', icon: GraduationCap },
     { to: '/admin/enrollments', label: 'Enrollments', icon: UserPlus },
+    { to: '/admin/notices', label: 'Notices', icon: Bell },
   ],
   teacher: [
     { to: '/teacher', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/teacher/create-assignment', label: 'Assignments', icon: ClipboardList },
     { to: '/teacher/submissions', label: 'Submissions', icon: Inbox },
     { to: '/teacher/attendance', label: 'Attendance', icon: CalendarCheck },
+    { to: '/teacher/notices', label: 'Notices', icon: Bell },
+    { to: '/teacher/materials', label: 'Materials', icon: FolderOpen },
   ],
   student: [
     { to: '/student', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/student/assignments', label: 'Assignments', icon: ClipboardList },
     { to: '/student/attendance', label: 'Attendance', icon: CalendarCheck },
+    { to: '/student/notices', label: 'Notices', icon: Bell },
+    { to: '/student/materials', label: 'Materials', icon: FolderOpen },
   ],
 }
 
@@ -52,6 +66,7 @@ const roleLabels = {
 function Navbar({ links, role, user, onLogout }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [noticeCount, setNoticeCount] = useState(0)
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -60,6 +75,10 @@ function Navbar({ links, role, user, onLogout }) {
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  useEffect(() => {
+    noticesAPI.list().then(r => setNoticeCount(r.data.length)).catch(() => {})
   }, [])
 
   return (
@@ -93,6 +112,11 @@ function Navbar({ links, role, user, onLogout }) {
                 }
               >
                 {link.label}
+                {link.label === 'Notices' && noticeCount > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-accent-500 text-[10px] font-bold text-white">
+                    {noticeCount}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -103,70 +127,32 @@ function Navbar({ links, role, user, onLogout }) {
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className={`group flex items-center gap-2.5 pl-0.5 pr-2.5 py-0.5 rounded-full border bg-white/5 transition-all ${
+                className={`group flex items-center gap-2 px-2 py-1.5 rounded-full transition-all ${
                   menuOpen
-                    ? 'border-accent-500/50 bg-white/10 shadow-lg shadow-accent-500/10'
-                    : 'border-white/10 hover:border-accent-500/40 hover:bg-white/10'
+                    ? 'bg-white/10'
+                    : 'hover:bg-white/5'
                 }`}
               >
-                <span className="w-9 h-9 rounded-full p-[2px] bg-gradient-to-br from-accent-400 via-accent-500 to-accent-600 shadow-md shadow-accent-500/20">
-                  <span className="relative w-full h-full rounded-full bg-navy-800 flex items-center justify-center">
-                    <span className="text-accent-300 text-sm font-bold">{getName(user)?.[0]?.toUpperCase() || '?'}</span>
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-success border-2 border-navy-950" />
-                  </span>
+                <span className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                  <span className="text-xs font-semibold text-white">{getName(user)?.[0]?.toUpperCase() || '?'}</span>
                 </span>
-                <span className="hidden sm:block text-left leading-tight">
-                  <span className="block text-xs font-bold text-white max-w-[140px] truncate">{getName(user)}</span>
-                  <span className="flex items-center gap-1 text-2xs text-white/40">
-                    <GraduationCap className="w-2.5 h-2.5" />
-                    <span className="capitalize">{role}</span>
-                  </span>
-                </span>
-                <ChevronDown className={`w-3.5 h-3.5 text-white/50 transition-transform group-hover:text-white/80 ${menuOpen ? 'rotate-180' : ''}`} />
+                <span className="hidden sm:block text-xs font-medium text-white">{getName(user)}</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-white/40 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-white/10 bg-navy-900 shadow-elevated overflow-hidden">
-                  <div
-                    className="absolute -top-24 -right-24 w-56 h-56 rounded-full opacity-[0.08] pointer-events-none"
-                    style={{ background: 'radial-gradient(circle, #fbbf24 0%, transparent 65%)' }}
-                  />
-                  <div className="relative px-4 pt-4 pb-3 border-b border-white/10">
-                    <div className="flex items-center gap-3">
-                      <span className="w-11 h-11 rounded-full p-[2px] bg-gradient-to-br from-accent-400 via-accent-500 to-accent-600 shadow-md shadow-accent-500/25">
-                        <span className="w-full h-full rounded-full bg-navy-800 flex items-center justify-center">
-                          <span className="text-accent-300 text-sm font-bold">{getName(user)?.[0]?.toUpperCase() || '?'}</span>
-                        </span>
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-white truncate">{getName(user)}</p>
-                        <p className="text-xs text-white/40 truncate">{user?.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 mt-3">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/15 border border-accent-500/30 text-[10px] font-semibold text-accent-300 uppercase tracking-widest">
-                        <GraduationCap className="w-3 h-3" />
-                        {roleLabels[role]}
-                      </span>
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest border ${
-                        user?.is_verified
-                          ? 'bg-success/10 border-success/25 text-success'
-                          : 'bg-warning/10 border-warning/25 text-warning'
-                      }`}>
-                        {user?.is_verified ? 'Verified' : 'Pending'}
-                      </span>
-                    </div>
+                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-white/10 bg-navy-900 shadow-elevated overflow-hidden">
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <p className="text-sm font-semibold text-white truncate">{getName(user)}</p>
+                    <p className="text-xs text-white/40 truncate">{user?.email}</p>
                   </div>
-                  <div className="relative p-2">
+                  <div className="p-2">
                     <button
                       onClick={onLogout}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-accent-300 hover:bg-accent-500/10 transition-colors"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors"
                     >
-                      <span className="w-8 h-8 rounded-lg bg-accent-500/15 border border-accent-500/20 flex items-center justify-center">
-                        <LogOut className="w-4 h-4 text-accent-400" />
-                      </span>
+                      <LogOut className="w-4 h-4" />
                       Sign out
-                      <span className="ml-auto text-2xs text-white/30">{role}</span>
                     </button>
                   </div>
                 </div>
@@ -203,6 +189,11 @@ function Navbar({ links, role, user, onLogout }) {
               >
                 <link.icon className="w-4 h-4" />
                 {link.label}
+                {link.label === 'Notices' && noticeCount > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-accent-500 text-[10px] font-bold text-white">
+                    {noticeCount}
+                  </span>
+                )}
               </NavLink>
             ))}
           </div>
@@ -307,11 +298,19 @@ function Footer({ links, role }) {
   )
 }
 
+const dashboardTourSteps = {
+  student: studentTourSteps,
+  teacher: teacherTourSteps,
+  admin: adminTourSteps,
+}
+
 export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const role = user?.role || 'student'
   const links = navConfig[role] || []
+  const { showTour, completeTour } = useTour('lms_dashboard_tour')
+  const tourSteps = dashboardTourSteps[role] || []
 
   const handleLogout = () => {
     logout()
@@ -325,6 +324,9 @@ export default function Layout() {
         <Outlet />
       </main>
       <Footer links={links} role={role} />
+      {showTour && tourSteps.length > 0 && (
+        <Tour steps={tourSteps} onComplete={completeTour} />
+      )}
     </div>
   )
 }

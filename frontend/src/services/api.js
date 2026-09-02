@@ -47,7 +47,16 @@ export const usersAPI = {
   create: (data) => api.post('/users/', data),
   update: (id, data) => api.put(`/users/${id}`, data),
   delete: (id) => api.delete(`/users/${id}`),
+  hardDelete: (id) => api.delete(`/users/${id}/hard`),
+  setPassword: (id, data) => api.put(`/users/${id}/password`, data),
   getStats: () => api.get('/users/stats/dashboard'),
+  listTeachers: () => api.get('/users/teachers'),
+  getTeacher: (id) => api.get(`/users/teachers/${id}`),
+  createTeacher: (data) => api.post('/users/teachers', data),
+  updateTeacher: (id, data) => api.put(`/users/teachers/${id}`, data),
+  deleteTeacher: (id) => api.delete(`/users/teachers/${id}`),
+  hardDeleteTeacher: (id) => api.delete(`/users/teachers/${id}/hard`),
+  listSemesters: () => api.get('/users/semesters'),
 }
 
 // ── Courses API ──────────────────────────────────────
@@ -87,6 +96,33 @@ export const attendanceAPI = {
   getSessionRecords: (sessionId) => api.get(`/attendance/sessions/${sessionId}/records`),
   getPercentage: (studentId, courseId) =>
     api.get(`/attendance/student/${studentId}/course/${courseId}`),
+  exportExcel: (courseId, year, month) =>
+    api.get(`/attendance/export/${courseId}`, {
+      params: { year, month },
+      responseType: 'blob',
+    }),
+}
+
+// ── Notices API ───────────────────────────────────────
+export const noticesAPI = {
+  list: (params) => api.get('/notices/', { params }),
+  get: (id) => api.get(`/notices/${id}`),
+  create: (formData) => api.post('/notices/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  update: (id, formData) => api.put(`/notices/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  delete: (id) => api.delete(`/notices/${id}`),
+}
+
+// ── Study Materials API ───────────────────────────────
+export const materialsAPI = {
+  list: (params) => api.get('/materials/', { params }),
+  upload: (formData) => api.post('/materials/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  delete: (id) => api.delete(`/materials/${id}`),
 }
 
 export default api

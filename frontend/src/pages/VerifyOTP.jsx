@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, Terminal } from 'lucide-react'
 
 export default function VerifyOTP() {
   const [otp, setOtp] = useState('')
@@ -37,7 +37,7 @@ export default function VerifyOTP() {
     setLoading(true)
     try {
       await authAPI.resendOTP({ email: user?.email })
-      setMessage('New OTP sent to your phone via SMS')
+      setMessage('New OTP sent — check the server terminal for the code (test mode)')
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to resend')
     } finally {
@@ -59,8 +59,12 @@ export default function VerifyOTP() {
           </span>
           <h1 className="text-2xl font-extrabold text-navy-900 tracking-tight">Verify your account</h1>
           <p className="text-navy-400 mt-2 text-sm">
-            Enter the 6-digit OTP code sent via SMS
-            {user?.phone ? ` to ${user.phone}` : ''}
+            Enter the 6-digit OTP
+            {user?.phone ? ` sent to ${user.phone}` : ''}
+          </p>
+          <p className="text-2xs text-navy-300 mt-1.5 bg-surface-100 border border-surface-200 rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5">
+            <Terminal className="w-3 h-3 text-accent-600" />
+            Test mode: the code is printed on the server terminal.
           </p>
         </div>
 

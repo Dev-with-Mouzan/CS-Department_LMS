@@ -1,7 +1,9 @@
+import io
 from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -16,6 +18,7 @@ from app.schemas.attendance import (
     AttendanceRecordBulk, AttendanceRecordOut,
     AttendancePercentageOut
 )
+from app.services.attendance_excel import generate_attendance_excel
 
 router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
 
@@ -147,6 +150,45 @@ def get_session_records(
     return db.query(AttendanceRecord).filter(
         AttendanceRecord.session_id == session_id,
     ).all()
+
+
+# ── Excel Export ─────────────────────────────────────
+@router.get("/export/{course_id}")
+def export_attendance_excel(
+    course_id: str,
+    year: int,
+    month: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Download attendance Excel for a course and month (teacher or admin)."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    role = current_user.role.name
+    if role == "teacher" and course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if role not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        wb = generate_attendance_excel(db, course_id, current_user, year, month)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Save to memory and return as streaming response
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    from calendar import month_name
+    filename = f"Attendance_{course.course_code}_{month_name[month]}_{year}.xlsx"
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── Attendance Percentage ─────────────────────────────

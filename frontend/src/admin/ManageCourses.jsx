@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
-import { coursesAPI, usersAPI } from '../services/api'
+import { coursesAPI, usersAPI, attendanceAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
-import { BookOpen, PlusCircle, Trash2, CalendarDays, Pencil, Power } from 'lucide-react'
+import {
+  BookOpen, PlusCircle, Trash2, CalendarDays, Pencil, Power, Search, GraduationCap,
+  UserCheck, CheckCircle2, Building2, Download,
+} from 'lucide-react'
 
 export default function ManageCourses() {
   const [courses, setCourses] = useState([])
@@ -10,7 +13,10 @@ export default function ManageCourses() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ course_code: '', title: '', description: '', teacher_id: '' })
+  const [filter, setFilter] = useState('')
+  const [search, setSearch] = useState('')
+  const [form, setForm] = useState({ course_code: '', title: '', description: '', teacher_id: '', semester: '' })
+  const [downloadingId, setDownloadingId] = useState(null)
 
   useEffect(() => { loadData() }, [])
 
@@ -25,7 +31,7 @@ export default function ManageCourses() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ course_code: '', title: '', description: '', teacher_id: '' })
+    setForm({ course_code: '', title: '', description: '', teacher_id: '', semester: '' })
     setShowModal(true)
   }
 
@@ -36,6 +42,7 @@ export default function ManageCourses() {
       title: course.title || '',
       description: course.description || '',
       teacher_id: course.teacher_id || '',
+      semester: course.semester || '',
       is_active: course.is_active,
     })
     setShowModal(true)
@@ -45,10 +52,14 @@ export default function ManageCourses() {
     e.preventDefault()
     try {
       if (editing) {
-        const { title, description, teacher_id, is_active } = form
-        await coursesAPI.update(editing.id, { title, description, teacher_id, is_active })
+        const { title, description, teacher_id, semester, is_active } = form
+        const payload = { title, description, teacher_id, is_active }
+        if (semester) payload.semester = parseInt(semester, 10)
+        await coursesAPI.update(editing.id, payload)
       } else {
-        await coursesAPI.create(form)
+        const payload = { ...form }
+        if (payload.semester) payload.semester = parseInt(payload.semester, 10)
+        await coursesAPI.create(payload)
       }
       setShowModal(false)
       loadData()
@@ -60,89 +71,223 @@ export default function ManageCourses() {
     try { await coursesAPI.delete(id); loadData() } catch { alert('Failed') }
   }
 
-  const handleToggleActive = async (course) => {
-    try {
-      await coursesAPI.update(course.id, { is_active: !course.is_active })
-      loadData()
-    } catch { alert('Failed') }
-  }
+
+  const teacherById = (id) => teachers.find((t) => t.id === id)
+
+  const semesters = [...new Set(courses.filter((c) => c.semester).map((c) => c.semester))].sort((a, b) => a - b)
+
+  const filteredCourses = courses.filter((c) => {
+    const q = search.trim().toLowerCase()
+    const statusMatch = filter === '' || (filter === 'active' && c.is_active) || (filter === 'inactive' && !c.is_active)
+    if (!statusMatch) return false
+    if (!q) return true
+    return (
+      `${c.course_code} ${c.title}`.toLowerCase().includes(q) ||
+      (c.teacher_id && `${teacherById(c.teacher_id)?.first_name} ${teacherById(c.teacher_id)?.last_name}`.toLowerCase().includes(q))
+    )
+  })
+
+  const stats = [
+    { label: 'Total Courses', value: courses.length, icon: BookOpen, chip: 'bg-navy-900/10 text-navy-800 border-navy-900/10' },
+    { label: 'Active', value: courses.filter((c) => c.is_active).length, icon: CheckCircle2, chip: 'bg-success/10 text-success-dark border-success/20' },
+    { label: 'Semesters', value: semesters.length, icon: GraduationCap, chip: 'bg-accent-500/10 text-accent-700 border-accent-200' },
+    { label: 'Teachers', value: new Set(courses.map((c) => c.teacher_id).filter(Boolean)).size, icon: UserCheck, chip: 'bg-info/10 text-info-dark border-info/20' },
+  ]
 
   return (
-    <div className="p-6 lg:p-10 max-w-7xl">
+    <div className="p-5 lg:p-8 max-w-5xl mx-auto w-full">
       {/* Header */}
       <div className="text-center mb-8">
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent-200 bg-accent-50 text-accent-700 text-[11px] font-bold uppercase tracking-widest mb-3">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
           <BookOpen className="w-3 h-3" />
           Course Management
         </span>
-        <h1 className="text-3xl font-extrabold text-navy-900 tracking-tight">Courses</h1>
-        <p className="text-navy-400 mt-1.5">{courses.length} courses in the CS Department</p>
+        <h1 className="text-3xl font-bold text-navy-900 tracking-tight">Courses</h1>
+        <p className="text-sm text-navy-400 mt-1">
+          {courses.length} courses in the CS Department
+          {search.trim() || filter ? ` · ${filteredCourses.length} matching` : ''}
+        </p>
       </div>
 
-      {/* Actions */}
-      <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-        <Button onClick={openCreate}>
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {stats.map((s) => (
+          <div key={s.label} className="border border-surface-200 rounded-xl bg-white p-4 flex items-center gap-3">
+            <span className={`inline-flex w-11 h-11 rounded-xl border items-center justify-center shrink-0 ${s.chip}`}>
+              <s.icon className="w-5 h-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-2xl font-extrabold text-navy-900 tracking-tight leading-none">{s.value}</p>
+              <p className="text-xs font-medium text-navy-400 mt-1">{s.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar: filters + search + action */}
+      <div className="border border-surface-200 rounded-xl bg-white p-3 mb-8 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+        <div className="inline-flex gap-1 p-1 bg-navy-900/5 rounded-xl self-start lg:self-center">
+          {[{ value: '', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }].map((r) => (
+            <button key={r.value} onClick={() => setFilter(r.value)}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                filter === r.value
+                  ? 'bg-navy-900 text-white shadow-md shadow-navy-900/10'
+                  : 'text-navy-500 hover:bg-white hover:text-navy-800'
+              }`}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by code, title or teacher..."
+            className="w-full pl-9 pr-4 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm text-navy-900 placeholder-navy-300 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 transition-all"
+          />
+        </div>
+        <Button onClick={openCreate} className="lg:self-center">
           <PlusCircle className="w-4 h-4" />
           New Course
         </Button>
       </div>
 
-      {loading ? (
-        <div className="min-h-[200px] flex items-center justify-center">
-          <div className="w-10 h-10 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
+      {/* Table */}
+      <div className="border border-surface-200 rounded-xl bg-white overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-surface-200 bg-surface-50/60">
+                <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Course</th>
+                <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Semester</th>
+                <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Teacher</th>
+                <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Created</th>
+                <th className="px-6 py-4 text-right text-2xs font-bold text-navy-400 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center">
+                    <div className="w-9 h-9 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin mx-auto" />
+                  </td>
+                </tr>
+              ) : filteredCourses.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center">
+                    <span className="inline-flex w-12 h-12 rounded-2xl bg-navy-900/5 text-navy-400 border border-navy-900/10 items-center justify-center mb-3">
+                      <BookOpen className="w-6 h-6" />
+                    </span>
+                    <p className="text-navy-500 text-sm font-medium">No courses found matching your criteria.</p>
+                  </td>
+                </tr>
+              ) : filteredCourses.map((course) => {
+                const t = teacherById(course.teacher_id)
+                return (
+                  <tr key={course.id} className="hover:bg-surface-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-navy-800 to-navy-950 flex items-center justify-center shrink-0">
+                          <BookOpen className="w-4.5 h-4.5 text-accent-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-navy-900 truncate">{course.title}</p>
+                          <p className="text-2xs font-mono text-navy-300">{course.course_code}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {course.semester ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold bg-accent-500/10 text-accent-700 border border-accent-200">
+                          <GraduationCap className="w-3 h-3" />
+                          Semester {course.semester}
+                        </span>
+                      ) : (
+                        <span className="text-2xs text-navy-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {t ? (
+                        <div className="flex items-center gap-2">
+                          <span className="w-7 h-7 rounded-full bg-gradient-to-br from-info to-info-dark flex items-center justify-center shrink-0">
+                            <span className="text-white text-[10px] font-bold">{t.first_name?.[0]}{t.last_name?.[0]}</span>
+                          </span>
+                          <span className="text-sm text-navy-600">{t.first_name} {t.last_name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-navy-300">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold border ${
+                        course.is_active
+                          ? 'bg-success-light text-success-dark border-success/20'
+                          : 'bg-surface-100 text-navy-400 border-surface-200'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${course.is_active ? 'bg-success' : 'bg-navy-300'}`} />
+                        {course.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1.5 text-xs text-navy-400 font-medium">
+                        <CalendarDays className="w-3.5 h-3.5 text-navy-300" />
+                        {new Date(course.created_at).toLocaleDateString()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button onClick={() => openEdit(course)} title="Edit"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-navy-500 border border-surface-200 bg-white hover:bg-surface-50 hover:text-navy-900 transition-all">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={async () => {
+                            setDownloadingId(course.id)
+                            try {
+                              const now = new Date()
+                              const res = await attendanceAPI.exportExcel(
+                                course.id,
+                                now.getFullYear(),
+                                now.getMonth() + 1
+                              )
+                              const url = window.URL.createObjectURL(new Blob([res.data]))
+                              const link = document.createElement('a')
+                              link.href = url
+                              link.setAttribute('download', `Attendance_${course.course_code}_${now.toLocaleString('default', { month: 'long' })}_${now.getFullYear()}.xlsx`)
+                              document.body.appendChild(link)
+                              link.click()
+                              link.remove()
+                              window.URL.revokeObjectURL(url)
+                            } catch {
+                              alert('Failed to download Excel')
+                            } finally {
+                              setDownloadingId(null)
+                            }
+                          }}
+                          title="Download Attendance Excel"
+                          disabled={downloadingId === course.id}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-accent-600 border border-accent-200 bg-white hover:bg-accent-50 transition-all disabled:opacity-50"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button onClick={() => handleDelete(course.id)} title="Delete"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-red-600 border border-red-200 bg-white hover:bg-red-50 transition-all">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
-      ) : courses.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-surface-200 border-dashed p-16 text-center">
-          <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-            <BookOpen className="w-7 h-7" />
-          </span>
-          <p className="text-navy-500 text-sm font-medium">No courses yet. Create your first course to get started.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {courses.map((course) => (
-            <div key={course.id} className="bg-white rounded-2xl border border-surface-200 shadow-card hover:-translate-y-1 hover:shadow-card-hover transition-all duration-300 p-6 group">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-mono text-2xs bg-navy-900/5 text-navy-600 border border-navy-900/10 px-2.5 py-1 rounded-lg font-semibold">
-                  {course.course_code}
-                </span>
-                <span className={`inline-flex items-center gap-1.5 text-2xs font-semibold ${course.is_active ? 'text-success-dark' : 'text-danger'}`}>
-                  <span className={`w-2.5 h-2.5 rounded-full ${course.is_active ? 'bg-success' : 'bg-danger'}`} />
-                  {course.is_active ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-              <h3 className="font-bold text-navy-900 mb-1.5 group-hover:text-accent-600 transition-colors">{course.title}</h3>
-              {course.description && (
-                <p className="text-xs text-navy-400 line-clamp-2 mb-5">{course.description}</p>
-              )}
-              <div className="flex items-center justify-between pt-4 border-t border-surface-100">
-                <span className="inline-flex items-center gap-1.5 text-2xs text-navy-300 font-medium">
-                  <CalendarDays className="w-3.5 h-3.5" />
-                  {new Date(course.created_at).toLocaleDateString()}
-                </span>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => openEdit(course)}
-                    className="inline-flex items-center gap-1.5 text-2xs text-navy-500 hover:text-navy-900 font-semibold transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
-                    Edit
-                  </button>
-                  <button onClick={() => handleToggleActive(course)}
-                    className={`inline-flex items-center gap-1.5 text-2xs font-semibold transition-colors ${
-                      course.is_active ? 'text-danger hover:text-danger-dark' : 'text-success-dark hover:text-success'
-                    }`}>
-                    <Power className="w-3.5 h-3.5" />
-                    {course.is_active ? 'Deactivate' : 'Activate'}
-                  </button>
-                  <button onClick={() => handleDelete(course.id)}
-                    className="inline-flex items-center gap-1.5 text-2xs text-danger hover:text-danger-dark font-semibold transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      </div>
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Course' : 'Create Course'}>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -163,6 +308,13 @@ export default function ManageCourses() {
             <label className="input-label">Description</label>
             <textarea value={form.description} rows={3} onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="input-field resize-none" />
+          </div>
+          <div>
+            <label className="input-label">Semester</label>
+            <input type="number" value={form.semester} min={1} max={8}
+              onChange={(e) => setForm({ ...form, semester: e.target.value })}
+              className="input-field" placeholder="1 – 8" required />
+            <p className="text-2xs text-navy-400 mt-1">Students in this semester are auto-enrolled on account verification.</p>
           </div>
           <div>
             <label className="input-label">Assigned teacher</label>

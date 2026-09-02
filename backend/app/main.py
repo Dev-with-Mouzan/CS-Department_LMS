@@ -1,11 +1,13 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.config import settings
 from app.database.database import engine, SessionLocal, Base
 from app.services.auth_service import create_default_roles
-from app.routers import auth, users, courses, assignments, attendance
+from app.routers import auth, users, courses, assignments, attendance, notices, materials
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
@@ -31,6 +33,13 @@ app.include_router(users.router)
 app.include_router(courses.router)
 app.include_router(assignments.router)
 app.include_router(attendance.router)
+app.include_router(notices.router)
+app.include_router(materials.router)
+
+# Serve uploaded files
+uploads_dir = os.path.join(os.getcwd(), settings.UPLOAD_DIR)
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 
 @app.on_event("startup")
@@ -39,27 +48,45 @@ def startup():
     db = SessionLocal()
     try:
         create_default_roles(db)
-        # Add phone column if missing (safe for SQLite + Postgres)
-        try:
-            result = db.execute(text("PRAGMA table_info(users)"))
-            dialect = engine.dialect.name
-            if dialect == "sqlite":
-                cols = [row[1] for row in result]
-                if "phone" not in cols:
-                    db.execute(text("ALTER TABLE users ADD COLUMN phone VARCHAR(20)"))
-                    db.commit()
-            else:
-                result = db.execute(text(
-                    "SELECT column_name FROM information_schema.columns "
-                    "WHERE table_name = 'users' AND column_name = 'phone'"
-                ))
-                if not result.first():
-                    db.execute(text("ALTER TABLE users ADD COLUMN phone VARCHAR(20)"))
-                    db.commit()
-        except Exception:
-            db.rollback()
+        _add_missing_columns(db)
     finally:
         db.close()
+
+
+def _add_missing_columns(db):
+    """Add missing columns to existing tables (safe for SQLite + Postgres)."""
+    dialect = engine.dialect.name
+
+    def _columns(table):
+        if dialect == "sqlite":
+            return [row[1] for row in db.execute(text(f"PRAGMA table_info({table})"))]
+        rows = db.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            f"WHERE table_name = '{table}'"
+        ))
+        return [row[0] for row in rows]
+
+    migrations = {
+        "users": [
+            ("phone", "VARCHAR(20)"),
+            ("username", "VARCHAR(100)"),
+        ],
+        "courses": [
+            ("semester", "INTEGER"),
+        ],
+        "student_profiles": [
+            ("roll_number", "VARCHAR(50)"),
+        ],
+    }
+    for table, cols in migrations.items():
+        existing = set(_columns(table))
+        for col, dtype in cols:
+            if col not in existing:
+                try:
+                    db.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
 
 
 @app.get("/")

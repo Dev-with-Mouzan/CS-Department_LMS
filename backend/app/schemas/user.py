@@ -17,6 +17,7 @@ class RoleOut(BaseModel):
 class UserBase(BaseModel):
     first_name: str
     last_name: str
+    username: Optional[str] = None
     email: EmailStr
     phone: Optional[str] = None
 
@@ -35,9 +36,28 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    username: Optional[str] = None
     email: Optional[EmailStr] = None
+    phone: Optional[str] = None
     is_active: Optional[bool] = None
     is_verified: Optional[bool] = None
+    semester: Optional[int] = None
+
+
+class TeacherUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    is_active: Optional[bool] = None
+    employee_id: Optional[str] = None
+    department: Optional[str] = None
+    qualification: Optional[str] = None
+
+
+class TeacherCreate(UserCreate):
+    role_name: str = "teacher"
 
 
 class UserOut(UserBase):
@@ -79,3 +99,21 @@ class StudentProfileOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── Teacher / Semester outputs ────────────────────────
+class TeacherOut(UserWithRole):
+    teacher_profile: Optional[TeacherProfileOut] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SemesterOut(BaseModel):
+    semester: int
+    course_count: int
+    student_count: int
+
+
+class PasswordResetBody(BaseModel):
+    new_password: str

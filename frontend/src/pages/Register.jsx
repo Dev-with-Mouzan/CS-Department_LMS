@@ -16,10 +16,64 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 
+function getPasswordStrength(password) {
+  let score = 0
+  if (password.length >= 8) score++
+  if (password.length >= 12) score++
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++
+  if (/\d/.test(password)) score++
+  if (/[^a-zA-Z0-9]/.test(password)) score++
+  return score
+}
+
+function getStrengthLabel(score) {
+  if (score <= 1) return { label: 'Weak', color: 'bg-danger', textColor: 'text-danger' }
+  if (score <= 2) return { label: 'Fair', color: 'bg-warning', textColor: 'text-warning-dark' }
+  if (score <= 3) return { label: 'Good', color: 'bg-info', textColor: 'text-info' }
+  if (score <= 4) return { label: 'Strong', color: 'bg-success', textColor: 'text-success' }
+  return { label: 'Very Strong', color: 'bg-success', textColor: 'text-success' }
+}
+
+function PasswordStrengthMeter({ password }) {
+  const score = getPasswordStrength(password)
+  const { label, color, textColor } = getStrengthLabel(score)
+  const percentage = (score / 5) * 100
+
+  if (!password) return null
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className={`text-xs font-semibold ${textColor}`}>{label}</span>
+        <span className="text-xs text-navy-400">{password.length}/8+ characters</span>
+      </div>
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+              i <= score ? color : 'bg-surface-200'
+            }`}
+            style={{
+              animation: i <= score ? 'pulse 0.3s ease-out' : 'none',
+            }}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5 text-2xs text-navy-400">
+        <span className={password.length >= 8 ? 'text-success' : ''}>✓ 8+ chars</span>
+        <span className={/[a-z]/.test(password) && /[A-Z]/.test(password) ? 'text-success' : ''}>✓ Upper & lower</span>
+        <span className={/\d/.test(password) ? 'text-success' : ''}>✓ Number</span>
+        <span className={/[^a-zA-Z0-9]/.test(password) ? 'text-success' : ''}>✓ Special char</span>
+      </div>
+    </div>
+  )
+}
+
 export default function Register() {
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '', password: '',
-    role_name: 'student', semester: '', enrollment_year: '',
+    semester: '', roll_number: '', enrollment_year: '',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -32,12 +86,19 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    
+    // Validate password length
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters long')
+      return
+    }
+    
     setLoading(true)
     try {
       const payload = {
         ...form,
-        semester: form.semester ? parseInt(form.semester, 10) : null,
-        enrollment_year: form.enrollment_year ? parseInt(form.enrollment_year, 10) : null,
+        semester: parseInt(form.semester, 10),
+        enrollment_year: parseInt(form.enrollment_year, 10),
       }
       await register(payload)
       navigate('/verify-otp')
@@ -127,7 +188,7 @@ export default function Register() {
             </span>
             <h1 className="text-3xl font-extrabold text-navy-900 tracking-tight">Create account</h1>
             <p className="text-navy-400 mt-2">
-              Join the CS Department's LMS — it takes less than a minute.
+              Students only — join the CS Department's LMS in under a minute.
             </p>
           </div>
 
@@ -137,32 +198,16 @@ export default function Register() {
             </div>
           )}
 
-          {/* Role selector */}
-          <div className="grid grid-cols-2 gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-200 mb-6">
-            {[
-              { value: 'student', label: 'Student' },
-              { value: 'teacher', label: 'Teacher' },
-            ].map((r) => (
-              <button
-                key={r.value}
-                type="button"
-                name="role_name"
-                onClick={() => setForm({ ...form, role_name: r.value })}
-                className={`py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  form.role_name === r.value
-                    ? 'bg-white text-navy-900 shadow-sm border border-surface-200'
-                    : 'text-navy-500 hover:text-navy-700'
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
+          {/* Student-only note */}
+          <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-accent-200 bg-accent-50 mb-6 text-xs text-accent-800">
+            <GraduationCap className="w-4 h-4 shrink-0 text-accent-600" />
+            Student registration only — accounts are verified via SMS OTP and auto-enrolled in your semester courses.
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="input-label">First name</label>
+                <label className="input-label">First name <span className="text-danger">*</span></label>
                 <div className="relative">
                   <User className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input name="first_name" value={form.first_name} onChange={handleChange}
@@ -170,7 +215,7 @@ export default function Register() {
                 </div>
               </div>
               <div>
-                <label className="input-label">Last name</label>
+                <label className="input-label">Last name <span className="text-danger">*</span></label>
                 <div className="relative">
                   <User className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input name="last_name" value={form.last_name} onChange={handleChange}
@@ -180,7 +225,7 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="input-label">Email</label>
+              <label className="input-label">Email <span className="text-danger">*</span></label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input type="email" name="email" value={form.email} onChange={handleChange}
@@ -189,7 +234,7 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="input-label">Phone number</label>
+              <label className="input-label">Phone number <span className="text-danger">*</span></label>
               <div className="relative">
                 <Phone className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input type="tel" name="phone" value={form.phone} onChange={handleChange}
@@ -198,7 +243,7 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="input-label">Password</label>
+              <label className="input-label">Password <span className="text-danger">*</span></label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -207,9 +252,9 @@ export default function Register() {
                   value={form.password}
                   onChange={handleChange}
                   className={`${inputBase} pr-11`}
-                  placeholder="Min. 6 characters"
+                  placeholder="Min. 8 characters"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
                 <button
                   type="button"
@@ -220,32 +265,40 @@ export default function Register() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <PasswordStrengthMeter password={form.password} />
             </div>
 
-            {form.role_name === 'student' && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="input-label">Semester</label>
-                  <div className="relative">
-                    <GraduationCap className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input type="number" name="semester" value={form.semester} onChange={handleChange}
-                      className={inputBase} min={1} max={8} placeholder="1 – 8" />
-                  </div>
-                </div>
-                <div>
-                  <label className="input-label">Enrollment year</label>
-                  <div className="relative">
-                    <CalendarDays className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input type="number" name="enrollment_year" value={form.enrollment_year} onChange={handleChange}
-                      className={inputBase} min={2020} max={2030} placeholder="2026" />
-                  </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="input-label">Semester <span className="text-danger">*</span></label>
+                <div className="relative">
+                  <GraduationCap className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input type="number" name="semester" value={form.semester} onChange={handleChange}
+                    className={inputBase} min={1} max={8} placeholder="1 – 8" required />
                 </div>
               </div>
-            )}
+              <div>
+                <label className="input-label">Roll number <span className="text-danger">*</span></label>
+                <div className="relative">
+                  <GraduationCap className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input name="roll_number" value={form.roll_number} onChange={handleChange}
+                    className={inputBase} placeholder="e.g. BS-CS-2024-001" required />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="input-label">Enrollment year <span className="text-danger">*</span></label>
+              <div className="relative">
+                <CalendarDays className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input type="number" name="enrollment_year" value={form.enrollment_year} onChange={handleChange}
+                  className={inputBase} min={2020} max={2030} placeholder="2026" required />
+              </div>
+            </div>
 
             <p className="flex items-center gap-2 text-xs text-navy-400">
               <ShieldCheck className="w-4 h-4 text-success shrink-0" />
-              OTP will be sent via SMS to verify your phone number.
+              An OTP will be sent to verify your phone number.
             </p>
 
             <button

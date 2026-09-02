@@ -45,10 +45,10 @@ export default function Submissions() {
   const gradedCount = (list) => list.filter(s => s.status === 'graded').length
 
   return (
-    <div className="p-6 lg:p-10 max-w-6xl mx-auto">
+    <div className="p-5 lg:p-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent-200 bg-accent-50 text-accent-700 text-[11px] font-bold uppercase tracking-widest mb-3">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
           <Inbox className="w-3 h-3" />
           Submission Review
         </span>
@@ -61,7 +61,7 @@ export default function Submissions() {
           <div className="w-10 h-10 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
         </div>
       ) : assignments.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-surface-200 border-dashed p-16 text-center">
+        <div className="border border-dashed border-surface-200 rounded-xl p-16 text-center">
           <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
             <ClipboardList className="w-7 h-7" />
           </span>
@@ -74,10 +74,10 @@ export default function Submissions() {
             {assignments.map((a) => (
               <div key={a.id}
                 onClick={() => viewSubmissions(a)}
-                className={`bg-white rounded-2xl border shadow-card p-4 cursor-pointer transition-all duration-300 group ${
+                className={`border rounded-xl p-4 cursor-pointer transition-all group ${
                   selected?.id === a.id
                     ? 'border-accent-500 ring-2 ring-accent-400/30 bg-accent-500/5'
-                    : 'border-surface-200 hover:shadow-card-hover hover:-translate-y-0.5'
+                    : 'border-surface-200 hover:border-accent-300'
                 }`}>
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 min-w-0">
@@ -113,7 +113,7 @@ export default function Submissions() {
           </div>
 
           {selected && (
-            <div className="bg-white rounded-2xl border border-surface-200 shadow-card overflow-hidden">
+            <div className="border border-surface-200 rounded-xl bg-white overflow-hidden">
               <div className="px-6 py-4 border-b border-surface-100 bg-surface-50/60 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-bold text-navy-900">Submissions for: {selected.title}</h2>

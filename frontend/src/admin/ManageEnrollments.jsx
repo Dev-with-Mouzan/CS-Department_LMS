@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { coursesAPI, usersAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
-import { UserPlus, BookOpen, Users, GraduationCap, CalendarDays, ArrowRight, CheckCircle2 } from 'lucide-react'
+import {
+  UserPlus, BookOpen, Users, GraduationCap, CalendarDays, CheckCircle2, Search, Layers,
+} from 'lucide-react'
 
 export default function ManageEnrollments() {
   const [courses, setCourses] = useState([])
@@ -13,6 +15,7 @@ export default function ManageEnrollments() {
   const [form, setForm] = useState({ student_id: '' })
   const [loading, setLoading] = useState(true)
   const [loadingEnroll, setLoadingEnroll] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => { loadData() }, [])
 
@@ -63,192 +66,177 @@ export default function ManageEnrollments() {
   const enrolledIds = enrollments.map((en) => en.student_id)
   const availableStudents = students.filter((s) => !enrolledIds.includes(s.id))
 
+  const filteredEnrollments = enrollments.filter((en) => {
+    const q = search.trim().toLowerCase()
+    const s = studentById(en.student_id)
+    if (!q) return true
+    return (
+      `${s?.first_name || ''} ${s?.last_name || ''}`.toLowerCase().includes(q) ||
+      (s?.username || '').toLowerCase().includes(q) ||
+      (s?.email || '').toLowerCase().includes(q)
+    )
+  })
+
+  const stats = [
+    { label: 'Courses', value: courses.length, icon: BookOpen, chip: 'bg-navy-900/10 text-navy-800 border-navy-900/10' },
+    { label: 'Students', value: students.length, icon: Users, chip: 'bg-success/10 text-success-dark border-success/20' },
+    { label: 'Enrolled', value: enrollments.length, icon: CheckCircle2, chip: 'bg-accent-500/10 text-accent-700 border-accent-200' },
+    { label: 'Course Semester', value: course?.semester ? `Sem ${course.semester}` : '—', icon: Layers, chip: 'bg-info/10 text-info-dark border-info/20' },
+  ]
+
   return (
-    <div className="p-6 lg:p-10 max-w-7xl">
+    <div className="p-5 lg:p-8 max-w-5xl mx-auto w-full">
       {/* Header */}
       <div className="text-center mb-8">
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent-200 bg-accent-50 text-accent-700 text-[11px] font-bold uppercase tracking-widest mb-3">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
           <Users className="w-3 h-3" />
           Enrollment Management
         </span>
-        <h1 className="text-3xl font-extrabold text-navy-900 tracking-tight">Enrollments</h1>
-        <p className="text-navy-400 mt-1.5">Enroll students into CS department courses.</p>
+        <h1 className="text-3xl font-bold text-navy-900 tracking-tight">Enrollments</h1>
+        <p className="text-sm text-navy-400 mt-1">
+          {enrollments.length} enrolled in {course ? `${course.course_code} — ${course.title}` : 'selected course'}
+          {search.trim() ? ` · ${filteredEnrollments.length} matching` : ''}
+        </p>
       </div>
 
-      {/* Actions */}
-      <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-        <Button onClick={() => { setShowModal(true); setForm({ student_id: '' }) }} disabled={!selectedCourse}>
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {stats.map((s) => (
+          <div key={s.label} className="border border-surface-200 rounded-xl bg-white p-4 flex items-center gap-3">
+            <span className={`inline-flex w-11 h-11 rounded-xl border items-center justify-center shrink-0 ${s.chip}`}>
+              <s.icon className="w-5 h-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-2xl font-extrabold text-navy-900 tracking-tight leading-none truncate">{s.value}</p>
+              <p className="text-xs font-medium text-navy-400 mt-1">{s.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar: course select + search + action */}
+      <div className="border border-surface-200 rounded-xl bg-white p-3 mb-8 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+        <div className="lg:w-72">
+          <select value={selectedCourse || ''} onChange={(e) => selectCourse(e.target.value)}
+            className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 transition-all">
+            <option value="">Select course</option>
+            {courses.map((c) => <option key={c.id} value={c.id}>{c.course_code} — {c.title}</option>)}
+          </select>
+        </div>
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search enrolled students by name, username or email..."
+            className="w-full pl-9 pr-4 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm text-navy-900 placeholder-navy-300 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 transition-all"
+          />
+        </div>
+        <Button onClick={() => { setShowModal(true); setForm({ student_id: '' }) }} disabled={!selectedCourse} className="lg:self-center">
           <UserPlus className="w-4 h-4" />
           Enroll Student
         </Button>
       </div>
 
-      {/* Summary chips */}
-      {courses.length > 0 && !loading && (
-        <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-surface-200 text-xs font-semibold text-navy-600 shadow-sm">
-            <BookOpen className="w-3.5 h-3.5 text-accent-600" />
-            {courses.length} Courses
-          </span>
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-surface-200 text-xs font-semibold text-navy-600 shadow-sm">
-            <Users className="w-3.5 h-3.5 text-success-dark" />
-            {students.length} Students
-          </span>
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-surface-200 text-xs font-semibold text-navy-600 shadow-sm">
-            <CheckCircle2 className="w-3.5 h-3.5 text-info" />
-            {enrollments.length} Total Enrolled
-          </span>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="min-h-[200px] flex items-center justify-center">
-          <div className="w-10 h-10 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
-        </div>
-      ) : courses.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-surface-200 border-dashed p-16 text-center">
-          <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-            <BookOpen className="w-7 h-7" />
-          </span>
-          <p className="text-navy-500 text-sm font-medium">No courses yet. Create a course to start enrolling students.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Course list */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="inline-flex w-7 h-7 rounded-lg bg-navy-900/5 text-navy-600 items-center justify-center">
-                <BookOpen className="w-3.5 h-3.5" />
+      {/* Table */}
+      <div className="border border-surface-200 rounded-xl bg-white overflow-hidden">
+        {/* Course header */}
+        {course && (
+          <div className="px-6 py-5 border-b border-surface-100 bg-surface-50/60 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="w-11 h-11 rounded-xl bg-accent-500/10 text-accent-600 border border-accent-200 flex items-center justify-center">
+                <BookOpen className="w-5 h-5" />
               </span>
-              <h2 className="text-sm font-bold text-navy-700 uppercase tracking-wider">Courses</h2>
+              <div>
+                <h2 className="text-base font-bold text-navy-900 tracking-tight">{course.title}</h2>
+                <p className="text-2xs font-mono text-navy-400 mt-0.5">Semester {course.semester || '—'} · {course.course_code}</p>
+              </div>
             </div>
-            <p className="text-xs text-navy-400 mb-4 pl-9">Select a course to view its enrolled students.</p>
-            <div className="space-y-3">
-              {courses.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => selectCourse(c.id)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all duration-300 group ${
-                    selectedCourse === c.id
-                      ? 'border-accent-500 bg-accent-500/5 shadow-md shadow-accent-500/10'
-                      : 'border-surface-200 bg-white hover:border-accent-300 hover:shadow-card hover:-translate-y-0.5'
-                  }`}
-                >
-                  <span className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                    selectedCourse === c.id ? 'bg-accent-500 text-white' : 'bg-navy-900/5 text-navy-600 group-hover:bg-navy-900/10'
-                  }`}>
-                    <BookOpen className="w-5 h-5" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-navy-900 truncate">{c.title}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-2xs font-mono text-navy-400">{c.course_code}</span>
-                      <span className={`h-1.5 w-1.5 rounded-full ${c.is_active ? 'bg-success' : 'bg-danger'}`} />
-                    </div>
-                  </div>
-                  <ArrowRight className={`w-4 h-4 shrink-0 transition-all ${
-                    selectedCourse === c.id ? 'text-accent-600 group-hover:translate-x-0.5' : 'text-navy-300 group-hover:text-accent-500 group-hover:translate-x-0.5'
-                  }`} />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-success/20 bg-success-light text-success-dark text-2xs font-bold">
+              <GraduationCap className="w-3.5 h-3.5" />
+              {enrollments.length} enrolled
+            </span>
+          </div>
+        )}
+
+        <div className="overflow-x-auto">
+          {loadingEnroll ? (
+            <div className="p-16 text-center">
+              <div className="w-8 h-8 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin mx-auto" />
+            </div>
+          ) : !selectedCourse ? (
+            <div className="p-16 text-center">
+              <span className="inline-flex w-12 h-12 rounded-2xl bg-navy-900/5 text-navy-400 border border-navy-900/10 items-center justify-center mb-3">
+                <Users className="w-6 h-6" />
+              </span>
+              <p className="text-navy-500 text-sm font-medium">Select a course to view its enrolled students.</p>
+            </div>
+          ) : filteredEnrollments.length === 0 ? (
+            <div className="p-16 text-center">
+              <span className="inline-flex w-12 h-12 rounded-2xl bg-navy-900/5 text-navy-400 border border-navy-900/10 items-center justify-center mb-3">
+                <Users className="w-6 h-6" />
+              </span>
+              <p className="text-navy-500 text-sm font-medium">
+                {search.trim() ? 'No enrolled students found matching your criteria.' : 'No students enrolled yet.'}
+              </p>
+              {!search.trim() && (
+                <button onClick={() => setShowModal(true)} className="mt-3 text-xs font-bold text-accent-600 hover:text-accent-700 transition-colors">
+                  Enroll a student +
                 </button>
-              ))}
+              )}
             </div>
-          </div>
-
-          {/* Enrolled students */}
-          <div className="lg:col-span-3">
-            {!selectedCourse ? (
-              <div className="h-full bg-white rounded-2xl border border-surface-200 border-dashed p-16 text-center flex flex-col items-center justify-center">
-                <span className="inline-flex w-14 h-14 rounded-2xl bg-navy-900/5 text-navy-400 border border-navy-900/10 items-center justify-center mb-4">
-                  <Users className="w-7 h-7" />
-                </span>
-                <p className="text-navy-500 text-sm font-medium">Select a course to view its enrolled students.</p>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl border border-surface-200 shadow-card overflow-hidden">
-                {/* Course header */}
-                <div className="px-6 py-5 border-b border-surface-100 bg-surface-50/60 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="w-11 h-11 rounded-xl bg-accent-500/10 text-accent-600 border border-accent-200 flex items-center justify-center">
-                      <BookOpen className="w-5 h-5" />
-                    </span>
-                    <div>
-                      <h2 className="text-base font-bold text-navy-900 tracking-tight">{course?.title}</h2>
-                      <p className="text-2xs font-mono text-navy-400 mt-0.5">{course?.course_code}</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-success/20 bg-success-light text-success-dark text-2xs font-bold">
-                    <GraduationCap className="w-3.5 h-3.5" />
-                    {enrollments.length} enrolled
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto">
-                  {loadingEnroll ? (
-                    <div className="p-16 text-center">
-                      <div className="w-8 h-8 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin mx-auto" />
-                    </div>
-                  ) : enrollments.length === 0 ? (
-                    <div className="p-16 text-center">
-                      <span className="inline-flex w-12 h-12 rounded-2xl bg-navy-900/5 text-navy-400 border border-navy-900/10 items-center justify-center mb-3">
-                        <Users className="w-6 h-6" />
-                      </span>
-                      <p className="text-navy-500 text-sm font-medium">No students enrolled yet.</p>
-                      <button onClick={() => setShowModal(true)} className="mt-3 text-xs font-bold text-accent-600 hover:text-accent-700 transition-colors">
-                        Enroll a student +
-                      </button>
-                    </div>
-                  ) : (
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-surface-200 bg-surface-50">
-                          <th className="px-6 py-3.5 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Student</th>
-                          <th className="px-6 py-3.5 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Email</th>
-                          <th className="px-6 py-3.5 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Enrolled</th>
-                          <th className="px-6 py-3.5 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-surface-100">
-                        {enrollments.map((en) => {
-                          const s = studentById(en.student_id)
-                          return (
-                            <tr key={en.id} className="hover:bg-surface-50 transition-colors">
-                              <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center">
-                                    <span className="text-navy-950 text-xs font-bold">{(s?.first_name?.[0] || '?')}{(s?.last_name?.[0] || '')}</span>
-                                  </div>
-                                  <span className="text-sm font-semibold text-navy-900">{s?.first_name} {s?.last_name}</span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-sm text-navy-500">{s?.email || '—'}</td>
-                              <td className="px-6 py-4">
-                                <span className="inline-flex items-center gap-1.5 text-xs text-navy-400 font-medium">
-                                  <CalendarDays className="w-3.5 h-3.5 text-accent-500" />
-                                  {new Date(en.enrollment_date).toLocaleDateString()}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold ${
-                                  en.status === 'active'
-                                    ? 'bg-success-light text-success-dark border border-success/20'
-                                    : 'bg-surface-100 text-navy-400 border border-surface-200'
-                                }`}>
-                                  <CheckCircle2 className={`w-3 h-3 ${en.status === 'active' ? 'text-success' : 'text-navy-300'}`} />
-                                  {en.status}
-                                </span>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-surface-200 bg-surface-50/60">
+                  <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Student</th>
+                  <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Enrolled</th>
+                  <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-100">
+                {filteredEnrollments.map((en) => {
+                  const s = studentById(en.student_id)
+                  return (
+                    <tr key={en.id} className="hover:bg-surface-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center shrink-0">
+                            <span className="text-navy-950 text-xs font-bold">{(s?.first_name?.[0] || '?')}{(s?.last_name?.[0] || '')}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-navy-900 truncate">{s?.first_name} {s?.last_name}</p>
+                            <p className="text-2xs font-mono text-navy-300">{s?.username ? `@${s.username}` : (s?.phone || '—')}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-navy-500">{s?.email || '—'}</td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-navy-400 font-medium">
+                          <CalendarDays className="w-3.5 h-3.5 text-accent-500" />
+                          {new Date(en.enrollment_date).toLocaleDateString()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold ${
+                          en.status === 'active'
+                            ? 'bg-success-light text-success-dark border border-success/20'
+                            : 'bg-surface-100 text-navy-400 border border-surface-200'
+                        }`}>
+                          <CheckCircle2 className={`w-3 h-3 ${en.status === 'active' ? 'text-success' : 'text-navy-300'}`} />
+                          {en.status}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
-      )}
+      </div>
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Enroll Student">
         <form onSubmit={handleEnroll} className="space-y-4">

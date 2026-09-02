@@ -1,12 +1,11 @@
 from typing import List
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_admin, require_teacher, require_student
-from app.models import User, Course, Enrollment, Role
+from app.models import User, Course, Enrollment, Role, StudentProfile
 from app.schemas.course import CourseCreate, CourseUpdate, CourseOut, EnrollmentCreate, EnrollmentOut
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
@@ -55,7 +54,7 @@ def create_course(
 
 @router.get("/{course_id}", response_model=CourseOut)
 def get_course(
-    course_id: UUID,
+    course_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -81,7 +80,7 @@ def get_course(
 
 @router.put("/{course_id}", response_model=CourseOut)
 def update_course(
-    course_id: UUID,
+    course_id: str,
     data: CourseUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -102,7 +101,7 @@ def update_course(
 
 @router.delete("/{course_id}")
 def delete_course(
-    course_id: UUID,
+    course_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -119,7 +118,7 @@ def delete_course(
 # ── Enrollment ────────────────────────────────────────
 @router.post("/{course_id}/enroll", response_model=EnrollmentOut)
 def enroll_student(
-    course_id: UUID,
+    course_id: str,
     data: EnrollmentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -148,7 +147,7 @@ def enroll_student(
 
 @router.get("/{course_id}/enrollments", response_model=List[EnrollmentOut])
 def list_enrollments(
-    course_id: UUID,
+    course_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -169,7 +168,28 @@ def list_enrollments(
         if not enrollment:
             raise HTTPException(status_code=403, detail="Not enrolled in this course")
 
-    return db.query(Enrollment).filter(
+    enrollments = db.query(Enrollment).filter(
         Enrollment.course_id == course_id,
         Enrollment.status == "active",
     ).all()
+
+    result = []
+    for e in enrollments:
+        student = db.query(User).filter(User.id == e.student_id).first()
+        profile = db.query(StudentProfile).filter(StudentProfile.user_id == e.student_id).first()
+        student_name = None
+        roll_number = None
+        if student:
+            student_name = f"{student.first_name} {student.last_name}".strip()
+        if profile:
+            roll_number = profile.roll_number
+        result.append(EnrollmentOut(
+            id=e.id,
+            student_id=e.student_id,
+            course_id=e.course_id,
+            enrollment_date=e.enrollment_date,
+            status=e.status,
+            student_name=student_name,
+            roll_number=roll_number,
+        ))
+    return result

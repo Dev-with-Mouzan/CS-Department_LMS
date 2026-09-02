@@ -18,13 +18,21 @@ from app.services.auth_service import (
 from app.services.otp_service import (
     create_otp, verify_otp, can_resend_otp
 )
+from app.services.enrollment_service import auto_enroll_student
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
+@router.get("/user-count")
+def get_user_count(db: Session = Depends(get_db)):
+    """Check if any users exist in the system (public endpoint)."""
+    count = db.query(User).count()
+    return {"count": count, "has_users": count > 0}
+
+
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
-    """Register a new user."""
+    """Register a new student account (teachers are created by admin only)."""
     existing = get_user_by_email(db, data.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -33,7 +41,12 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if phone_existing:
         raise HTTPException(status_code=400, detail="Phone number already registered")
 
+    username_existing = db.query(User).filter(User.username == data.username).first()
+    if username_existing:
+        raise HTTPException(status_code=400, detail="Username already taken")
+
     user_data = data.model_dump()
+    user_data["role_name"] = "student"
     user = create_user(db, user_data)
 
     # Generate OTP for verification
@@ -69,6 +82,10 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     role = user.role.name
     token = create_access_token(user.id, role, user.is_verified)
 
+    # Ensure verified students stay enrolled in their semester courses (idempotent)
+    if role == "student" and user.is_verified:
+        auto_enroll_student(db, user)
+
     return TokenResponse(
         access_token=token,
         user_id=str(user.id),
@@ -94,7 +111,12 @@ def verify_otp_code(data: OTPVerifyRequest, db: Session = Depends(get_db)):
             detail="Invalid or expired OTP code",
         )
 
-    return MessageResponse(message="Account verified successfully")
+    # Auto-enroll student in all courses for their semester
+    enrolled = auto_enroll_student(db, user)
+
+    return MessageResponse(
+        message=f"Account verified successfully",
+    )
 
 
 @router.post("/resend-otp", response_model=MessageResponse)
@@ -148,15 +170,24 @@ def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-def get_me(current_user: User = Depends(get_current_user)):
+def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get current user profile."""
+    from app.models import StudentProfile
+    semester = None
+    if current_user.role.name == "student":
+        profile = db.query(StudentProfile).filter(
+            StudentProfile.user_id == current_user.id
+        ).first()
+        semester = profile.semester if profile else None
     return {
         "id": str(current_user.id),
         "first_name": current_user.first_name,
         "last_name": current_user.last_name,
+        "username": current_user.username,
         "email": current_user.email,
         "phone": current_user.phone,
         "role": current_user.role.name,
         "is_verified": current_user.is_verified,
         "is_active": current_user.is_active,
+        "semester": semester,
     }
