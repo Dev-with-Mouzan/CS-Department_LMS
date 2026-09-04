@@ -78,6 +78,24 @@ export default function ManageNotices() {
     catch { alert('Failed') }
   }
 
+  const handleDownload = async (url, fileName) => {
+    try {
+      const response = await fetch(`/${url}`)
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = fileName || url.split('/').pop()
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(downloadUrl)
+    } catch (err) {
+      console.error('Download failed:', err)
+      window.open(`/${url}`, '_blank')
+    }
+  }
+
   const filtered = notices.filter(n => {
     const q = search.trim().toLowerCase()
     if (!q) return true
@@ -155,11 +173,11 @@ export default function ManageNotices() {
                         <p className="text-xs text-navy-400 mt-1 line-clamp-2">{n.content}</p>
                       )}
                       {n.file_url && (
-                        <a href={`/${n.file_url}`} target="_blank" rel="noreferrer"
+                        <button onClick={() => handleDownload(n.file_url, n.file_name)}
                           className="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 mt-1.5">
                           <File className="w-3 h-3" />
                           View attachment
-                        </a>
+                        </button>
                       )}
                       <p className="text-[10px] text-navy-300 mt-2">
                         {n.author_name} · {new Date(n.created_at).toLocaleDateString()}
@@ -227,7 +245,7 @@ export default function ManageNotices() {
             <span className="text-sm font-medium text-navy-700">Pin to top</span>
           </label>
           {editing?.file_url && !file && (
-            <p className="text-xs text-navy-400">Current attachment: <a href={`/${editing.file_url}`} target="_blank" rel="noreferrer" className="text-accent-600 hover:underline">view file</a></p>
+            <p className="text-xs text-navy-400">Current attachment: <button type="button" onClick={() => handleDownload(editing.file_url, editing.file_name)} className="text-accent-600 hover:underline">view file</button></p>
           )}
           <div className="flex gap-3 justify-end pt-2">
             <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>

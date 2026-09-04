@@ -1,11 +1,9 @@
 import io
 from typing import List
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_teacher, require_student
@@ -52,7 +50,7 @@ def create_session(
 
 @router.get("/sessions", response_model=List[AttendanceSessionOut])
 def list_sessions(
-    course_id: UUID = None,
+    course_id: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -63,10 +61,10 @@ def list_sessions(
     if role == "teacher":
         query = query.filter(AttendanceSession.teacher_id == current_user.id)
     elif role == "student":
-        enrolled_ids = db.query(Enrollment.course_id).filter(
+        enrolled_ids = select(Enrollment.course_id).filter(
             Enrollment.student_id == current_user.id,
             Enrollment.status == "active",
-        ).subquery()
+        )
         query = query.filter(AttendanceSession.course_id.in_(enrolled_ids))
 
     if course_id:
@@ -78,7 +76,7 @@ def list_sessions(
 # ── Attendance Records ────────────────────────────────
 @router.post("/sessions/{session_id}/records", response_model=List[AttendanceRecordOut])
 def mark_attendance(
-    session_id: UUID,
+    session_id: str,
     data: AttendanceRecordBulk,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_teacher),
@@ -128,7 +126,7 @@ def mark_attendance(
 
 @router.get("/sessions/{session_id}/records", response_model=List[AttendanceRecordOut])
 def get_session_records(
-    session_id: UUID,
+    session_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -194,8 +192,8 @@ def export_attendance_excel(
 # ── Attendance Percentage ─────────────────────────────
 @router.get("/student/{student_id}/course/{course_id}", response_model=AttendancePercentageOut)
 def get_attendance_percentage(
-    student_id: UUID,
-    course_id: UUID,
+    student_id: str,
+    course_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -203,7 +201,7 @@ def get_attendance_percentage(
     role = current_user.role.name
 
     # Students can only view their own attendance
-    if role == "student" and current_user.id != student_id:
+    if role == "student" and str(current_user.id) != student_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Verify enrollment

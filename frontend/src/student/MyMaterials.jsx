@@ -27,6 +27,25 @@ export default function MyMaterials() {
 
   const courses = [...new Map(materials.map(m => [m.course_id, { id: m.course_id, name: m.course_name }])).values()]
 
+  const handleDownload = async (url, fileName) => {
+    try {
+      const response = await fetch(`/${url}`)
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = fileName || url.split('/').pop()
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(downloadUrl)
+    } catch (err) {
+      console.error('Download failed:', err)
+      // Fallback: open in new tab
+      window.open(`/${url}`, '_blank')
+    }
+  }
+
   const filtered = materials.filter(m => {
     const q = search.trim().toLowerCase()
     const courseMatch = !filterCourse || m.course_id === filterCourse
@@ -105,10 +124,10 @@ export default function MyMaterials() {
                           <span className="text-[10px] text-navy-300">· {new Date(m.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
-                      <a href={`/${m.file_url}`} target="_blank" rel="noreferrer" title="Download"
+                      <button onClick={() => handleDownload(m.file_url, m.file_name)} title="Download"
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-accent-600 border border-accent-200 bg-accent-50 hover:bg-accent-100 transition-colors shrink-0">
                         <Download className="w-3.5 h-3.5" />
-                      </a>
+                      </button>
                     </div>
                   )
                 })}

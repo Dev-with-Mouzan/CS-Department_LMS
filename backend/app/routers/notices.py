@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -70,10 +71,10 @@ def list_notices(
         # Admin notices (target_semester is null = all students)
         # + Teacher notices targeting this student's semester (or null = all)
         # + Teacher notices from teachers teaching courses in this semester
-        teacher_course_semesters = db.query(Course.semester).filter(
+        teacher_course_semesters = select(Course.semester).filter(
             Course.teacher_id == Notice.posted_by,
             Course.semester.isnot(None),
-        ).distinct().subquery()
+        ).distinct()
 
         query = query.filter(
             # Admin posts with no specific semester target

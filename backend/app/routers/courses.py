@@ -1,6 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -26,10 +27,10 @@ def list_courses(
     elif role == "teacher":
         return db.query(Course).filter(Course.teacher_id == current_user.id).offset(skip).limit(limit).all()
     else:  # student
-        enrolled_course_ids = db.query(Enrollment.course_id).filter(
+        enrolled_course_ids = select(Enrollment.course_id).filter(
             Enrollment.student_id == current_user.id,
             Enrollment.status == "active",
-        ).subquery()
+        )
         return db.query(Course).filter(Course.id.in_(enrolled_course_ids)).offset(skip).limit(limit).all()
 
 

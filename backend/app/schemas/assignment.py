@@ -46,6 +46,8 @@ class SubmissionOut(BaseModel):
     id: str
     assignment_id: str
     student_id: str
+    student_name: Optional[str] = None
+    roll_number: Optional[str] = None
     file_url: Optional[str] = None
     submitted_at: datetime
     grade: Optional[float] = None

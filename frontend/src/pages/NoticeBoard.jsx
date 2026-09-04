@@ -63,6 +63,24 @@ export default function NoticeBoard() {
 
   const semesters = [...new Set(courses.map(c => c.semester).filter(Boolean))].sort((a, b) => a - b)
 
+  const handleDownload = async (url, fileName) => {
+    try {
+      const response = await fetch(`/${url}`)
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = fileName || url.split('/').pop()
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(downloadUrl)
+    } catch (err) {
+      console.error('Download failed:', err)
+      window.open(`/${url}`, '_blank')
+    }
+  }
+
   return (
     <div className="p-5 lg:p-8 max-w-3xl mx-auto w-full">
       {/* Header */}
@@ -160,7 +178,7 @@ export default function NoticeBoard() {
             const cat = CATEGORY_CONFIG[n.category] || CATEGORY_CONFIG.news
             const CatIcon = cat.icon
             return (
-              <div key={n.id} className="border border-surface-200 rounded-xl bg-white p-5">
+              <div key={n.id} className="bg-white rounded-2xl shadow-sm border border-surface-100 p-5 hover:shadow-md hover:border-surface-200 transition-all">
                 <div className="flex items-start gap-3">
                   <span className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border ${cat.color}`}>
                     <CatIcon className="w-5 h-5" />
@@ -193,11 +211,11 @@ export default function NoticeBoard() {
                       <p className="text-sm text-navy-500 mt-2 leading-relaxed whitespace-pre-wrap">{n.content}</p>
                     )}
                     {n.file_url && (
-                      <a href={`/${n.file_url}`} target="_blank" rel="noreferrer"
+                      <button onClick={() => handleDownload(n.file_url, n.file_name)}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-accent-600 hover:text-accent-700 mt-3 px-3 py-1.5 rounded-lg bg-accent-500/5 border border-accent-500/15 hover:bg-accent-500/10 transition-colors">
                         <File className="w-3.5 h-3.5" />
                         View attachment
-                      </a>
+                      </button>
                     )}
                     <div className="flex items-center gap-2 mt-3 text-[10px] text-navy-300">
                       <CalendarDays className="w-3 h-3" />

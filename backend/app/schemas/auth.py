@@ -7,6 +7,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterResponse(BaseModel):
+    message: str
+    email: str
+    phone: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -18,7 +24,6 @@ class TokenResponse(BaseModel):
 class RegisterRequest(BaseModel):
     first_name: str
     last_name: str
-    username: str
     email: EmailStr
     phone: str  # required — OTP verification destination
     password: str
@@ -39,11 +44,11 @@ class OTPResendRequest(BaseModel):
 
 
 class PasswordResetRequest(BaseModel):
-    email: EmailStr
+    phone: str
 
 
 class PasswordResetConfirm(BaseModel):
-    email: EmailStr
+    phone: str
     otp_code: str
     new_password: str
 

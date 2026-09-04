@@ -28,7 +28,6 @@ def create_user(db: Session, user_data: dict) -> User:
     user = User(
         first_name=user_data["first_name"],
         last_name=user_data["last_name"],
-        username=user_data.get("username"),
         email=user_data["email"],
         phone=user_data.get("phone"),
         password_hash=hash_password(user_data["password"]),
@@ -43,9 +42,6 @@ def create_user(db: Session, user_data: dict) -> User:
     if role.name == "teacher":
         profile = TeacherProfile(
             user_id=user.id,
-            employee_id=user_data.get("employee_id"),
-            department=user_data.get("department"),
-            qualification=user_data.get("qualification"),
         )
         db.add(profile)
     elif role.name == "student":
@@ -88,3 +84,30 @@ def create_default_roles(db: Session) -> None:
         if not db.query(Role).filter(Role.name == name).first():
             db.add(Role(name=name, description=desc))
     db.commit()
+
+
+def create_default_admin(db: Session) -> None:
+    """Create a default admin user on first startup if none exists."""
+    from app.config import settings
+
+    admin_role = get_role_by_name(db, "admin")
+    if not admin_role:
+        return
+
+    existing_admin = db.query(User).filter(User.role_id == admin_role.id).first()
+    if existing_admin:
+        return
+
+    admin = User(
+        first_name="System",
+        last_name="Admin",
+        email=settings.ADMIN_EMAIL,
+        phone=None,
+        password_hash=hash_password(settings.ADMIN_PASSWORD),
+        role_id=admin_role.id,
+        is_verified=True,
+        is_active=True,
+    )
+    db.add(admin)
+    db.commit()
+    print(f"✅ Default admin created — Email: {settings.ADMIN_EMAIL}")

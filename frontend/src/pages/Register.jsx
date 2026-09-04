@@ -97,6 +97,7 @@ export default function Register() {
     try {
       const payload = {
         ...form,
+        phone: `+92${form.phone}`,
         semester: parseInt(form.semester, 10),
         enrollment_year: parseInt(form.enrollment_year, 10),
       }
@@ -231,14 +232,12 @@ export default function Register() {
                 <input type="email" name="email" value={form.email} onChange={handleChange}
                   className={inputBase} placeholder="you@example.com" required />
               </div>
-            </div>
-
-            <div>
+            </div>              <div>
               <label className="input-label">Phone number <span className="text-danger">*</span></label>
-              <div className="relative">
-                <Phone className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <div className="relative flex">
+                <span className="flex items-center pl-3.5 pr-2 bg-surface-100 border border-r-0 border-surface-200 rounded-l-xl text-sm font-semibold text-navy-600 select-none">+92</span>
                 <input type="tel" name="phone" value={form.phone} onChange={handleChange}
-                  className={inputBase} placeholder="+92 3XX XXXXXXX" required />
+                  className="w-full px-4 py-2.5 bg-surface-0 border border-surface-200 rounded-r-xl text-sm text-navy-900 placeholder-navy-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 hover:border-navy-300" placeholder="3XX XXXXXXX" required />
               </div>
             </div>
 

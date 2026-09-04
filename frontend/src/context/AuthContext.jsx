@@ -40,20 +40,26 @@ export function AuthProvider({ children }) {
 
   const register = async (data) => {
     const res = await authAPI.register(data)
-    const { access_token, user_id, role, is_verified } = res.data
-    const userData = { id: user_id, role, is_verified, email: data.email, phone: data.phone, username: data.username }
-    localStorage.setItem('token', access_token)
-    localStorage.setItem('user', JSON.stringify(userData))
-    setToken(access_token)
-    setUser(userData)
+    // Don't auto-login — store email/phone for the OTP screen
+    localStorage.setItem('pendingVerification', JSON.stringify({ email: data.email, phone: data.phone }))
     return res.data
   }
 
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    localStorage.removeItem('pendingVerification')
     setToken(null)
     setUser(null)
+  }
+
+  const loginAfterVerify = (access_token, user_id, role, is_verified, email) => {
+    const userData = { id: user_id, role, is_verified, email }
+    localStorage.setItem('token', access_token)
+    localStorage.setItem('user', JSON.stringify(userData))
+    localStorage.removeItem('pendingVerification')
+    setToken(access_token)
+    setUser(userData)
   }
 
   const value = {
@@ -63,6 +69,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    loginAfterVerify,
     isAdmin: user?.role === 'admin',
     isTeacher: user?.role === 'teacher',
     isStudent: user?.role === 'student',

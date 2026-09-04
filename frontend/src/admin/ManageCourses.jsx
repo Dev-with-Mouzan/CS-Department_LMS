@@ -3,8 +3,8 @@ import { coursesAPI, usersAPI, attendanceAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import {
-  BookOpen, PlusCircle, Trash2, CalendarDays, Pencil, Power, Search, GraduationCap,
-  UserCheck, CheckCircle2, Building2, Download,
+  BookOpen, PlusCircle, Trash2, CalendarDays, Pencil, Search, GraduationCap,
+  UserCheck, CheckCircle2, Download,
 } from 'lucide-react'
 
 export default function ManageCourses() {

@@ -67,6 +67,24 @@ export default function ManageMaterials() {
     } catch { alert('Failed') }
   }
 
+  const handleDownload = async (url, fileName) => {
+    try {
+      const response = await fetch(`/${url}`)
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = fileName || url.split('/').pop()
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(downloadUrl)
+    } catch (err) {
+      console.error('Download failed:', err)
+      window.open(`/${url}`, '_blank')
+    }
+  }
+
   const filtered = materials.filter(m => {
     const q = search.trim().toLowerCase()
     const courseMatch = !filterCourse || m.course_id === filterCourse
@@ -139,10 +157,10 @@ export default function ManageMaterials() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <a href={`/${m.file_url}`} target="_blank" rel="noreferrer" title="Download"
+                  <button onClick={() => handleDownload(m.file_url, m.file_name)} title="Download"
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-accent-600 border border-accent-200 bg-accent-50 hover:bg-accent-100 transition-colors">
                     <Download className="w-3.5 h-3.5" />
-                  </a>
+                  </button>
                   <button onClick={() => handleDelete(m)} title="Delete"
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-red-600 border border-red-200 bg-white hover:bg-red-50 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
