@@ -8,8 +8,8 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database.database import get_db, SessionLocal
-from app.models import User, Role
+from app.database.database import get_db
+from app.models import User
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -76,17 +76,12 @@ def get_current_user(
 # ── Role-Based Dependencies ───────────────────────────
 def _check_role(user: User, allowed_roles: List[str]) -> User:
     """Helper to check user role."""
-    db = SessionLocal()
-    try:
-        role = db.query(Role).filter(Role.id == user.role_id).first()
-        if role is None or role.name not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied. Required roles: {', '.join(allowed_roles)}",
-            )
-        return user
-    finally:
-        db.close()
+    if user.role is None or user.role.name not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied. Required roles: {', '.join(allowed_roles)}",
+        )
+    return user
 
 
 def require_admin(current_user: User = Depends(get_current_user)) -> User:

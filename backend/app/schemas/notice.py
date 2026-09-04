@@ -26,6 +26,7 @@ class NoticeOut(BaseModel):
     posted_by: str
     author_name: Optional[str] = None
     author_role: Optional[str] = None
+    target_semester: Optional[int] = None
     is_pinned: bool
     expires_at: Optional[datetime] = None
     created_at: datetime

@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   Award,
   ChevronLeft,
+  ShieldAlert,
+  X,
 } from 'lucide-react'
 
 export default function MyAssignments() {
@@ -17,6 +19,7 @@ export default function MyAssignments() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(null)
   const [message, setMessage] = useState('')
+  const [confirmModal, setConfirmModal] = useState({ open: false, assignmentId: null, fileName: '', file: null })
 
   useEffect(() => { loadAssignments() }, [])
 
@@ -26,7 +29,13 @@ export default function MyAssignments() {
     finally { setLoading(false) }
   }
 
-  const handleUpload = async (assignmentId, file) => {
+  const handleFileSelect = (assignmentId, file) => {
+    setConfirmModal({ open: true, assignmentId, fileName: file.name, file })
+  }
+
+  const handleConfirmUpload = async () => {
+    const { assignmentId, file } = confirmModal
+    setConfirmModal({ open: false, assignmentId: null, fileName: '', file: null })
     setUploading(assignmentId)
     setMessage('')
     try {
@@ -40,6 +49,49 @@ export default function MyAssignments() {
 
   return (
     <div className="p-6 lg:p-10 max-w-5xl mx-auto">
+      {/* Confirmation Modal */}
+      {confirmModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm" onClick={() => setConfirmModal({ open: false, assignmentId: null, fileName: '', file: null })} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-fade-in">
+            <button
+              onClick={() => setConfirmModal({ open: false, assignmentId: null, fileName: '', file: null })}
+              className="absolute top-4 right-4 text-navy-300 hover:text-navy-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="text-center mb-5">
+              <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-warning/10 text-warning-dark border border-warning/20 mb-4">
+                <ShieldAlert className="w-6 h-6" />
+              </span>
+              <h2 className="text-lg font-bold text-navy-900">Confirm Submission</h2>
+              <p className="text-sm text-navy-400 mt-1">
+                You are about to submit <span className="font-semibold text-navy-700">{confirmModal.fileName}</span>.
+              </p>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
+              <p className="text-xs text-amber-800 leading-relaxed">
+                ⚠️ <strong>Please note:</strong> Once submitted, you may not be able to change your file. Make sure you have selected the correct file before proceeding.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmModal({ open: false, assignmentId: null, fileName: '', file: null })}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold border border-surface-200 text-navy-600 hover:bg-surface-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmUpload}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-accent-500 text-white hover:bg-accent-400 transition-colors"
+              >
+                Yes, Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center mb-8">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
@@ -109,30 +161,33 @@ export default function MyAssignments() {
                       )}
                     </div>
                   </div>
+                </div>
 
-                  {!isPast && (
-                    <label className="cursor-pointer ml-4 shrink-0">
+                {/* Submit button moved below, full width row */}
+                {!isPast && (
+                  <div className="mt-4 pt-4 border-t border-surface-100">
+                    <label className="cursor-pointer block">
                       <input type="file" className="hidden"
                         accept=".pdf,.doc,.docx,.txt,.zip,.png,.jpg,.jpeg"
-                        onChange={(e) => e.target.files[0] && handleUpload(a.id, e.target.files[0])} />
-                      <span className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-accent-500 text-white hover:bg-accent-400 shadow-md shadow-accent-500/20 transition-colors ${
+                        onChange={(e) => e.target.files[0] && handleFileSelect(a.id, e.target.files[0])} />
+                      <span className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-accent-500 text-white hover:bg-accent-400 shadow-md shadow-accent-500/20 transition-colors ${
                         uploading === a.id ? 'opacity-70 pointer-events-none' : ''
                       }`}>
                         {uploading === a.id ? (
                           <span className="flex items-center gap-1.5">
                             <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                            Uploading
+                            Uploading...
                           </span>
                         ) : (
                           <>
                             <UploadCloud className="w-3.5 h-3.5" />
-                            Submit
+                            Submit Assignment
                           </>
                         )}
                       </span>
                     </label>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )
           })}

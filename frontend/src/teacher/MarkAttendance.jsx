@@ -17,6 +17,7 @@ export default function MarkAttendance() {
   const [students, setStudents] = useState([])
   const [attendance, setAttendance] = useState({})
   const [topic, setTopic] = useState('')
+  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
@@ -35,12 +36,16 @@ export default function MarkAttendance() {
   const handleCourseSelect = (c) => { setSelectedCourse(c); loadStudents(c.id); setMessage('') }
 
   const handleSubmit = async () => {
+    if (!attendanceDate) {
+      setMessage('Please select an attendance date')
+      return
+    }
     setSubmitting(true)
     try {
       const now = new Date()
       const session = await attendanceAPI.createSession({
         course_id: selectedCourse.id,
-        session_date: now.toISOString().split('T')[0],
+        session_date: attendanceDate,
         start_time: now.toTimeString().slice(0, 5),
         topic: topic || null,
       })
@@ -99,12 +104,19 @@ export default function MarkAttendance() {
 
       {selectedCourse && (
         <>
-          {/* Topic input */}
-          <div className="mb-5 max-w-md mx-auto">
-            <label className="input-label">Session topic (optional)</label>
-            <input value={topic} onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g. Chapter 5 - Data Structures"
-              className="input-field" />
+          {/* Date + Topic inputs */}
+          <div className="mb-5 max-w-md mx-auto space-y-4">
+            <div>
+              <label className="input-label">Attendance Date <span className="text-red-500">*</span></label>
+              <input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)}
+                required className="input-field" />
+            </div>
+            <div>
+              <label className="input-label">Session topic (optional)</label>
+              <input value={topic} onChange={(e) => setTopic(e.target.value)}
+                placeholder="e.g. Chapter 5 - Data Structures"
+                className="input-field" />
+            </div>
           </div>
 
           {/* Stats bar */}
@@ -160,7 +172,7 @@ export default function MarkAttendance() {
 
           {/* Save + Download buttons */}
           <div className="flex justify-center gap-3">
-            <Button onClick={handleSubmit} disabled={submitting}>
+            <Button onClick={handleSubmit} disabled={submitting || !attendanceDate}>
               <Save className="w-4 h-4" />
               {submitting ? 'Saving...' : 'Save Attendance'}
             </Button>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatedSection, StaggerContainer } from '../hooks/useScrollReveal.jsx'
 import ChatWidget from '../components/ChatWidget'
@@ -31,6 +31,8 @@ import {
   Twitter,
   Youtube,
   UserPlus,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 
 /* ─────────────────────────────── Navbar ─────────────────────────────── */
@@ -661,6 +663,102 @@ function HowItWorks() {
   )
 }
 
+/* ─────────────────────────── Faculty Carousel ─────────────────────────── */
+function FacultyCarousel({ faculty }) {
+  const [current, setCurrent] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  const timerRef = useRef(null)
+  const maxIndex = Math.max(0, faculty.length - 3)
+  const CARD_W = 334
+  const GAP = 32
+  const STEP = CARD_W + GAP
+
+  const go = (dir) => {
+    setCurrent((prev) => {
+      const next = prev + dir
+      if (next < 0) return maxIndex
+      if (next > maxIndex) return 0
+      return next
+    })
+  }
+
+  useEffect(() => {
+    if (isPaused) return
+    timerRef.current = setInterval(() => go(1), 4000)
+    return () => clearInterval(timerRef.current)
+  }, [isPaused])
+
+  return (
+    <div
+      className="relative mx-auto"
+      style={{ maxWidth: '1100px', height: '440px' }}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {/* Track */}
+      <div className="overflow-hidden h-full">
+        <div
+          className="flex h-full"
+          style={{
+            gap: `${GAP}px`,
+            transform: `translateX(-${current * STEP}px)`,
+            transition: 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          {faculty.map((f, i) => (
+            <div key={f.name} className="shrink-0 flex flex-col bg-white rounded-2xl border border-surface-200 overflow-hidden group hover:-translate-y-1 hover:shadow-lg transition-all duration-300" style={{ width: `${CARD_W}px`, height: '420px' }}>
+              {/* Photo */}
+              <div className="relative h-56 overflow-hidden">
+                <img src={f.image} alt={f.name} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                <div className="absolute bottom-3 left-4 right-4">
+                  <p className="text-base font-bold text-white drop-shadow-lg">{f.name}</p>
+                  <p className="text-xs font-semibold text-accent-400">{f.title}</p>
+                </div>
+              </div>
+              {/* Details */}
+              <div className="flex-1 flex flex-col justify-between px-4 py-3">
+                <div>
+                  <div className="flex items-start gap-2 mb-2">
+                    <GraduationCap className="w-4 h-4 text-accent-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-navy-800">{f.qualification}</p>
+                      <p className="text-[11px] text-navy-400">{f.university}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <BookOpen className="w-4 h-4 text-accent-500 mt-0.5 shrink-0" />
+                    <div className="flex flex-wrap gap-1.5">
+                      {f.research.map((r) => (
+                        <span key={r} className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-accent-50 text-accent-700 border border-accent-100">{r}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                {f.email && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-surface-100">
+                    <Mail className="w-3.5 h-3.5 text-accent-500 shrink-0" />
+                    <a href={`mailto:${f.email}`} className="text-[11px] text-navy-600 hover:text-accent-600 transition-colors">{f.email}</a>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Left Arrow */}
+      <button onClick={() => go(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+        <ChevronLeft className="w-5 h-5 text-navy-600" />
+      </button>
+
+      {/* Right Arrow */}
+      <button onClick={() => go(1)} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+        <ChevronRight className="w-5 h-5 text-navy-600" />
+      </button>
+    </div>
+  )
+}
+
 /* ─────────────────────────── Faculty ─────────────────────────── */
 function Faculty() {
   const faculty = [
@@ -676,13 +774,63 @@ function Faculty() {
     },
     {
       name: 'Muhammad Imran',
-      title: 'Assistant Professor & IT Focal Person',
+      title: 'Lecturer & IT Focal Person',
       department: 'Department of Computer Science',
-      qualification: 'M.Phil. in Computer Science',
+      qualification: 'MS in Computer Science',
       university: 'Govt. Graduate College Burewala',
       research: ['Web Development', 'IT Systems', 'Educational Technology'],
       email: 'imran.cs@ggcb.edu.pk',
       image: '/Prof Imran sb.jfif',
+    },
+    {
+      name: 'Farah Mumtaz',
+      title: 'Assistant Professor',
+      department: 'Department of Computer Science',
+      qualification: 'M.Phil in Computer Science',
+      university: 'Govt. Graduate College Burewala',
+      research: ['Software Engineering', 'Web Development'],
+      email: 'farah.cs@ggcb.edu.pk',
+      image: 'https://ggcb.edu.pk/uploads/staff/6a1afbda35ce5_1780153306.jpg',
+    },
+    {
+      name: 'Mubashar Ahmad Shakeel',
+      title: 'Assistant Professor',
+      department: 'Department of Computer Science',
+      qualification: 'MSc in Computer Science',
+      university: 'Govt. Graduate College Burewala',
+      research: ['Data Structures', 'Algorithms'],
+      email: 'mubashar.cs@ggcb.edu.pk',
+      image: 'https://ggcb.edu.pk/uploads/staff/6a1afe46d426e_1780153926.jpg',
+    },
+    {
+      name: 'Dr. Israr Ahmad',
+      title: 'Lecturer',
+      department: 'Department of Computer Science',
+      qualification: 'Ph.D in Computer Science',
+      university: 'Govt. Graduate College Burewala',
+      research: ['Networks', 'Cloud Computing'],
+      email: 'israr.cs@ggcb.edu.pk',
+      image: 'https://ggcb.edu.pk/uploads/staff/6a1af98965628_1780152713.png',
+    },
+    {
+      name: 'Ali Rehan Alvi',
+      title: 'Lecturer',
+      department: 'Department of Computer Science',
+      qualification: 'MSc in Computer Science',
+      university: 'Govt. Graduate College Burewala',
+      research: ['Programming', 'Database Systems'],
+      email: 'ali.cs@ggcb.edu.pk',
+      image: 'https://ggcb.edu.pk/uploads/staff/6a1af7bd6082f_1780152253.jpg',
+    },
+    {
+      name: 'Myra Ashraf',
+      title: 'Lecturer',
+      department: 'Department of Computer Science',
+      qualification: 'M.Phil in Computer Science',
+      university: 'Govt. Graduate College Burewala',
+      research: ['Artificial Intelligence', 'Data Science'],
+      email: 'myra.cs@ggcb.edu.pk',
+      image: 'https://ggcb.edu.pk/uploads/staff/6a1afeac984a9_1780154028.jpg',
     },
   ]
 
@@ -697,59 +845,7 @@ function Faculty() {
           </p>
         </AnimatedSection>
 
-        <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 max-w-4xl mx-auto">
-          {faculty.map((f) => (
-            <div key={f.name} className="stagger-child bg-white rounded-2xl border border-surface-200/80 overflow-hidden group hover:-translate-y-1.5 hover:shadow-elevated hover:border-surface-300/60 transition-all duration-300">
-              {/* Photo */}
-              <div className="relative h-64 sm:h-72 overflow-hidden bg-gradient-to-br from-navy-100 to-navy-200">
-                <img
-                  src={f.image}
-                  alt={f.name}
-                  className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-navy-950/60 via-transparent to-transparent" />
-                <div className="absolute bottom-4 left-5 right-5">
-                  <p className="text-lg font-bold text-white drop-shadow-lg">{f.name}</p>
-                  <p className="text-sm font-semibold text-accent-400">{f.title}</p>
-                </div>
-              </div>
-
-              {/* Details */}
-              <div className="p-6">
-                <p className="text-xs font-bold text-navy-400 uppercase tracking-wider mb-3">{f.department}</p>
-                
-                <div className="space-y-3 mb-5">
-                  <div className="flex items-start gap-3">
-                    <GraduationCap className="w-4 h-4 text-accent-500 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-navy-800">{f.qualification}</p>
-                      <p className="text-xs text-navy-400">{f.university}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <BookOpen className="w-4 h-4 text-accent-500 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs font-semibold text-navy-600 mb-1.5">Research Interests</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {f.research.map((r) => (
-                          <span key={r} className="text-2xs font-medium px-2.5 py-1 rounded-full bg-accent-50 text-accent-700 border border-accent-100">
-                            {r}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-4 h-4 text-accent-500 shrink-0" />
-                    <a href={`mailto:${f.email}`} className="text-sm text-navy-600 hover:text-accent-600 transition-colors">
-                      {f.email}
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </StaggerContainer>
+        <FacultyCarousel faculty={faculty} />
       </div>
     </section>
   )

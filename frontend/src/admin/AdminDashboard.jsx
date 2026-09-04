@@ -11,7 +11,6 @@ import {
   ArrowRight,
   UserPlus,
   BookOpen,
-  BadgeCheck,
 } from 'lucide-react'
 
 export default function AdminDashboard() {
@@ -44,7 +43,6 @@ export default function AdminDashboard() {
     { to: '/admin/courses', icon: BookOpen, label: 'Courses', desc: 'Create, edit & assign courses', color: 'bg-emerald-500' },
     { to: '/admin/semesters', icon: GraduationCap, label: 'Semesters', desc: 'Semester-wise course overview', color: 'bg-amber-500' },
     { to: '/admin/enrollments', icon: UserPlus, label: 'Enrollments', desc: 'Enroll students into courses', color: 'bg-navy-800' },
-    { to: '/admin/users', icon: BadgeCheck, label: 'Verifications', desc: 'Review pending & verified accounts', color: 'bg-accent-600' },
   ]
 
   return (

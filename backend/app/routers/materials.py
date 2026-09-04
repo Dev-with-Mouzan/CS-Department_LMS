@@ -1,6 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -45,13 +46,13 @@ def list_materials(
     query = db.query(StudyMaterial)
 
     if role == "teacher":
-        teacher_course_ids = db.query(Course.id).filter(Course.teacher_id == current_user.id).subquery()
+        teacher_course_ids = select(Course.id).filter(Course.teacher_id == current_user.id)
         query = query.filter(StudyMaterial.course_id.in_(teacher_course_ids))
     elif role == "student":
-        enrolled_course_ids = db.query(Enrollment.course_id).filter(
+        enrolled_course_ids = select(Enrollment.course_id).filter(
             Enrollment.student_id == current_user.id,
             Enrollment.status == "active",
-        ).subquery()
+        )
         query = query.filter(StudyMaterial.course_id.in_(enrolled_course_ids))
 
     if course_id:

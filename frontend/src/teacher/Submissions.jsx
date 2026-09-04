@@ -19,16 +19,36 @@ export default function Submissions() {
   const [assignments, setAssignments] = useState([])
   const [selected, setSelected] = useState(null)
   const [submissions, setSubmissions] = useState([])
+  const [submissionCounts, setSubmissionCounts] = useState({})
   const [showGradeModal, setShowGradeModal] = useState(false)
   const [selectedSub, setSelectedSub] = useState(null)
   const [gradeForm, setGradeForm] = useState({ grade: '', feedback: '' })
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { assignmentsAPI.list().then(r => setAssignments(r.data)).catch(console.error).finally(() => setLoading(false)) }, [])
+  useEffect(() => {
+    assignmentsAPI.list().then(async (r) => {
+      setAssignments(r.data)
+      // Fetch submission count for each assignment
+      const counts = {}
+      for (const a of r.data) {
+        try {
+          const res = await assignmentsAPI.listSubmissions(a.id)
+          counts[a.id] = res.data.length
+        } catch {
+          counts[a.id] = 0
+        }
+      }
+      setSubmissionCounts(counts)
+    }).catch(console.error).finally(() => setLoading(false))
+  }, [])
 
   const viewSubmissions = async (a) => {
     setSelected(a)
-    try { const r = await assignmentsAPI.listSubmissions(a.id); setSubmissions(r.data) } catch { setSubmissions([]) }
+    try {
+      const r = await assignmentsAPI.listSubmissions(a.id)
+      setSubmissions(r.data)
+      setSubmissionCounts(prev => ({ ...prev, [a.id]: r.data.length }))
+    } catch { setSubmissions([]) }
   }
 
   const openGrade = (s) => { setSelectedSub(s); setGradeForm({ grade: s.grade || '', feedback: s.feedback || '' }); setShowGradeModal(true) }
@@ -38,7 +58,7 @@ export default function Submissions() {
     try {
       await assignmentsAPI.grade(selectedSub.id, { grade: parseFloat(gradeForm.grade), feedback: gradeForm.feedback })
       setShowGradeModal(false)
-      if (selected) viewSubmissions(selected)
+      if (selected) await viewSubmissions(selected)
     } catch (err) { alert(err.response?.data?.detail || 'Failed') }
   }
 
@@ -103,7 +123,7 @@ export default function Submissions() {
                   <div className="flex items-center gap-3 shrink-0">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-surface-200 bg-surface-50 text-2xs font-bold text-navy-600">
                       <Inbox className="w-3 h-3" />
-                      {submissions.length} submissions
+                      {submissionCounts[a.id] ?? 0} submissions
                     </span>
                     <ChevronRight className={`w-4 h-4 text-navy-300 transition-transform ${selected?.id === a.id ? 'translate-x-0.5 text-accent-600' : 'group-hover:translate-x-0.5'}`} />
                   </div>
@@ -147,7 +167,10 @@ export default function Submissions() {
                               <span className="w-9 h-9 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center">
                                 <UserIcon className="w-4 h-4 text-navy-950" />
                               </span>
-                              <span className="text-sm font-mono text-navy-600">{s.student_id.slice(0, 8)}...</span>
+                              <div>
+                                <p className="text-sm font-semibold text-navy-900">{s.student_name || 'Unknown'}</p>
+                                {s.roll_number && <p className="text-2xs text-navy-400">Roll No: {s.roll_number}</p>}
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-xs text-navy-500">{new Date(s.submitted_at).toLocaleString()}</td>

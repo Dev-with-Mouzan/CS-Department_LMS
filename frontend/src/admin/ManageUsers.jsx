@@ -3,7 +3,7 @@ import { usersAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import {
-  Users, UserPlus, Mail, Pencil, ShieldCheck, ShieldOff, Ban, CheckCircle2,
+  Users, UserPlus, Mail, Pencil, ShieldCheck, ShieldOff,
   Trash2, Search, GraduationCap, UserCheck, Clock,
 } from 'lucide-react'
 
@@ -45,7 +45,7 @@ export default function ManageUsers() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ first_name: '', last_name: '', username: '', email: '', phone: '', password: '', role_name: 'student', department: '', semester: '' })
+    setForm({ first_name: '', last_name: '', email: '', phone: '', password: '', role_name: 'student', department: '', semester: '' })
     setShowModal(true)
   }
 
@@ -54,7 +54,6 @@ export default function ManageUsers() {
     setForm({
       first_name: user.first_name || '',
       last_name: user.last_name || '',
-      username: user.username || '',
       email: user.email || '',
       phone: user.phone || '',
       password: '',
@@ -96,7 +95,6 @@ export default function ManageUsers() {
     if (!q) return true
     return (
       `${user.first_name} ${user.last_name}`.toLowerCase().includes(q) ||
-      (user.username || '').toLowerCase().includes(q) ||
       (user.email || '').toLowerCase().includes(q)
     )
   })
@@ -158,7 +156,7 @@ export default function ManageUsers() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, username or email..."
+            placeholder="Search by name or email..."
             className="w-full pl-9 pr-4 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm text-navy-900 placeholder-navy-300 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 transition-all"
           />
         </div>
@@ -208,7 +206,7 @@ export default function ManageUsers() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-navy-900 truncate">{user.first_name} {user.last_name}</p>
-                          <p className="text-2xs font-mono text-navy-300">{user.username ? `@${user.username}` : (user.phone || '—')}</p>
+                          <p className="text-2xs font-mono text-navy-300">{user.phone || '—'}</p>
                         </div>
                       </div>
                     </td>

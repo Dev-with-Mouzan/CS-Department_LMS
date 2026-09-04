@@ -10,7 +10,7 @@ from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse,
     OTPVerifyRequest, OTPResendRequest,
     PasswordResetRequest, PasswordResetConfirm,
-    MessageResponse,
+    MessageResponse, RegisterResponse,
 )
 from app.services.auth_service import (
     get_user_by_email, get_user_by_phone, create_user, authenticate_user, update_password
@@ -30,7 +30,7 @@ def get_user_count(db: Session = Depends(get_db)):
     return {"count": count, "has_users": count > 0}
 
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     """Register a new student account (teachers are created by admin only)."""
     existing = get_user_by_email(db, data.email)
@@ -41,10 +41,6 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if phone_existing:
         raise HTTPException(status_code=400, detail="Phone number already registered")
 
-    username_existing = db.query(User).filter(User.username == data.username).first()
-    if username_existing:
-        raise HTTPException(status_code=400, detail="Username already taken")
-
     user_data = data.model_dump()
     user_data["role_name"] = "student"
     user = create_user(db, user_data)
@@ -52,15 +48,11 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     # Generate OTP for verification
     otp_record, otp_code = create_otp(db, user)
 
-    # Auto-login after registration
-    role = user.role.name if user.role else "student"
-    token = create_access_token(user.id, role, user.is_verified)
-
-    return TokenResponse(
-        access_token=token,
-        user_id=str(user.id),
-        role=role,
-        is_verified=user.is_verified,
+    # Don't auto-login — let the user verify OTP first
+    return RegisterResponse(
+        message="Registration successful. Please verify your OTP.",
+        email=data.email,
+        phone=data.phone,
     )
 
 
@@ -94,15 +86,23 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/verify-otp", response_model=MessageResponse)
+@router.post("/verify-otp", response_model=TokenResponse)
 def verify_otp_code(data: OTPVerifyRequest, db: Session = Depends(get_db)):
-    """Verify OTP code for account activation."""
+    """Verify OTP code for account activation and return a login token."""
     user = get_user_by_email(db, data.email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     if user.is_verified:
-        return MessageResponse(message="Account already verified")
+        # Already verified — just return a token
+        role = user.role.name
+        token = create_access_token(user.id, role, True)
+        return TokenResponse(
+            access_token=token,
+            user_id=str(user.id),
+            role=role,
+            is_verified=True,
+        )
 
     success = verify_otp(db, user, data.otp_code)
     if not success:
@@ -112,10 +112,16 @@ def verify_otp_code(data: OTPVerifyRequest, db: Session = Depends(get_db)):
         )
 
     # Auto-enroll student in all courses for their semester
-    enrolled = auto_enroll_student(db, user)
+    auto_enroll_student(db, user)
 
-    return MessageResponse(
-        message=f"Account verified successfully",
+    # Return a token so the frontend can log the user in
+    role = user.role.name
+    token = create_access_token(user.id, role, True)
+    return TokenResponse(
+        access_token=token,
+        user_id=str(user.id),
+        role=role,
+        is_verified=True,
     )
 
 
@@ -141,22 +147,27 @@ def resend_otp(data: OTPResendRequest, db: Session = Depends(get_db)):
 
 @router.post("/forgot-password", response_model=MessageResponse)
 def forgot_password(data: PasswordResetRequest, db: Session = Depends(get_db)):
-    """Request password reset via OTP."""
-    user = get_user_by_email(db, data.email)
+    """Request password reset via OTP sent to phone."""
+    user = get_user_by_phone(db, data.phone)
     if not user:
-        # Don't reveal whether the email exists
-        return MessageResponse(message="If the email exists, an OTP has been sent")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this phone number. Please sign up first.",
+        )
 
     create_otp(db, user)
-    return MessageResponse(message="If the email exists, an OTP has been sent")
+    return MessageResponse(message="OTP has been sent to your phone number")
 
 
 @router.post("/reset-password", response_model=MessageResponse)
 def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_db)):
     """Reset password using OTP."""
-    user = get_user_by_email(db, data.email)
+    user = get_user_by_phone(db, data.phone)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this phone number.",
+        )
 
     success = verify_otp(db, user, data.otp_code)
     if not success:
@@ -183,7 +194,6 @@ def get_me(current_user: User = Depends(get_current_user), db: Session = Depends
         "id": str(current_user.id),
         "first_name": current_user.first_name,
         "last_name": current_user.last_name,
-        "username": current_user.username,
         "email": current_user.email,
         "phone": current_user.phone,
         "role": current_user.role.name,

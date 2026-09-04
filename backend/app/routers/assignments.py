@@ -1,7 +1,6 @@
 from typing import List
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -11,6 +10,7 @@ from app.schemas.assignment import (
     AssignmentCreate, AssignmentUpdate, AssignmentOut,
     SubmissionOut, SubmissionGrade
 )
+from app.models import StudentProfile
 from app.services.file_service import save_file
 
 router = APIRouter(prefix="/api", tags=["Assignments"])
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api", tags=["Assignments"])
 # ── Assignment CRUD (Teacher) ─────────────────────────
 @router.get("/assignments", response_model=List[AssignmentOut])
 def list_assignments(
-    course_id: UUID = None,
+    course_id: str = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -32,10 +32,10 @@ def list_assignments(
     if role == "teacher":
         query = query.filter(Assignment.teacher_id == current_user.id)
     elif role == "student":
-        enrolled_ids = db.query(Enrollment.course_id).filter(
+        enrolled_ids = select(Enrollment.course_id).filter(
             Enrollment.student_id == current_user.id,
             Enrollment.status == "active",
-        ).subquery()
+        )
         query = query.filter(Assignment.course_id.in_(enrolled_ids))
 
     if course_id:
@@ -74,7 +74,7 @@ def create_assignment(
 
 @router.get("/assignments/{assignment_id}", response_model=AssignmentOut)
 def get_assignment(
-    assignment_id: UUID,
+    assignment_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -100,7 +100,7 @@ def get_assignment(
 
 @router.put("/assignments/{assignment_id}", response_model=AssignmentOut)
 def update_assignment(
-    assignment_id: UUID,
+    assignment_id: str,
     data: AssignmentUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_teacher),
@@ -123,7 +123,7 @@ def update_assignment(
 
 @router.delete("/assignments/{assignment_id}")
 def delete_assignment(
-    assignment_id: UUID,
+    assignment_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_teacher),
 ):
@@ -142,7 +142,7 @@ def delete_assignment(
 # ── Submissions ───────────────────────────────────────
 @router.post("/assignments/{assignment_id}/submit", response_model=SubmissionOut, status_code=status.HTTP_201_CREATED)
 def submit_assignment(
-    assignment_id: UUID,
+    assignment_id: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student),
@@ -190,7 +190,7 @@ def submit_assignment(
 
 @router.get("/assignments/{assignment_id}/submissions", response_model=List[SubmissionOut])
 def list_submissions(
-    assignment_id: UUID,
+    assignment_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -202,22 +202,49 @@ def list_submissions(
     role = current_user.role.name
     if role == "student":
         # Students can only see their own submission
-        return db.query(Submission).filter(
+        submissions = db.query(Submission).filter(
             Submission.assignment_id == assignment_id,
             Submission.student_id == current_user.id,
         ).all()
     elif role == "teacher":
         if assignment.teacher_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
+        submissions = db.query(Submission).filter(
+            Submission.assignment_id == assignment_id,
+        ).all()
+    else:
+        submissions = db.query(Submission).filter(
+            Submission.assignment_id == assignment_id,
+        ).all()
 
-    return db.query(Submission).filter(
-        Submission.assignment_id == assignment_id,
-    ).all()
+    result = []
+    for sub in submissions:
+        student = db.query(User).filter(User.id == sub.student_id).first()
+        profile = db.query(StudentProfile).filter(StudentProfile.user_id == sub.student_id).first()
+        student_name = None
+        roll_number = None
+        if student:
+            student_name = f"{student.first_name} {student.last_name}".strip()
+        if profile:
+            roll_number = profile.roll_number
+        result.append(SubmissionOut(
+            id=sub.id,
+            assignment_id=sub.assignment_id,
+            student_id=sub.student_id,
+            student_name=student_name,
+            roll_number=roll_number,
+            file_url=sub.file_url,
+            submitted_at=sub.submitted_at,
+            grade=sub.grade,
+            feedback=sub.feedback,
+            status=sub.status,
+        ))
+    return result
 
 
 @router.put("/submissions/{submission_id}/grade", response_model=SubmissionOut)
 def grade_submission(
-    submission_id: UUID,
+    submission_id: str,
     data: SubmissionGrade,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_teacher),

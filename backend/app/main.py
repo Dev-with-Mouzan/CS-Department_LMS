@@ -6,7 +6,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database.database import engine, SessionLocal, Base
-from app.services.auth_service import create_default_roles
+from app.services.auth_service import create_default_roles, create_default_admin
 from app.routers import auth, users, courses, assignments, attendance, notices, materials
 
 # Create all tables
@@ -48,6 +48,7 @@ def startup():
     db = SessionLocal()
     try:
         create_default_roles(db)
+        create_default_admin(db)
         _add_missing_columns(db)
     finally:
         db.close()
@@ -69,13 +70,17 @@ def _add_missing_columns(db):
     migrations = {
         "users": [
             ("phone", "VARCHAR(20)"),
-            ("username", "VARCHAR(100)"),
         ],
         "courses": [
             ("semester", "INTEGER"),
         ],
         "student_profiles": [
             ("roll_number", "VARCHAR(50)"),
+        ],
+        "notices": [
+            ("target_semester", "INTEGER"),
+            ("is_pinned", "INTEGER DEFAULT 0"),
+            ("expires_at", "DATETIME"),
         ],
     }
     for table, cols in migrations.items():

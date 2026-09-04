@@ -3,8 +3,7 @@ import { usersAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import {
-  UserCheck, UserPlus, Pencil, Ban, CheckCircle2, Trash2, KeyRound, Mail,
-  ShieldCheck, ShieldOff, Search, Building2, GraduationCap,
+  UserCheck, UserPlus, Pencil, CheckCircle2, Trash2, Mail, Search,
 } from 'lucide-react'
 
 export default function ManageTeachers() {
@@ -15,8 +14,7 @@ export default function ManageTeachers() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({
-    first_name: '', last_name: '', username: '', email: '', phone: '', password: '',
-    employee_id: '', department: '', qualification: '',
+    first_name: '', last_name: '', email: '', phone: '', password: '',
   })
 
   useEffect(() => { loadTeachers() }, [])
@@ -33,20 +31,15 @@ export default function ManageTeachers() {
   const openCreate = () => {
     setEditing(null)
     setForm({
-      first_name: '', last_name: '', username: '', email: '', phone: '', password: '',
-      employee_id: '', department: '', qualification: '',
+      first_name: '', last_name: '', email: '', phone: '', password: '',
     })
     setShowModal(true)
   }
 
   const openEdit = (t) => {
     setEditing(t)
-    const p = t.teacher_profile || {}
     setForm({
-      first_name: t.first_name || '', last_name: t.last_name || '',
-      username: t.username || '', email: t.email || '', phone: t.phone || '',
-      password: '', employee_id: p.employee_id || '', department: p.department || '',
-      qualification: p.qualification || '',
+      first_name: t.first_name || '', last_name: t.last_name || '', email: t.email || '', phone: t.phone || '', password: '',
     })
     setShowModal(true)
   }
@@ -83,7 +76,6 @@ export default function ManageTeachers() {
     if (!q) return true
     return (
       `${t.first_name} ${t.last_name}`.toLowerCase().includes(q) ||
-      (t.username || '').toLowerCase().includes(q) ||
       (t.email || '').toLowerCase().includes(q)
     )
   })
@@ -91,8 +83,6 @@ export default function ManageTeachers() {
   const stats = [
     { label: 'Total Teachers', value: teachers.length, icon: UserCheck, chip: 'bg-navy-900/10 text-navy-800 border-navy-900/10' },
     { label: 'Active', value: teachers.filter((t) => t.is_active).length, icon: CheckCircle2, chip: 'bg-success/10 text-success-dark border-success/20' },
-
-    { label: 'Departments', value: new Set(teachers.map((t) => t.teacher_profile?.department).filter(Boolean)).size, icon: Building2, chip: 'bg-info/10 text-info-dark border-info/20' },
   ]
 
   const input = "w-full px-3.5 py-2.5 bg-surface-0 border border-surface-200 rounded-xl text-sm text-navy-900 placeholder-navy-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 hover:border-navy-300"
@@ -113,7 +103,7 @@ export default function ManageTeachers() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 gap-4 mb-8">
         {stats.map((s) => (
           <div key={s.label} className="border border-surface-200 rounded-xl bg-white p-4 flex items-center gap-3">
             <span className={`inline-flex w-11 h-11 rounded-xl border items-center justify-center shrink-0 ${s.chip}`}>
@@ -147,7 +137,7 @@ export default function ManageTeachers() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, username or email..."
+            placeholder="Search by name or email..."
             className="w-full pl-9 pr-4 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm text-navy-900 placeholder-navy-300 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 transition-all"
           />
         </div>
@@ -165,7 +155,6 @@ export default function ManageTeachers() {
               <tr className="border-b border-surface-200 bg-surface-50/60">
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Teacher</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Contact</th>
-                <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Profile</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-right text-2xs font-bold text-navy-400 uppercase tracking-wider">Actions</th>
               </tr>
@@ -173,13 +162,13 @@ export default function ManageTeachers() {
             <tbody className="divide-y divide-surface-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center">
+                  <td colSpan={4} className="px-6 py-16 text-center">
                     <div className="w-9 h-9 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin mx-auto" />
                   </td>
                 </tr>
               ) : filteredTeachers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center">
+                  <td colSpan={4} className="px-6 py-16 text-center">
                     <span className="inline-flex w-12 h-12 rounded-2xl bg-navy-900/5 text-navy-400 border border-navy-900/10 items-center justify-center mb-3">
                       <UserCheck className="w-6 h-6" />
                     </span>
@@ -187,7 +176,6 @@ export default function ManageTeachers() {
                   </td>
                 </tr>
               ) : filteredTeachers.map((t) => {
-                const p = t.teacher_profile || {}
                 return (
                   <tr key={t.id} className="hover:bg-surface-50 transition-colors">
                     <td className="px-6 py-4">
@@ -197,7 +185,7 @@ export default function ManageTeachers() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-navy-900 truncate">{t.first_name} {t.last_name}</p>
-                          <p className="text-2xs font-mono text-navy-300">{t.username ? `@${t.username}` : (t.phone || '—')}</p>
+                          <p className="text-2xs font-mono text-navy-300">{t.phone || '—'}</p>
                         </div>
                       </div>
                     </td>
@@ -210,16 +198,7 @@ export default function ManageTeachers() {
                         {t.phone && <span className="block text-2xs text-navy-300 font-medium pl-5">{t.phone}</span>}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-0.5">
-                        <span className="block text-xs font-medium text-navy-700">{p.qualification || '—'}</span>
-                        <span className="flex items-center gap-1.5 text-xs text-navy-400">
-                          <GraduationCap className="w-3.5 h-3.5 text-navy-300" />
-                          {p.department || '—'}
-                        </span>
-                        {p.employee_id && <span className="block text-2xs text-navy-300 font-mono">{p.employee_id}</span>}
-                      </div>
-                    </td>
+
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold border ${
                         t.is_active
@@ -265,22 +244,12 @@ export default function ManageTeachers() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="input-label">Username</label>
-              <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className={input} placeholder="e.g. ahmed.khan" />
-            </div>
-            <div>
-              <label className="input-label">Phone</label>
-              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={input} placeholder="+92 3XX XXXXXXX" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
               <label className="input-label">Email</label>
               <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={input} required />
             </div>
             <div>
-              <label className="input-label">Employee ID</label>
-              <input value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} className={input} placeholder="e.g. EMP-001" />
+              <label className="input-label">Phone</label>
+              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={input} placeholder="+92 3XX XXXXXXX" />
             </div>
           </div>
           {!editing && (
@@ -289,16 +258,7 @@ export default function ManageTeachers() {
               <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={input} required minLength={6} />
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="input-label">Department</label>
-              <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className={input} placeholder="Computer Science" />
-            </div>
-            <div>
-              <label className="input-label">Qualification</label>
-              <input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} className={input} placeholder="e.g. MS Computer Science" />
-            </div>
-          </div>
+
           <div className="flex gap-3 justify-end pt-2">
             <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
             <Button type="submit">{editing ? 'Save Changes' : 'Create Teacher'}</Button>

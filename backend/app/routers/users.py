@@ -242,11 +242,28 @@ def create_teacher(
 ):
     """Create a teacher (admin only)."""
     _check_email_available(db, data.email)
-    _check_username_available(db, data.username)
 
     user_data = data.model_dump()
     user_data["role_name"] = "teacher"
     user = create_user_service(db, user_data)
+
+    # Auto-verify teacher so they can login immediately
+    user.is_verified = True
+    db.commit()
+    db.refresh(user)
+
+    # Print credentials to terminal for admin to share with teacher
+    password = data.password
+    line = "=" * 58
+    print(line)
+    print(" NEW TEACHER ACCOUNT CREATED")
+    print(f" Name:     {user.first_name} {user.last_name}")
+    print(f" Email:    {user.email}")
+    print(f" Password: {password}")
+    print(f" Phone:    {user.phone or 'N/A'}")
+    print(f" Status:   Active & Verified")
+    print(line)
+
     return user
 
 
