@@ -41,7 +41,7 @@ export default function TeacherDashboard() {
   ]
 
   const quickActions = [
-    { to: '/teacher/create-assignment', icon: PlusCircle, label: 'Create Assignment', desc: 'Set up a new task for students', color: 'bg-accent-500' },
+    { to: '/teacher/assessments', icon: PlusCircle, label: 'Create Assessment', desc: 'Assignments & quizzes for students', color: 'bg-accent-500' },
     { to: '/teacher/submissions', icon: Inbox, label: 'Review Submissions', desc: 'Grade & give feedback on work', color: 'bg-emerald-500' },
     { to: '/teacher/attendance', icon: CalendarCheck, label: 'Mark Attendance', desc: "Record today's session", color: 'bg-sky-500' },
   ]

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { noticesAPI } from '../services/api'
 import Tour, { useTour } from './Tour'
 import { studentTourSteps, teacherTourSteps, adminTourSteps } from '../config/tourSteps'
 import {
@@ -11,8 +10,6 @@ import {
   ClipboardList,
   Inbox,
   CalendarCheck,
-  Bell,
-  PlusCircle,
   FolderOpen,
   LogOut,
   GraduationCap,
@@ -21,6 +18,8 @@ import {
   UserPlus,
   ChevronDown,
   UserCheck,
+  UserCog,
+  Trophy,
   Facebook,
   Instagram,
   Twitter,
@@ -38,21 +37,20 @@ const navConfig = {
     { to: '/admin/courses', label: 'Courses', icon: BookOpen },
     { to: '/admin/semesters', label: 'Semesters', icon: GraduationCap },
     { to: '/admin/enrollments', label: 'Enrollments', icon: UserPlus },
-    { to: '/admin/notices', label: 'Notices', icon: Bell },
   ],
   teacher: [
     { to: '/teacher', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/teacher/create-assignment', label: 'Assignments', icon: ClipboardList },
+    { to: '/teacher/assessments', label: 'Assessments', icon: ClipboardList },
     { to: '/teacher/submissions', label: 'Submissions', icon: Inbox },
     { to: '/teacher/attendance', label: 'Attendance', icon: CalendarCheck },
-    { to: '/teacher/notices', label: 'Notices', icon: Bell },
+    { to: '/teacher/results', label: 'Results', icon: Trophy },
     { to: '/teacher/materials', label: 'Materials', icon: FolderOpen },
   ],
   student: [
     { to: '/student', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/student/assignments', label: 'Assignments', icon: ClipboardList },
     { to: '/student/attendance', label: 'Attendance', icon: CalendarCheck },
-    { to: '/student/notices', label: 'Notices', icon: Bell },
+    { to: '/student/review', label: 'Review', icon: UserCog },
     { to: '/student/materials', label: 'Materials', icon: FolderOpen },
   ],
 }
@@ -66,7 +64,6 @@ const roleLabels = {
 function Navbar({ links, role, user, onLogout }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [noticeCount, setNoticeCount] = useState(0)
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -75,10 +72,6 @@ function Navbar({ links, role, user, onLogout }) {
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  useEffect(() => {
-    noticesAPI.list().then(r => setNoticeCount(r.data.length)).catch(() => {})
   }, [])
 
   return (
@@ -112,11 +105,6 @@ function Navbar({ links, role, user, onLogout }) {
                 }
               >
                 {link.label}
-                {link.label === 'Notices' && noticeCount > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-accent-500 text-[10px] font-bold text-white">
-                    {noticeCount}
-                  </span>
-                )}
               </NavLink>
             ))}
           </nav>
@@ -189,11 +177,6 @@ function Navbar({ links, role, user, onLogout }) {
               >
                 <link.icon className="w-4 h-4" />
                 {link.label}
-                {link.label === 'Notices' && noticeCount > 0 && (
-                  <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-accent-500 text-[10px] font-bold text-white">
-                    {noticeCount}
-                  </span>
-                )}
               </NavLink>
             ))}
           </div>

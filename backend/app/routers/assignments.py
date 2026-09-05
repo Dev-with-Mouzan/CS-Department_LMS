@@ -1,5 +1,5 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -46,25 +46,38 @@ def list_assignments(
 
 @router.post("/assignments", response_model=AssignmentOut, status_code=status.HTTP_201_CREATED)
 def create_assignment(
-    data: AssignmentCreate,
+    course_id: str = Form(...),
+    title: str = Form(...),
+    description: Optional[str] = Form(None),
+    due_date: str = Form(...),
+    max_marks: int = Form(100),
+    attachment: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_teacher),
 ):
-    """Create a new assignment (teacher only)."""
+    """Create a new assignment with optional file attachment (teacher only)."""
+    from datetime import datetime as dt
+
     # Verify teacher owns the course
-    course = db.query(Course).filter(Course.id == data.course_id).first()
+    course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     if course.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only create assignments for your courses")
 
+    # Save attachment if provided
+    attachment_url = None
+    if attachment and attachment.filename:
+        attachment_url = save_file(attachment, subdirectory="assignments")
+
     assignment = Assignment(
-        course_id=data.course_id,
+        course_id=course_id,
         teacher_id=current_user.id,
-        title=data.title,
-        description=data.description,
-        due_date=data.due_date,
-        max_marks=data.max_marks,
+        title=title,
+        description=description,
+        due_date=dt.fromisoformat(due_date.replace("Z", "+00:00")).replace(tzinfo=None),
+        max_marks=max_marks,
+        attachment_url=attachment_url,
     )
     db.add(assignment)
     db.commit()

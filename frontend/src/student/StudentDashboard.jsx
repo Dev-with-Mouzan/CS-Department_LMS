@@ -9,6 +9,8 @@ import {
   ArrowRight,
   UploadCloud,
   CalendarCheck,
+  Paperclip,
+  Download,
 } from 'lucide-react'
 
 export default function StudentDashboard() {
@@ -104,7 +106,21 @@ export default function StudentDashboard() {
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-navy-900 truncate">{a.title}</p>
-                      <p className="text-xs text-navy-400">Due {new Date(a.due_date).toLocaleDateString()}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-navy-400">Due {new Date(a.due_date).toLocaleDateString()}</p>
+                        {a.attachment_url && (
+                          <a
+                            href={`/uploads/${a.attachment_url.replace(/^uploads[\\/]/, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 font-semibold"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Paperclip className="w-3 h-3" />
+                            <Download className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <Link to="/student/assignments" className="text-xs font-semibold text-accent-600 hover:text-accent-700 whitespace-nowrap">

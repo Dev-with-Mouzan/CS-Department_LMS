@@ -12,6 +12,8 @@ import {
   ChevronLeft,
   ShieldAlert,
   X,
+  Paperclip,
+  Download,
 } from 'lucide-react'
 
 export default function MyAssignments() {
@@ -142,6 +144,18 @@ export default function MyAssignments() {
                       )}
                     </div>
                     {a.description && <p className="text-xs text-navy-400 mt-1 line-clamp-2">{a.description}</p>}
+                    {a.attachment_url && (
+                      <a
+                        href={`/uploads/${a.attachment_url.replace(/^uploads[\\/]/, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg bg-accent-500/10 border border-accent-200 text-accent-700 text-xs font-semibold hover:bg-accent-500/20 transition-colors"
+                      >
+                        <Paperclip className="w-3 h-3" />
+                        View Attachment
+                        <Download className="w-3 h-3" />
+                      </a>
+                    )}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3">
                       <span className="inline-flex items-center gap-1.5 text-2xs text-navy-400">
                         <Clock className="w-3 h-3 text-navy-300" />
