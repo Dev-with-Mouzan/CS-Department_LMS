@@ -851,6 +851,149 @@ function Faculty() {
   )
 }
 
+/* ─────────────────────────── Student Reviews Carousel ─────────────────────────── */
+function StudentReviewsCarousel({ reviews }) {
+  const [current, setCurrent] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  const timerRef = useRef(null)
+  const maxIndex = Math.max(0, reviews.length - 3)
+  const CARD_W = 350
+  const GAP = 24
+  const STEP = CARD_W + GAP
+
+  const go = (dir) => {
+    setCurrent((prev) => {
+      const next = prev + dir
+      if (next < 0) return maxIndex
+      if (next > maxIndex) return 0
+      return next
+    })
+  }
+
+  useEffect(() => {
+    if (isPaused) return
+    timerRef.current = setInterval(() => go(1), 4000)
+    return () => clearInterval(timerRef.current)
+  }, [isPaused])
+
+  return (
+    <div
+      className="relative mx-auto"
+      style={{ maxWidth: '1100px', height: '320px' }}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {/* Track */}
+      <div className="overflow-hidden h-full">
+        <div
+          className="flex h-full"
+          style={{
+            gap: `${GAP}px`,
+            transform: `translateX(-${current * STEP}px)`,
+            transition: 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          {reviews.map((r, i) => (
+            <div key={i} className="shrink-0 flex flex-col bg-white rounded-2xl border border-surface-200 p-6 shadow-card hover:-translate-y-1 hover:shadow-elevated hover:border-accent-200 transition-all duration-300" style={{ width: `${CARD_W}px` }}>
+              {/* Stars */}
+              <div className="flex gap-0.5 mb-4">
+                {Array.from({ length: 5 }).map((_, si) => (
+                  <Star key={si} className={`w-4 h-4 ${si < r.rating ? 'text-accent-400 fill-accent-400' : 'text-navy-200'}`} />
+                ))}
+              </div>
+              {/* Quote */}
+              <p className="text-sm text-navy-600 leading-relaxed mb-5 flex-1">&ldquo;{r.text}&rdquo;</p>
+              {/* Author */}
+              <div className="flex items-center gap-3 pt-4 border-t border-surface-100">
+                <span className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  {r.avatar}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-navy-900 truncate">{r.name}</p>
+                  <p className="text-2xs text-navy-400">{r.semester}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Left Arrow */}
+      <button onClick={() => go(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+        <ChevronLeft className="w-5 h-5 text-navy-600" />
+      </button>
+
+      {/* Right Arrow */}
+      <button onClick={() => go(1)} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+        <ChevronRight className="w-5 h-5 text-navy-600" />
+      </button>
+    </div>
+  )
+}
+
+function StudentReviews() {
+  const reviews = [
+    {
+      name: 'Ali Hassan',
+      semester: 'BS CS — 4th Semester',
+      avatar: 'AH',
+      rating: 5,
+      text: 'The LMS has completely changed how I manage my coursework. I can see all my assignments, attendance, and grades in one place. No more checking WhatsApp groups for deadlines!',
+    },
+    {
+      name: 'Fatima Zahra',
+      semester: 'BS CS — 6th Semester',
+      avatar: 'FZ',
+      rating: 5,
+      text: 'Submitting assignments online is so convenient. I love how I can track my attendance percentage and see my performance trends over time. Highly recommended for all CS students.',
+    },
+    {
+      name: 'Qasim Ali',
+      semester: 'BS CS — 2nd Semester',
+      avatar: 'QA',
+      rating: 4,
+      text: 'As a fresh student, the LMS made it easy to access course materials and stay on top of deadlines. The dashboard is clean and everything is exactly where you need it.',
+    },
+    {
+      name: 'Ayesha Bibi',
+      semester: 'BS CS — 8th Semester',
+      avatar: 'AB',
+      rating: 5,
+      text: 'Final year stress is real, but the LMS keeps me organized. I can see all my results, track my progress, and never miss an important notice. The best tool for GGCB students.',
+    },
+    {
+      name: 'Hassan Raza',
+      semester: 'BS CS — 4th Semester',
+      avatar: 'HR',
+      rating: 5,
+      text: 'My attendance went from 75% to 92% after using this LMS. Being able to see my attendance in real-time motivates me to show up every day. The progress charts are amazing.',
+    },
+    {
+      name: 'Zainab Fatima',
+      semester: 'BS CS — 6th Semester',
+      avatar: 'ZF',
+      rating: 5,
+      text: 'The quiz feature is my favorite. Teachers can create quizzes and we attempt them right from our phones. No more paper-based exams for quick assessments. So modern!',
+    },
+  ]
+
+  return (
+    <section className="py-20 lg:py-28 bg-surface-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <AnimatedSection className="text-center mb-16">
+          <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent-200 bg-accent-50 text-accent-600 text-xs font-bold uppercase tracking-widest mb-3">Student Voices</p>
+          <h2 className="text-display-sm lg:text-display-md text-navy-900">What Students Say</h2>
+          <p className="mt-3 text-navy-400 max-w-2xl mx-auto">
+            Hear from CS students at GGCB who are already using the platform every day.
+          </p>
+        </AnimatedSection>
+
+        <StudentReviewsCarousel reviews={reviews} />
+      </div>
+    </section>
+  )
+}
+
 /* ─────────────────────────── FAQ ─────────────────────────── */
 function FAQ() {
   const [openIndex, setOpenIndex] = useState(null)
@@ -1022,6 +1165,7 @@ export default function LandingPage() {
       <Solution />
       <Faculty />
       <HowItWorks />
+      <StudentReviews />
       <FAQ />
       <CTA />
       <Footer />

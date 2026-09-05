@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { coursesAPI, assignmentsAPI } from '../services/api'
 import Button from '../components/Button'
-import { ClipboardList, BookOpen, FileText, CalendarDays, Award, AlertCircle } from 'lucide-react'
+import { BookOpen, FileText, CalendarDays, Award, AlertCircle } from 'lucide-react'
 
 export default function CreateAssignment() {
   const [courses, setCourses] = useState([])
   const [form, setForm] = useState({
     course_id: '', title: '', description: '', due_date: '', max_marks: 100,
   })
+  const [attachment, setAttachment] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
@@ -20,11 +21,15 @@ export default function CreateAssignment() {
     setError('')
     setLoading(true)
     try {
-      await assignmentsAPI.create({
-        ...form,
-        due_date: new Date(form.due_date).toISOString(),
-        max_marks: parseInt(form.max_marks),
-      })
+      const formData = new FormData()
+      formData.append('course_id', form.course_id)
+      formData.append('title', form.title)
+      if (form.description) formData.append('description', form.description)
+      formData.append('due_date', new Date(form.due_date).toISOString())
+      formData.append('max_marks', parseInt(form.max_marks))
+      if (attachment) formData.append('attachment', attachment)
+
+      await assignmentsAPI.create(formData)
       navigate('/teacher')
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create assignment')
@@ -34,16 +39,7 @@ export default function CreateAssignment() {
   }
 
   return (
-    <div className="p-6 lg:p-10 max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
-          <ClipboardList className="w-3 h-3" />
-          Assignment Management
-        </span>
-        <h1 className="text-3xl font-extrabold text-navy-900 tracking-tight">Create Assignment</h1>
-        <p className="text-navy-400 mt-1.5">Set up a new assignment for your students</p>
-      </div>
+    <div className="max-w-3xl mx-auto">
 
       {error && (
         <div className="flex items-start gap-3 bg-danger-light text-danger-dark px-4 py-3 rounded-xl mb-6 text-sm font-medium">
@@ -101,9 +97,15 @@ export default function CreateAssignment() {
               </div>
             </div>
           </div>
+
+          <div>
+            <label className="input-label">Attachment (optional)</label>
+            <input type="file" onChange={(e) => setAttachment(e.target.files[0])}
+              className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent-500 file:text-white file:cursor-pointer" />
+          </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+        <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2">
           <Button variant="ghost" type="button" onClick={() => navigate(-1)}>Cancel</Button>
           <Button type="submit" disabled={loading}>
             {loading ? 'Creating...' : 'Create Assignment'}

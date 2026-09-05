@@ -15,16 +15,17 @@ import ManageTeachers from './admin/ManageTeachers'
 import ManageCourses from './admin/ManageCourses'
 import ManageSemesters from './admin/ManageSemesters'
 import ManageEnrollments from './admin/ManageEnrollments'
-import ManageNotices from './admin/ManageNotices'
-
 import TeacherDashboard from './teacher/TeacherDashboard'
+import Assessments from './teacher/Assessments'
 import CreateAssignment from './teacher/CreateAssignment'
+import CreateQuiz from './teacher/CreateQuiz'
 import ManageMaterials from './teacher/ManageMaterials'
 import Submissions from './teacher/Submissions'
 import MarkAttendance from './teacher/MarkAttendance'
+import Results from './teacher/Results'
 
 import StudentDashboard from './student/StudentDashboard'
-import NoticeBoard from './pages/NoticeBoard'
+import StudentReview from './teacher/StudentReview'
 import MyAssignments from './student/MyAssignments'
 import MyMaterials from './student/MyMaterials'
 import MyAttendance from './student/MyAttendance'
@@ -59,7 +60,6 @@ export default function App() {
           <Route path="/admin/courses" element={<ManageCourses />} />
           <Route path="/admin/semesters" element={<ManageSemesters />} />
           <Route path="/admin/enrollments" element={<ManageEnrollments />} />
-          <Route path="/admin/notices" element={<ManageNotices />} />
         </Route>
       </Route>
 
@@ -67,10 +67,12 @@ export default function App() {
       <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
         <Route element={<Layout />}>
           <Route path="/teacher" element={<TeacherDashboard />} />
+          <Route path="/teacher/assessments" element={<Assessments />} />
           <Route path="/teacher/create-assignment" element={<CreateAssignment />} />
+          <Route path="/teacher/create-quiz" element={<CreateQuiz />} />
           <Route path="/teacher/submissions" element={<Submissions />} />
           <Route path="/teacher/attendance" element={<MarkAttendance />} />
-          <Route path="/teacher/notices" element={<NoticeBoard />} />
+          <Route path="/teacher/results" element={<Results />} />
           <Route path="/teacher/materials" element={<ManageMaterials />} />
         </Route>
       </Route>
@@ -81,7 +83,7 @@ export default function App() {
           <Route path="/student" element={<StudentDashboard />} />
           <Route path="/student/assignments" element={<MyAssignments />} />
           <Route path="/student/attendance" element={<MyAttendance />} />
-          <Route path="/student/notices" element={<NoticeBoard />} />
+          <Route path="/student/review" element={<StudentReview />} />
           <Route path="/student/materials" element={<MyMaterials />} />
         </Route>
       </Route>
