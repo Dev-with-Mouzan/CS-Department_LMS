@@ -94,13 +94,13 @@ function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 lg:h-16">
-          <a href="#hero" className="flex items-center gap-3 group">
-            <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg object-cover" />
-            <div className="hidden sm:block">
-              <p className={`text-sm lg:text-base font-bold leading-tight tracking-tight transition-colors duration-300 ${s ? 'text-navy-900' : 'text-white'}`}>
+          <a href="#hero" className="flex items-center gap-3 group min-w-0">
+            <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg object-cover shrink-0" />
+            <div className="min-w-0">
+              <p className={`text-xs sm:text-sm lg:text-base font-bold leading-tight tracking-tight truncate transition-colors duration-300 ${s ? 'text-navy-900' : 'text-white'}`}>
                 CS Department LMS
               </p>
-              <p className={`text-2xs font-medium transition-colors duration-300 ${s ? 'text-navy-400' : 'text-white/50'}`}>
+              <p className={`text-2xs font-medium truncate transition-colors duration-300 ${s ? 'text-navy-400' : 'text-white/50'}`}>
                 Govt. Graduate College Burewala
               </p>
             </div>
@@ -474,14 +474,14 @@ function ProblemStatement() {
           </p>
         </AnimatedSection>
 
-        <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           {problems.map((p) => (
-            <div key={p.title} className="stagger-child flex gap-5 p-7 rounded-2xl bg-white border border-surface-200 shadow-card hover:shadow-elevated hover:-translate-y-1 transition-all duration-300">
-              <div className="w-14 h-14 rounded-xl bg-danger-light border border-danger/10 flex items-center justify-center shrink-0">
-                <p.icon className="w-7 h-7 text-danger" />
+            <div key={p.title} className="stagger-child flex flex-col sm:flex-row sm:gap-5 gap-4 p-6 sm:p-7 rounded-2xl bg-white border border-surface-200 shadow-card hover:shadow-elevated hover:-translate-y-1 transition-all duration-300">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-danger-light border border-danger/10 flex items-center justify-center shrink-0 self-center sm:self-auto">
+                <p.icon className="w-6 h-6 sm:w-7 sm:h-7 text-danger" />
               </div>
-              <div>
-                <h3 className="text-base font-bold text-navy-900">{p.title}</h3>
+              <div className="text-center sm:text-left">
+                <h3 className="text-base sm:text-lg font-bold text-navy-900">{p.title}</h3>
                 <p className="text-sm text-navy-500 mt-2 leading-relaxed">{p.description}</p>
               </div>
             </div>
@@ -801,7 +801,7 @@ function Faculty() {
       university: 'Govt. Graduate College Burewala',
       research: ['Data Structures', 'Algorithms'],
       email: 'mubashar.cs@ggcb.edu.pk',
-      image: 'https://ggcb.edu.pk/uploads/staff/6a1afe46d426e_1780153926.jpg',
+      image: '/Mubashir sb (2).png',
     },
     {
       name: 'Dr. Israr Ahmad',
@@ -821,7 +821,7 @@ function Faculty() {
       university: 'Govt. Graduate College Burewala',
       research: ['Programming', 'Database Systems'],
       email: 'ali.cs@ggcb.edu.pk',
-      image: 'https://ggcb.edu.pk/uploads/staff/6a1af7bd6082f_1780152253.jpg',
+      image: '/Prof Alvi sb.png',
     },
     {
       name: 'Myra Ashraf',
@@ -1044,13 +1044,13 @@ function CTA() {
         <p className="mt-4 text-white/50 text-lg max-w-xl mx-auto">
           Join hundreds of CS students and faculty already using CS Department LMS. Registration takes less than 60 seconds — start your digital campus experience today.
         </p>
-        <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <Link to="/register"className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-bold bg-accent-500 text-black hover:bg-accent-400 transition-colors shadow-lg shadow-accent-500/20"
+        <div className="mt-10 flex justify-center gap-3 sm:gap-4">
+          <Link to="/register"className="inline-flex items-center justify-center gap-2 flex-1 sm:flex-none px-6 sm:px-8 py-3.5 rounded-xl text-sm sm:text-base font-bold bg-accent-500 text-black hover:bg-accent-400 transition-colors shadow-lg shadow-accent-500/20"
             >
             Create Free Account
-            <ArrowRight className="w-5 h-5" />
+            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
           </Link>
-          <Link to="/login" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-semibold text-white border border-white/15 hover:bg-white/5 transition-colors">
+          <Link to="/login" className="inline-flex items-center justify-center gap-2 px-4 sm:px-8 py-2.5 sm:py-3.5 rounded-xl text-xs sm:text-base font-semibold text-white border border-white/15 hover:bg-white/5 transition-colors whitespace-nowrap">
             Sign In
           </Link>
         </div>

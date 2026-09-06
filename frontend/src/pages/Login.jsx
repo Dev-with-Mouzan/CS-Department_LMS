@@ -104,12 +104,6 @@ export default function Login() {
       {/* Right — Form */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-12">
         <div className="w-full max-w-md animate-fade-in">
-          {/* Mobile logo */}
-          <Link to="/" className="flex items-center gap-3 mb-8 lg:hidden">
-            <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 rounded-lg object-cover" />
-            <span className="text-xl font-bold text-navy-900 tracking-tight">CS Department LMS</span>
-          </Link>
-
           <div className="mb-8 text-center">
             <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 mb-5">
               <Lock className="w-6 h-6" />

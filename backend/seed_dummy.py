@@ -10,7 +10,7 @@ What this adds (idempotent — safe to re-run):
 - Quizzes (2 per course) with 5 questions each
 - Result entries (midterm/final/complete per course) with real CSV/TXT files
 - Study materials (2 per course) with files
-- Notices + student reviews
+- Student reviews
 
 All dummy users share the password: password123
 Unverified (for admin "verify account" testing): s303, s507, s704
@@ -29,7 +29,7 @@ from app.dependencies.auth import hash_password
 from app.models import (
     User, TeacherProfile, StudentProfile, Course, Enrollment,
     Assignment, Submission, AttendanceSession, AttendanceRecord,
-    Quiz, QuizQuestion, Result, StudyMaterial, Notice, Review,
+    Quiz, QuizQuestion, Result, StudyMaterial, Review,
 )
 from app.services.auth_service import create_default_roles, get_role_by_name, get_user_by_email
 
@@ -110,15 +110,6 @@ FEEDBACK_POOL = [
     "Well done, keep it up.", "Good attempt but revise the basics.",
     "Excellent work, very clear.", "Fair — needs improvement in core concepts.",
     "Good effort, watch the formatting.", "Solid work, minor mistakes.",
-]
-
-NOTICES = [
-    ("Mid-Term Examination Schedule Released", "The mid-term exams for all BSCS semesters begin next week. Check the notice board for the complete date sheet.", "news", True, 0),
-    ("Final Year Project Submission Open", "Final semester students can now submit their project proposals through their course teacher before the 15th.", "news", True, 0),
-    ("Leave Application Process Update", "All students must submit leave applications at least two working days in advance through the department office.", "news", False, 0),
-    ("Seminar: Trends in Artificial Intelligence", "The CS department is hosting a seminar on modern AI trends. Attendance is encouraged for all students.", "news", False, 0),
-    ("Annual CS Tech Fest Registration", "Registration for the annual department tech fest is now open. Form teams and register through the student council.", "news", False, 0),
-    ("Fee Payment Deadline Extension", "The fee deadline has been extended by one week. Late fees apply after the new deadline.", "news", False, 0),
 ]
 
 REVIEWS = [
@@ -444,22 +435,6 @@ def seed(db):
         db.commit()
     print(f"materials added: {material_added}")
 
-    # ── Notices ───────────────────────────────────────────
-    notice_added = 0
-    for i, (title, content, category, pinned, _) in enumerate(NOTICES):
-        existing = db.query(Notice).filter(Notice.title == title).first()
-        if existing:
-            continue
-        db.add(Notice(
-            title=title, content=content, category=category,
-            posted_by=admin.id, target_semester=(None if pinned else (3, 5, 7)[i % 3]),
-            is_pinned=pinned, expires_at=datetime.utcnow() + timedelta(days=1),
-            created_at=datetime.utcnow() - timedelta(days=i),
-        ))
-        notice_added += 1
-    db.commit()
-    print(f"notices added: {notice_added}")
-
     # ── Reviews ───────────────────────────────────────────
     review_added = 0
     for i, (rating, text) in enumerate(REVIEWS):
@@ -490,7 +465,6 @@ def seed(db):
     print(f"quiz questions: {db.query(QuizQuestion).count()}")
     print(f"results  : {db.query(Result).count()}")
     print(f"materials: {db.query(StudyMaterial).count()}")
-    print(f"notices  : {db.query(Notice).count()}")
     print(f"reviews  : {db.query(Review).count()}\n")
     print("All dummy accounts password: password123")
     print("Sample logins -> teacher1@lms.test | s301@student.lms.test (semester 3)")

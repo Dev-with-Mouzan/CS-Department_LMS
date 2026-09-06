@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_FROM_NUMBER: str = ""
+    # Email provider: "smtp" or "console" (dev only)
+    EMAIL_PROVIDER: str = "console"
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "admin@lms.com"
+    SMTP_TLS: bool = True
 
     class Config:
         env_file = "../.env"  # reads from project root .env

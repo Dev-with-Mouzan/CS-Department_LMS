@@ -28,11 +28,6 @@ const FAQ_DATA = [
     followUp: ['Can I upload my own notes?', 'What\'s the file size limit?'],
   },
   {
-    keywords: ['notice', 'announcement', 'news'],
-    answer: '**Notices & Announcements**\n\n- Notices from admin/teachers appear in the **Notices** tab\n- You\'ll see a badge count on the nav for new notices\n- Stay updated with important announcements',
-    followUp: ['How do I post a notice?', 'Can I filter notices?'],
-  },
-  {
     keywords: ['course', 'enroll', 'semester'],
     answer: '**Course Management**\n\n- Admins manage courses and enrollments\n- Students are auto-enrolled in their semester courses\n- Contact your admin if you need to be enrolled in a course',
     followUp: ['How do I add a new course?', 'Can I drop a course?'],
@@ -49,22 +44,22 @@ const FAQ_DATA = [
   },
   {
     keywords: ['teacher', 'faculty', 'instructor'],
-    answer: '**Teacher Features**\n\nTeachers can:\n- ✅ Mark attendance\n- 📝 Create assignments\n- 📊 Review & grade submissions\n- 📚 Upload materials\n- 📢 Post notices\n\nAll from the dedicated teacher dashboard.',
+    answer: '**Teacher Features**\n\nTeachers can:\n- ✅ Mark attendance\n- 📝 Create assignments\n- 📊 Review & grade submissions\n- 📚 Upload materials\n\nAll from the dedicated teacher dashboard.',
     followUp: ['How do I create an assignment?', 'Can I see class statistics?'],
   },
   {
     keywords: ['admin', 'administrator'],
-    answer: '**Admin Capabilities**\n\nAdmins have full oversight:\n- 👥 Manage users\n- 📚 Manage courses & semesters\n- 📋 Manage enrollments\n- 📢 Post notices\n- 📊 View system analytics',
+    answer: '**Admin Capabilities**\n\nAdmins have full oversight:\n- 👥 Manage users\n- 📚 Manage courses & semesters\n- 📋 Manage enrollments\n- 📊 View system analytics',
     followUp: ['How do I add a new user?', 'How do I create a course?'],
   },
   {
     keywords: ['hello', 'hi', 'hey', 'help'],
-    answer: 'Hello! 👋 I\'m the **CS Department LMS Assistant**.\n\nI can help you with:\n- Attendance\n- Assignments\n- Materials\n- Notices\n- Courses\n- Grades\n- Registration\n\nWhat would you like to know?',
+    answer: 'Hello! 👋 I\'m the **CS Department LMS Assistant**.\n\nI can help you with:\n- Attendance\n- Assignments\n- Materials\n- Courses\n- Grades\n- Registration\n\nWhat would you like to know?',
     followUp: ['How do I register?', 'How do I submit an assignment?', 'Where can I download materials?'],
   },
 ]
 
-const FALLBACK_ANSWER = "I'm not sure about that. Try asking about:\n\n- **Attendance**\n- **Assignments**\n- **Materials**\n- **Notices**\n- **Courses**\n- **Grades**\n- **Registration**\n\nYou can also contact the CS Department at cs@ggcb.edu.pk for further help."
+const FALLBACK_ANSWER = "I'm not sure about that. Try asking about:\n\n- **Attendance**\n- **Assignments**\n- **Materials**\n- **Courses**\n- **Grades**\n- **Registration**\n\nYou can also contact the CS Department at cs@ggcb.edu.pk for further help."
 
 const INITIAL_SUGGESTIONS = [
   'How do I submit an assignment?',

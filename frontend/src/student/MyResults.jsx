@@ -206,19 +206,19 @@ export default function MyResults() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex justify-center mb-6">
-        <div className="inline-flex rounded-xl border border-surface-200 bg-white p-1 gap-1">
+      <div className="mb-6 sm:flex sm:justify-center">
+        <div className="w-full grid grid-cols-3 gap-1 p-1 rounded-xl bg-surface-100/70 sm:inline-flex sm:w-auto sm:justify-center sm:bg-white sm:border sm:border-surface-200">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => switchTab(t.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex items-center justify-center gap-2 px-1 sm:px-5 py-2.5 rounded-lg text-[11px] sm:text-sm font-semibold whitespace-nowrap transition-all ${
                 tab === t.id
                   ? 'bg-accent-500 text-white shadow-md shadow-accent-500/20'
-                  : 'text-navy-500 hover:text-navy-700 hover:bg-surface-50'
+                  : 'text-navy-500 hover:text-navy-700 hover:bg-white sm:hover:bg-surface-50'
               }`}
             >
-              <t.icon className="w-4 h-4" />
+              <t.icon className="w-4 h-4 shrink-0 hidden sm:block" />
               {t.label}
             </button>
           ))}

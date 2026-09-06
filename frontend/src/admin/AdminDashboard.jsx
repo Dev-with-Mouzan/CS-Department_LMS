@@ -5,10 +5,10 @@ import { usersAPI, resultsAPI } from '../services/api'
 import {
   Users,
   GraduationCap,
-  UserCheck,
   ShieldCheck,
   Clock,
   BookOpen,
+  CalendarCheck,
   Trophy,
   UserPlus,
   FileText,
@@ -150,8 +150,8 @@ export default function AdminDashboard() {
 
   const managementHub = [
     { to: '/admin/users', icon: Users, label: 'Users', desc: 'Manage accounts, roles & verification', color: 'bg-accent-500' },
-    { to: '/admin/teachers', icon: UserCheck, label: 'Teachers', desc: 'Add faculty & reset passwords', color: 'bg-sky-500' },
     { to: '/admin/courses', icon: BookOpen, label: 'Courses', desc: 'Create courses & assign teachers', color: 'bg-emerald-500' },
+    { to: '/admin/attendance', icon: CalendarCheck, label: 'Attendance', desc: 'View & download attendance per subject', color: 'bg-sky-500' },
     { to: '/admin/examinations', icon: Trophy, label: 'Result', desc: 'View & delete published result sheets', color: 'bg-amber-500' },
     { to: '/admin/enrollments', icon: UserPlus, label: 'Enrollments', desc: 'Enroll students into courses', color: 'bg-navy-800' },
   ]

@@ -1,6 +1,7 @@
+import re
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
 from app.schemas.common import UTCDateTime
 
@@ -33,6 +34,21 @@ class UserCreate(UserBase):
     semester: Optional[int] = None
     enrollment_year: Optional[int] = None
 
+    @field_validator("email")
+    @classmethod
+    def email_must_be_gmail(cls, v):
+        if not v.lower().endswith("@gmail.com"):
+            raise ValueError("Email must be a valid @gmail.com address")
+        return v.lower()
+
+    @field_validator("phone")
+    @classmethod
+    def phone_must_be_pakistani(cls, v):
+        if v is not None and v != "":
+            if not re.match(r"^\+92\d{10}$", v):
+                raise ValueError("Phone must be exactly 13 characters: +92 followed by 10 digits")
+        return v
+
 
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -42,6 +58,23 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_verified: Optional[bool] = None
     semester: Optional[int] = None
+
+    @field_validator("email")
+    @classmethod
+    def email_must_be_gmail(cls, v):
+        if v is not None:
+            if not v.lower().endswith("@gmail.com"):
+                raise ValueError("Email must be a valid @gmail.com address")
+            return v.lower()
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def phone_must_be_pakistani(cls, v):
+        if v is not None and v != "":
+            if not re.match(r"^\+92\d{10}$", v):
+                raise ValueError("Phone must be exactly 13 characters: +92 followed by 10 digits")
+        return v
 
 
 class TeacherUpdate(BaseModel):
@@ -54,9 +87,22 @@ class TeacherUpdate(BaseModel):
     department: Optional[str] = None
     qualification: Optional[str] = None
 
+    @field_validator("email")
+    @classmethod
+    def email_must_be_gmail(cls, v):
+        if v is not None:
+            if not v.lower().endswith("@gmail.com"):
+                raise ValueError("Email must be a valid @gmail.com address")
+            return v.lower()
+        return v
 
-class TeacherCreate(UserCreate):
-    role_name: str = "teacher"
+    @field_validator("phone")
+    @classmethod
+    def phone_must_be_pakistani(cls, v):
+        if v is not None and v != "":
+            if not re.match(r"^\+92\d{10}$", v):
+                raise ValueError("Phone must be exactly 13 characters: +92 followed by 10 digits")
+        return v
 
 
 class UserOut(UserBase):
@@ -75,18 +121,6 @@ class UserWithRole(UserOut):
     role: RoleOut
 
 
-# ── Teacher Profile ───────────────────────────────────
-class TeacherProfileOut(BaseModel):
-    id: str
-    user_id: str
-    employee_id: Optional[str] = None
-    department: Optional[str] = None
-    qualification: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-
 # ── Student Profile ───────────────────────────────────
 class StudentProfileOut(BaseModel):
     id: str
@@ -98,20 +132,6 @@ class StudentProfileOut(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-# ── Teacher / Semester outputs ────────────────────────
-class TeacherOut(UserWithRole):
-    teacher_profile: Optional[TeacherProfileOut] = None
-
-    class Config:
-        from_attributes = True
-
-
-class SemesterOut(BaseModel):
-    semester: int
-    course_count: int
-    student_count: int
 
 
 class PasswordResetBody(BaseModel):

@@ -46,12 +46,12 @@ class User(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     role = relationship("Role", back_populates="users")
-    teacher_profile = relationship("TeacherProfile", back_populates="user", uselist=False)
-    student_profile = relationship("StudentProfile", back_populates="user", uselist=False)
+    teacher_profile = relationship("TeacherProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    student_profile = relationship("StudentProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     taught_courses = relationship("Course", back_populates="teacher")
     submissions = relationship("Submission", back_populates="student")
-    otp_records = relationship("OTPVerification", back_populates="user")
-    notifications = relationship("Notification", back_populates="user")
+    otp_records = relationship("OTPVerification", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     quizzes = relationship("Quiz", back_populates="teacher")
 
 
@@ -97,10 +97,12 @@ class Course(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     teacher = relationship("User", back_populates="taught_courses")
-    enrollments = relationship("Enrollment", back_populates="course")
-    assignments = relationship("Assignment", back_populates="course")
-    attendance_sessions = relationship("AttendanceSession", back_populates="course")
-    quizzes = relationship("Quiz", back_populates="course")
+    enrollments = relationship("Enrollment", back_populates="course", cascade="all, delete-orphan")
+    assignments = relationship("Assignment", back_populates="course", cascade="all, delete-orphan")
+    attendance_sessions = relationship("AttendanceSession", back_populates="course", cascade="all, delete-orphan")
+    quizzes = relationship("Quiz", back_populates="course", cascade="all, delete-orphan")
+    study_materials = relationship("StudyMaterial", cascade="all, delete-orphan")
+    results = relationship("Result", cascade="all, delete-orphan")
 
 
 class Enrollment(Base):
@@ -256,7 +258,7 @@ class StudyMaterial(Base):
     uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=utcnow)
 
-    course = relationship("Course")
+    course = relationship("Course", back_populates="study_materials")
     uploader = relationship("User")
 
 
@@ -278,26 +280,8 @@ class Result(Base):
     uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=utcnow)
 
-    course = relationship("Course")
+    course = relationship("Course", back_populates="results")
     uploader = relationship("User")
-
-
-class Notice(Base):
-    __tablename__ = "notices"
-
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    title = Column(String(255), nullable=False)
-    content = Column(Text)
-    category = Column(String(50), default="news")  # news, photo, document
-    file_url = Column(String(500))
-    posted_by = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    target_semester = Column(Integer, nullable=True)  # null = all, number = specific semester
-    is_pinned = Column(Boolean, default=False)
-    expires_at = Column(DateTime, nullable=True)  # auto-set to created_at + 24h
-    created_at = Column(DateTime, default=utcnow)
-    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
-
-    author = relationship("User")
 
 
 class Notification(Base):

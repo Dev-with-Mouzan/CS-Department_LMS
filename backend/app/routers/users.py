@@ -7,11 +7,12 @@ from app.database.database import get_db
 from app.dependencies.auth import require_admin, hash_password
 from app.models import User, Role, TeacherProfile, StudentProfile, Course
 from app.schemas.user import (
-    UserCreate, UserUpdate, UserWithRole, TeacherOut, TeacherCreate,
-    TeacherUpdate, SemesterOut, PasswordResetBody,
+    UserCreate, UserUpdate, UserWithRole, PasswordResetBody,
 )
 from app.services.auth_service import create_user as create_user_service
+from app.services.email_service import send_credentials_email
 from app.services.enrollment_service import auto_enroll_student
+from app.services.otp_service import create_otp
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -35,13 +36,13 @@ def _delete_user_dependencies(db: Session, user: User) -> None:
     """Hard-delete a user and every row that references them (dependency order).
 
     Covers submissions, attendance, enrollments, OTP/notification records,
-    profiles, and — for teachers — their assignments, materials, notices and
+    profiles, and — for teachers — their assignments, materials and
     taught courses (with each course's own children).
     """
     from app.models import (
         Submission, AttendanceRecord, Enrollment, OTPVerification,
-        Notification, Assignment, StudyMaterial, Notice,
-        AttendanceSession,
+        Notification, Assignment, StudyMaterial,
+        AttendanceSession, Quiz, QuizQuestion, Result, Review,
     )
 
     user_id = user.id
@@ -65,6 +66,13 @@ def _delete_user_dependencies(db: Session, user: User) -> None:
         db.query(AttendanceSession).filter(AttendanceSession.course_id == course_id).delete()
         db.query(StudyMaterial).filter(StudyMaterial.course_id == course_id).delete()
         db.query(Enrollment).filter(Enrollment.course_id == course_id).delete()
+        db.query(QuizQuestion).filter(
+            QuizQuestion.quiz_id.in_(
+                db.query(Quiz.id).filter(Quiz.course_id == course_id)
+            )
+        ).delete(synchronize_session=False)
+        db.query(Quiz).filter(Quiz.course_id == course_id).delete()
+        db.query(Result).filter(Result.course_id == course_id).delete()
     db.query(Course).filter(Course.teacher_id == user_id).delete()
 
     # Direct user references
@@ -73,9 +81,16 @@ def _delete_user_dependencies(db: Session, user: User) -> None:
     db.query(Enrollment).filter(Enrollment.student_id == user_id).delete()
     db.query(Assignment).filter(Assignment.teacher_id == user_id).delete()
     db.query(StudyMaterial).filter(StudyMaterial.uploaded_by == user_id).delete()
-    db.query(Notice).filter(Notice.posted_by == user_id).delete()
     db.query(OTPVerification).filter(OTPVerification.user_id == user_id).delete()
     db.query(Notification).filter(Notification.user_id == user_id).delete()
+    db.query(QuizQuestion).filter(
+        QuizQuestion.quiz_id.in_(
+            db.query(Quiz.id).filter(Quiz.teacher_id == user_id)
+        )
+    ).delete(synchronize_session=False)
+    db.query(Quiz).filter(Quiz.teacher_id == user_id).delete()
+    db.query(Result).filter(Result.uploaded_by == user_id).delete()
+    db.query(Review).filter(Review.user_id == user_id).delete()
     db.query(TeacherProfile).filter(TeacherProfile.user_id == user_id).delete()
     db.query(StudentProfile).filter(StudentProfile.user_id == user_id).delete()
 
@@ -96,49 +111,6 @@ def list_users(
         if role_obj:
             query = query.filter(User.role_id == role_obj.id)
     return query.offset(skip).limit(limit).all()
-
-
-@router.get("/teachers", response_model=List[TeacherOut])
-def list_teachers(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """List all teachers with profile info."""
-    role = db.query(Role).filter(Role.name == "teacher").first()
-    if not role:
-        return []
-    return db.query(User).filter(User.role_id == role.id).all()
-
-
-@router.get("/teachers/{teacher_id}", response_model=TeacherOut)
-def get_teacher(
-    teacher_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Get a single teacher."""
-    user = _get_user_or_404(db, teacher_id)
-    if user.role.name != "teacher":
-        raise HTTPException(status_code=400, detail="User is not a teacher")
-    return user
-
-
-@router.get("/semesters", response_model=List[SemesterOut])
-def list_semesters(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """List semesters that have courses, with course and student counts."""
-    rows = db.query(Course.semester).filter(Course.semester.isnot(None))
-    semesters = sorted({r[0] for r in rows.all()})
-    result = []
-    for sem in semesters:
-        course_count = db.query(Course).filter(Course.semester == sem).count()
-        student_count = db.query(StudentProfile).filter(StudentProfile.semester == sem).count()
-        result.append(SemesterOut(
-            semester=sem, course_count=course_count, student_count=student_count
-        ))
-    return result
 
 
 @router.get("/stats/dashboard")
@@ -187,6 +159,25 @@ def create_user(
             raise HTTPException(status_code=400, detail="Phone number already registered")
 
     user = create_user_service(db, data.model_dump())
+
+    # Students created by admin: send an OTP to the phone number so the
+    # account can be verified (same SMS flow as public registration).
+    if user.role.name == "student" and user.phone:
+        create_otp(db, user)
+
+    # Teachers created by admin: auto-verify so they can login immediately,
+    # and email the credentials (email, phone, password) to the teacher.
+    if user.role.name == "teacher":
+        user.is_verified = True
+        db.commit()
+        db.refresh(user)
+        send_credentials_email(
+            user.email,
+            f"{user.first_name} {user.last_name}",
+            user.phone,
+            data.password,
+        )
+
     return user
 
 
@@ -264,105 +255,3 @@ def delete_user(
     user.is_active = False
     db.commit()
     return {"message": "User deactivated successfully"}
-
-
-# ── Teacher management mutations ──────────────────────
-@router.post("/teachers", response_model=TeacherOut, status_code=status.HTTP_201_CREATED)
-def create_teacher(
-    data: TeacherCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Create a teacher (admin only)."""
-    _check_email_available(db, data.email)
-
-    user_data = data.model_dump()
-    user_data["role_name"] = "teacher"
-    user = create_user_service(db, user_data)
-
-    # Auto-verify teacher so they can login immediately
-    user.is_verified = True
-    db.commit()
-    db.refresh(user)
-
-    # Print credentials to terminal for admin to share with teacher
-    password = data.password
-    line = "=" * 58
-    print(line)
-    print(" NEW TEACHER ACCOUNT CREATED")
-    print(f" Name:     {user.first_name} {user.last_name}")
-    print(f" Email:    {user.email}")
-    print(f" Password: {password}")
-    print(f" Phone:    {user.phone or 'N/A'}")
-    print(f" Status:   Active & Verified")
-    print(line)
-
-    return user
-
-
-@router.put("/teachers/{teacher_id}", response_model=TeacherOut)
-def update_teacher(
-    teacher_id: str,
-    data: TeacherUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Update a teacher and their profile (admin only)."""
-    user = _get_user_or_404(db, teacher_id)
-    if user.role.name != "teacher":
-        raise HTTPException(status_code=400, detail="User is not a teacher")
-
-    _check_email_available(db, data.email, exclude_user_id=user.id)
-
-    update_data = data.model_dump(exclude_unset=True)
-    profile_fields = {
-        k: update_data.pop(k) for k in
-        ["employee_id", "department", "qualification"] if k in update_data
-    }
-
-    for field, value in update_data.items():
-        setattr(user, field, value)
-
-    if profile_fields:
-        profile = user.teacher_profile
-        if not profile:
-            profile = TeacherProfile(user_id=user.id)
-            db.add(profile)
-        for field, value in profile_fields.items():
-            setattr(profile, field, value)
-
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-@router.delete("/teachers/{teacher_id}")
-def delete_teacher(
-    teacher_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Deactivate a teacher (admin only — soft delete)."""
-    user = _get_user_or_404(db, teacher_id)
-    if user.role.name != "teacher":
-        raise HTTPException(status_code=400, detail="User is not a teacher")
-    user.is_active = False
-    db.commit()
-    return {"message": "Teacher deactivated successfully"}
-
-
-@router.delete("/teachers/{teacher_id}/hard")
-def hard_delete_teacher(
-    teacher_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Permanently delete a teacher (admin only)."""
-    user = _get_user_or_404(db, teacher_id)
-    if user.role.name != "teacher":
-        raise HTTPException(status_code=400, detail="User is not a teacher")
-
-    _delete_user_dependencies(db, user)
-    db.delete(user)
-    db.commit()
-    return {"message": "Teacher deleted permanently"}

@@ -17,7 +17,6 @@ import {
   X,
   UserPlus,
   ChevronDown,
-  UserCheck,
   UserCog,
   Trophy,
   Star,
@@ -34,8 +33,8 @@ const navConfig = {
   admin: [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/users', label: 'Users', icon: Users },
-    { to: '/admin/teachers', label: 'Teachers', icon: UserCheck },
     { to: '/admin/courses', label: 'Courses', icon: BookOpen },
+    { to: '/admin/attendance', label: 'Attendance', icon: CalendarCheck },
     { to: '/admin/examinations', label: 'Result', icon: Trophy },
     { to: '/admin/enrollments', label: 'Enrollments', icon: UserPlus },
   ],
@@ -81,15 +80,24 @@ function Navbar({ links, role, user, onLogout }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
         <div className="flex items-center justify-between h-14 lg:h-16 gap-4">
           {/* Brand */}
-          <Link to="/" className="flex items-center gap-3 shrink-0 group">
-            <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg object-cover" />
-            <div className="leading-tight">
-              <p className="text-sm lg:text-base font-bold text-white tracking-tight">CS Department LMS</p>
-              <p className="text-2xs font-medium text-white/40">
-                Govt. Graduate College Burewala
-              </p>
-            </div>
-          </Link>
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="lg:hidden p-2 rounded-lg text-white hover:bg-white/10 transition-colors shrink-0"
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            <Link to="/" className="flex items-center gap-3 min-w-0 shrink-0 group">
+              <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg object-cover shrink-0" />
+              <div className="leading-tight min-w-0">
+                <p className="text-sm lg:text-base font-bold text-white tracking-tight truncate">CS Department LMS</p>
+                <p className="text-2xs font-medium text-white/40 truncate">
+                  Govt. Graduate College Burewala
+                </p>
+              </div>
+            </Link>
+          </div>
 
           {/* Desktop tabs */}
           <nav className="hidden lg:flex items-center gap-1">
@@ -148,15 +156,6 @@ function Navbar({ links, role, user, onLogout }) {
                 </div>
               )}
             </div>
-
-            {/* Mobile toggle */}
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="lg:hidden p-2 rounded-lg text-white hover:bg-white/10 transition-colors"
-              aria-label="Toggle menu"
-            >
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
           </div>
         </div>
       </div>

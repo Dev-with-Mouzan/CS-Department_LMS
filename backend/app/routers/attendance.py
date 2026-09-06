@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_teacher, require_student
 from app.models import (
-    User, Course, Enrollment,
+    User, Course, Enrollment, StudentProfile,
     AttendanceSession, AttendanceRecord
 )
 from app.schemas.attendance import (
@@ -17,6 +17,7 @@ from app.schemas.attendance import (
     AttendancePercentageOut
 )
 from app.services.attendance_excel import generate_attendance_excel
+from app.routers.courses import _attach_sessions
 
 router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
 
@@ -158,6 +159,105 @@ def get_session_records(
     return db.query(AttendanceRecord).filter(
         AttendanceRecord.session_id == session_id,
     ).all()
+
+
+# ── Attendance Matrix (View/Export for admin) ────────
+@router.get("/course/{course_id}/matrix")
+def get_course_attendance_matrix(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Full attendance matrix for a course (admin or owning teacher)."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    role = current_user.role.name
+    if role == "teacher" and course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if role == "student":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    sessions = (
+        db.query(AttendanceSession)
+        .filter(AttendanceSession.course_id == course_id)
+        .order_by(AttendanceSession.session_date.asc(), AttendanceSession.start_time.asc())
+        .all()
+    )
+
+    enrollments = db.query(Enrollment).filter(
+        Enrollment.course_id == course_id,
+        Enrollment.status == "active",
+    ).all()
+
+    records = db.query(AttendanceRecord).join(AttendanceSession).filter(
+        AttendanceSession.course_id == course_id,
+    ).all()
+
+    records_by_session = {}
+    for rec in records:
+        records_by_session.setdefault(rec.session_id, {})[rec.student_id] = rec.status
+
+    sessions_out = [
+        {
+            "id": s.id,
+            "session_date": str(s.session_date),
+            "start_time": str(s.start_time),
+            "topic": s.topic,
+        }
+        for s in sessions
+    ]
+
+    students_out = []
+    for e in enrollments:
+        student = db.query(User).filter(User.id == e.student_id).first()
+        profile = db.query(StudentProfile).filter(StudentProfile.user_id == e.student_id).first()
+        student_name = f"{student.first_name} {student.last_name}".strip() if student else "Unknown"
+        roll_number = profile.roll_number if profile else None
+        student_id = e.student_id
+
+        present = late = absent = excused = 0
+        for s in sessions:
+            status = records_by_session.get(s.id, {}).get(student_id)
+            if status == "present":
+                present += 1
+            elif status == "late":
+                late += 1
+            elif status == "excused":
+                excused += 1
+            elif status == "absent":
+                absent += 1
+
+        total = len(sessions)
+        attended = present + late
+        students_out.append({
+            "student_id": student_id,
+            "student_name": student_name,
+            "roll_number": roll_number,
+            "present": present,
+            "late": late,
+            "absent": absent,
+            "excused": excused,
+            "total_sessions": total,
+            "percentage": round((attended / total * 100), 2) if total > 0 else 0.0,
+        })
+
+    students_out.sort(key=lambda s: (s["roll_number"] or "zzz"))
+
+    _attach_sessions(db, [course])
+
+    return {
+        "course": {
+            "id": course.id,
+            "title": course.title,
+            "course_code": course.course_code,
+            "semester": course.semester,
+            "session": course.session,
+        },
+        "sessions": sessions_out,
+        "records": records_by_session,
+        "students": students_out,
+    }
 
 
 # ── Excel Export ─────────────────────────────────────

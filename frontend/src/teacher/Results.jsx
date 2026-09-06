@@ -273,25 +273,10 @@ export default function Results() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-sm font-semibold text-navy-900 truncate">{r.title}</h3>
-                          <span className="inline-flex items-center gap-1 p-0.5 px-1.5 rounded-md text-[10px] font-semibold border bg-accent-50 text-accent-600 border-accent-200">
-                            <ScrollText className="w-3 h-3" />
-                            Complete result
-                          </span>
-                          <span className="inline-flex items-center gap-1 p-0.5 px-1.5 rounded-md text-[10px] font-semibold border bg-emerald-50 text-emerald-600 border-emerald-200">
-                            <TrendingUp className="w-3 h-3" />
-                            Best paper
-                          </span>
-                          <span className="inline-flex items-center gap-1 p-0.5 px-1.5 rounded-md text-[10px] font-semibold border bg-red-50 text-red-600 border-red-200">
-                            <TrendingDown className="w-3 h-3" />
-                            Worst paper
-                          </span>
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-[10px] text-navy-400">{r.course_name}</span>
                           <span className="text-[10px] text-navy-300">· {examLabels[r.exam_type]}</span>
-                          {r.file_name && <span className="text-[10px] text-navy-300">· Complete: {r.file_name}</span>}
-                          {r.best_paper_name && <span className="text-[10px] text-navy-300">· Best: {r.best_paper_name}</span>}
-                          {r.worst_paper_name && <span className="text-[10px] text-navy-300">· Worst: {r.worst_paper_name}</span>}
                           <span className="text-[10px] text-navy-300">· {new Date(r.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>

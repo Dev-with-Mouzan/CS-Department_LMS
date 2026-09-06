@@ -126,7 +126,7 @@ export default function ManageCourses() {
 
       {/* Toolbar: filters + search + action */}
       <div className="border border-surface-200 rounded-xl bg-white p-3 mb-8 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-        <div className="inline-flex gap-1 p-1 bg-navy-900/5 rounded-xl self-start lg:self-center">
+        <div className="inline-flex gap-1 p-1 bg-navy-900/5 rounded-xl justify-center w-full lg:w-auto self-center">
           {[{ value: '', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }].map((r) => (
             <button key={r.value} onClick={() => setFilter(r.value)}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${

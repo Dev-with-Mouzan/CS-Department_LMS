@@ -4,7 +4,7 @@ import Modal from '../components/Modal'
 import Button from '../components/Button'
 import {
   Users, UserPlus, Mail, Pencil, ShieldCheck, ShieldOff,
-  Trash2, Search, GraduationCap, UserCheck, Clock,
+  Trash2, Search, GraduationCap, UserCheck, Clock, Eye, EyeOff,
 } from 'lucide-react'
 
 const ROLE_BAGE = {
@@ -26,9 +26,10 @@ export default function ManageUsers() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '', password: '',
-    role_name: 'student', department: '', semester: '',
+    role_name: 'student', semester: '',
   })
 
   useEffect(() => { loadUsers() }, [filter])
@@ -45,7 +46,8 @@ export default function ManageUsers() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ first_name: '', last_name: '', email: '', phone: '', password: '', role_name: 'student', department: '', semester: '' })
+    setForm({ first_name: '', last_name: '', email: '', phone: '', password: '', role_name: 'student', semester: '' })
+    setShowPassword(false)
     setShowModal(true)
   }
 
@@ -55,31 +57,32 @@ export default function ManageUsers() {
       first_name: user.first_name || '',
       last_name: user.last_name || '',
       email: user.email || '',
-      phone: user.phone || '',
+      phone: (user.phone || '').replace(/^\+92/, ''),
       password: '',
       role_name: user.role?.name || 'student',
-      department: user.student_profile?.department || user.department || '',
       semester: user.student_profile?.semester || '',
       is_active: user.is_active,
       is_verified: user.is_verified,
     })
+    setShowPassword(false)
     setShowModal(true)
   }
+
+  const normalizePhone = (p) => (p ? `+92${p.replace(/^\+92/, '')}` : undefined)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
       if (editing) {
         const { first_name, last_name, email, phone, is_active, is_verified, semester } = form
-        const payload = { first_name, last_name, email, phone, is_active, is_verified }
+        const payload = { first_name, last_name, email, phone: normalizePhone(phone), is_active, is_verified }
         if (editing.role?.name === 'student' && semester) payload.semester = parseInt(semester, 10)
         await usersAPI.update(editing.id, payload)
       } else {
-        const { first_name, last_name, email, phone, password, role_name, department, semester } = form
-        const payload = { first_name, last_name, email, phone, password, role_name }
-        if (role_name === 'student') {
-          if (semester) payload.semester = parseInt(semester, 10)
-          if (department) payload.department = department
+        const { first_name, last_name, email, phone, password, role_name, semester } = form
+        const payload = { first_name, last_name, email, phone: normalizePhone(phone), password, role_name }
+        if (role_name === 'student' && semester) {
+          payload.semester = parseInt(semester, 10)
         }
         await usersAPI.create(payload)
       }
@@ -142,7 +145,7 @@ export default function ManageUsers() {
 
       {/* Toolbar: filters + search + action */}
       <div className="border border-surface-200 rounded-xl bg-white p-3 mb-8 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-        <div className="inline-flex gap-1 p-1 bg-navy-900/5 rounded-xl self-start lg:self-center">
+        <div className="inline-flex justify-center gap-1 p-1 bg-navy-900/5 rounded-xl self-center w-full lg:w-auto lg:self-center">
           {[{ value: '', label: 'All' }, { value: 'admin', label: 'Admin' }, { value: 'teacher', label: 'Teacher' }, { value: 'student', label: 'Student' }].map((r) => (
             <button key={r.value} onClick={() => setFilter(r.value)}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
@@ -285,8 +288,15 @@ export default function ManageUsers() {
 
             <div>
               <label className="input-label">Phone</label>
-              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                className="input-field" placeholder="+92 3XX XXXXXXX" />
+              <div className="relative flex">
+                <span className="flex items-center pl-3.5 pr-2 bg-surface-100 border border-r-0 border-surface-200 rounded-l-xl text-sm font-semibold text-navy-600 select-none">+92</span>
+                <input type="tel" value={form.phone.replace(/^\+92/, '')}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-surface-0 border border-surface-200 rounded-r-xl text-sm text-navy-900 placeholder-navy-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 hover:border-navy-300" placeholder="3XX XXXXXXX" />
+              </div>
+              {form.role_name === 'student' && !editing && (
+                <p className="text-2xs text-navy-400 mt-1">An OTP will be sent to this number for account verification.</p>
+              )}
             </div>
           </div>
           <div>
@@ -323,8 +333,15 @@ export default function ManageUsers() {
             <>
               <div>
                 <label className="input-label">Password</label>
-                <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="input-field" required minLength={6} />
+                <div className="relative">
+                  <input type={showPassword ? 'text' : 'password'} value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    className="input-field pr-10" required minLength={6} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-400 hover:text-navy-600 transition-colors">
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="input-label">Role</label>
@@ -343,11 +360,6 @@ export default function ManageUsers() {
                     className="input-field" placeholder="1 – 8" required />
                 </div>
               )}
-              <div>
-                <label className="input-label">Department</label>
-                <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}
-                  className="input-field" placeholder="e.g. Computer Science" />
-              </div>
             </>
           )}
 

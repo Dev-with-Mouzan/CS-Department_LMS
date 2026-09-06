@@ -14,7 +14,7 @@ from app.config import settings
 from app.database.database import engine, SessionLocal, Base
 from app.dependencies.ratelimit import limiter
 from app.services.auth_service import create_default_roles, create_default_admin
-from app.routers import auth, users, courses, assignments, attendance, notices, materials, results, reviews, quizzes
+from app.routers import auth, users, courses, assignments, attendance, materials, results, reviews, quizzes
 from app.models import Review
 
 logger = logging.getLogger(__name__)
@@ -24,11 +24,6 @@ _ALLOWLISTED_MIGRATIONS = {
     "users": [("phone", "VARCHAR(20)")],
     "courses": [("semester", "INTEGER")],
     "student_profiles": [("roll_number", "VARCHAR(50)")],
-    "notices": [
-        ("target_semester", "INTEGER"),
-        ("is_pinned", "INTEGER DEFAULT 0"),
-        ("expires_at", "DATETIME"),
-    ],
     "results": [
         ("worst_paper_url", "VARCHAR(500)"),
         ("worst_paper_name", "VARCHAR(255)"),
@@ -121,7 +116,6 @@ app.include_router(users.router)
 app.include_router(courses.router)
 app.include_router(assignments.router)
 app.include_router(attendance.router)
-app.include_router(notices.router)
 app.include_router(materials.router)
 app.include_router(results.router)
 app.include_router(reviews.router)

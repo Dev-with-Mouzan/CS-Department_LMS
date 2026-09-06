@@ -115,19 +115,19 @@ export default function Examinations() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex justify-center mb-5">
-        <div className="inline-flex rounded-xl border border-surface-200 bg-white p-1 gap-1">
+      <div className="mb-5 sm:flex sm:justify-center">
+        <div className="w-full grid grid-cols-3 gap-1 p-1 rounded-xl bg-surface-100/70 sm:inline-flex sm:w-auto sm:justify-center sm:bg-white sm:border sm:border-surface-200">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex items-center justify-center gap-2 px-1 sm:px-5 py-2.5 rounded-lg text-[11px] sm:text-sm font-semibold whitespace-nowrap transition-all ${
                 tab === t.id
                   ? 'bg-accent-500 text-white shadow-md shadow-accent-500/20'
-                  : 'text-navy-500 hover:text-navy-700 hover:bg-surface-50'
+                  : 'text-navy-500 hover:text-navy-700 hover:bg-white sm:hover:bg-surface-50'
               }`}
             >
-              <t.icon className="w-4 h-4" />
+              <t.icon className="w-4 h-4 shrink-0 hidden sm:block" />
               {t.label}
             </button>
           ))}
@@ -223,25 +223,10 @@ export default function Examinations() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-sm font-semibold text-navy-900 truncate">{r.title}</h3>
-                          <span className="inline-flex items-center gap-1 p-0.5 px-1.5 rounded-md text-[10px] font-semibold border bg-accent-50 text-accent-600 border-accent-200">
-                            <ScrollText className="w-3 h-3" />
-                            Complete result
-                          </span>
-                          <span className="inline-flex items-center gap-1 p-0.5 px-1.5 rounded-md text-[10px] font-semibold border bg-emerald-50 text-emerald-600 border-emerald-200">
-                            <TrendingUp className="w-3 h-3" />
-                            Best paper
-                          </span>
-                          <span className="inline-flex items-center gap-1 p-0.5 px-1.5 rounded-md text-[10px] font-semibold border bg-red-50 text-red-600 border-red-200">
-                            <TrendingDown className="w-3 h-3" />
-                            Worst paper
-                          </span>
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-[10px] text-navy-400">{r.course_name}</span>
                           <span className="text-[10px] text-navy-300">· {examLabels[r.exam_type]}</span>
-                          {r.file_name && <span className="text-[10px] text-navy-300">· Complete: {r.file_name}</span>}
-                          {r.best_paper_name && <span className="text-[10px] text-navy-300">· Best: {r.best_paper_name}</span>}
-                          {r.worst_paper_name && <span className="text-[10px] text-navy-300">· Worst: {r.worst_paper_name}</span>}
                           {r.uploader_name && <span className="text-[10px] text-navy-300">· by {r.uploader_name}</span>}
                           <span className="text-[10px] text-navy-300">· {new Date(r.created_at).toLocaleDateString()}</span>
                         </div>

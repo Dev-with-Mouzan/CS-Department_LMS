@@ -11,8 +11,8 @@ import LandingPage from './pages/LandingPage'
 // Dashboards
 import AdminDashboard from './admin/AdminDashboard'
 import ManageUsers from './admin/ManageUsers'
-import ManageTeachers from './admin/ManageTeachers'
 import ManageCourses from './admin/ManageCourses'
+import ManageAttendance from './admin/ManageAttendance'
 import Examinations from './admin/Examinations'
 import ManageEnrollments from './admin/ManageEnrollments'
 import TeacherDashboard from './teacher/TeacherDashboard'
@@ -57,8 +57,8 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<ManageUsers />} />
-          <Route path="/admin/teachers" element={<ManageTeachers />} />
           <Route path="/admin/courses" element={<ManageCourses />} />
+          <Route path="/admin/attendance" element={<ManageAttendance />} />
           <Route path="/admin/examinations" element={<Examinations />} />
           <Route path="/admin/enrollments" element={<ManageEnrollments />} />
         </Route>
