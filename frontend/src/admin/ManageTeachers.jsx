@@ -3,7 +3,7 @@ import { usersAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import {
-  UserCheck, UserPlus, Pencil, CheckCircle2, Trash2, Mail, Search,
+  UserCheck, UserPlus, Pencil, CheckCircle2, Trash2, Mail, Search, Eye, EyeOff,
 } from 'lucide-react'
 
 export default function ManageTeachers() {
@@ -13,6 +13,7 @@ export default function ManageTeachers() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '', password: '',
   })
@@ -33,25 +34,29 @@ export default function ManageTeachers() {
     setForm({
       first_name: '', last_name: '', email: '', phone: '', password: '',
     })
+    setShowPassword(false)
     setShowModal(true)
   }
 
   const openEdit = (t) => {
     setEditing(t)
     setForm({
-      first_name: t.first_name || '', last_name: t.last_name || '', email: t.email || '', phone: t.phone || '', password: '',
+      first_name: t.first_name || '', last_name: t.last_name || '', email: t.email || '',
+      phone: (t.phone || '').replace(/^\+92/, ''), password: '',
     })
+    setShowPassword(false)
     setShowModal(true)
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const phone = `+92${form.phone}`.replace(/\s+/g, '')
     try {
       if (editing) {
         const { password, ...rest } = form
-        await usersAPI.updateTeacher(editing.id, rest)
+        await usersAPI.updateTeacher(editing.id, { ...rest, phone })
       } else {
-        await usersAPI.createTeacher(form)
+        await usersAPI.createTeacher({ ...form, phone })
       }
       setShowModal(false)
       loadTeachers()
@@ -249,13 +254,26 @@ export default function ManageTeachers() {
             </div>
             <div>
               <label className="input-label">Phone</label>
-              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={input} placeholder="+92 3XX XXXXXXX" />
+              <div className="relative flex">
+                <span className="flex items-center pl-3.5 pr-2 bg-surface-100 border border-r-0 border-surface-200 rounded-l-xl text-sm font-semibold text-navy-600 select-none">+92</span>
+                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-4 py-2.5 bg-surface-0 border border-surface-200 rounded-r-xl text-sm text-navy-900 placeholder-navy-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 hover:border-navy-300" placeholder="3XX XXXXXXX" />
+              </div>
             </div>
           </div>
           {!editing && (
             <div>
               <label className="input-label">Password</label>
-              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={input} required minLength={6} />
+              <div className="relative">
+                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={`${input} pr-10`} required minLength={6} placeholder="Min. 8 characters" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-navy-300 hover:text-navy-500 transition-colors"
+                  aria-label="Toggle password visibility"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           )}
 

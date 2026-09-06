@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import api from '../services/api'
 import { AnimatedSection, StaggerContainer } from '../hooks/useScrollReveal.jsx'
 import ChatWidget from '../components/ChatWidget'
 import Tour, { useTour } from '../components/Tour'
@@ -932,50 +933,26 @@ function StudentReviewsCarousel({ reviews }) {
 }
 
 function StudentReviews() {
-  const reviews = [
-    {
-      name: 'Ali Hassan',
-      semester: 'BS CS — 4th Semester',
-      avatar: 'AH',
-      rating: 5,
-      text: 'The LMS has completely changed how I manage my coursework. I can see all my assignments, attendance, and grades in one place. No more checking WhatsApp groups for deadlines!',
-    },
-    {
-      name: 'Fatima Zahra',
-      semester: 'BS CS — 6th Semester',
-      avatar: 'FZ',
-      rating: 5,
-      text: 'Submitting assignments online is so convenient. I love how I can track my attendance percentage and see my performance trends over time. Highly recommended for all CS students.',
-    },
-    {
-      name: 'Qasim Ali',
-      semester: 'BS CS — 2nd Semester',
-      avatar: 'QA',
-      rating: 4,
-      text: 'As a fresh student, the LMS made it easy to access course materials and stay on top of deadlines. The dashboard is clean and everything is exactly where you need it.',
-    },
-    {
-      name: 'Ayesha Bibi',
-      semester: 'BS CS — 8th Semester',
-      avatar: 'AB',
-      rating: 5,
-      text: 'Final year stress is real, but the LMS keeps me organized. I can see all my results, track my progress, and never miss an important notice. The best tool for GGCB students.',
-    },
-    {
-      name: 'Hassan Raza',
-      semester: 'BS CS — 4th Semester',
-      avatar: 'HR',
-      rating: 5,
-      text: 'My attendance went from 75% to 92% after using this LMS. Being able to see my attendance in real-time motivates me to show up every day. The progress charts are amazing.',
-    },
-    {
-      name: 'Zainab Fatima',
-      semester: 'BS CS — 6th Semester',
-      avatar: 'ZF',
-      rating: 5,
-      text: 'The quiz feature is my favorite. Teachers can create quizzes and we attempt them right from our phones. No more paper-based exams for quick assessments. So modern!',
-    },
-  ]
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get('/reviews/public', { params: { limit: 6 } })
+      .then((res) => {
+        const mapped = res.data.map((r) => ({
+          name: r.user_name || 'Student',
+          semester: r.user_semester ? `BS CS — ${r.user_semester}${ordinalSuffix(r.user_semester)} Semester` : 'BS CS Student',
+          avatar: (r.user_name || 'S').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase(),
+          rating: r.rating,
+          text: r.text,
+        }))
+        setReviews(mapped)
+      })
+      .catch(() => setReviews([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading || reviews.length === 0) return null
 
   return (
     <section className="py-20 lg:py-28 bg-surface-50">
@@ -992,6 +969,12 @@ function StudentReviews() {
       </div>
     </section>
   )
+}
+
+function ordinalSuffix(n) {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return s[(v - 20) % 10] || s[v] || s[0]
 }
 
 /* ─────────────────────────── FAQ ─────────────────────────── */

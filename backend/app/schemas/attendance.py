@@ -1,6 +1,8 @@
 from datetime import date, time, datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel
+
+from app.schemas.common import UTCDateTime
 
 
 class AttendanceSessionCreate(BaseModel):
@@ -17,7 +19,7 @@ class AttendanceSessionOut(BaseModel):
     session_date: date
     start_time: time
     topic: Optional[str] = None
-    created_at: datetime
+    created_at: UTCDateTime
 
     class Config:
         from_attributes = True
@@ -25,7 +27,7 @@ class AttendanceSessionOut(BaseModel):
 
 class AttendanceRecordCreate(BaseModel):
     student_id: str
-    status: str  # present, absent, late, excused
+    status: Literal["present", "absent", "late", "excused"]
 
 
 class AttendanceRecordBulk(BaseModel):
@@ -37,7 +39,7 @@ class AttendanceRecordOut(BaseModel):
     session_id: str
     student_id: str
     status: str
-    marked_at: datetime
+    marked_at: UTCDateTime
 
     class Config:
         from_attributes = True

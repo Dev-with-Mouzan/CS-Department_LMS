@@ -20,7 +20,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const isLoginAttempt = error.config?.url?.includes('/auth/login') ||
+      error.config?.url?.includes('/auth/verify-otp') ||
+      error.config?.url?.includes('/auth/resend-otp')
+    if (error.response?.status === 401 && !isLoginAttempt) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       window.location.href = '/login'
@@ -130,6 +133,33 @@ export const materialsAPI = {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   delete: (id) => api.delete(`/materials/${id}`),
+}
+
+// ── Results API ────────────────────────────────────────
+export const resultsAPI = {
+  list: (params) => api.get('/results/', { params }),
+  create: (formData) => api.post('/results/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  delete: (id) => api.delete(`/results/${id}`),
+}
+
+// ── Quizzes API ───────────────────────────────────────
+export const quizzesAPI = {
+  list: (params) => api.get('/quizzes', { params }),
+  get: (id) => api.get(`/quizzes/${id}`),
+  create: (data) => api.post('/quizzes', data),
+  update: (id, data) => api.put(`/quizzes/${id}`, data),
+  delete: (id) => api.delete(`/quizzes/${id}`),
+}
+
+// ── Reviews API ───────────────────────────────────
+export const reviewsAPI = {
+  listPublic: (limit) => api.get('/reviews/public', { params: { limit } }),
+  listMine: () => api.get('/reviews/'),
+  create: (data) => api.post('/reviews/', data),
+  update: (id, data) => api.put(`/reviews/${id}`, data),
+  delete: (id) => api.delete(`/reviews/${id}`),
 }
 
 export default api

@@ -23,15 +23,73 @@ def list_courses(
     role = current_user.role.name
 
     if role == "admin":
-        return db.query(Course).offset(skip).limit(limit).all()
+        courses = db.query(Course).offset(skip).limit(limit).all()
     elif role == "teacher":
-        return db.query(Course).filter(Course.teacher_id == current_user.id).offset(skip).limit(limit).all()
+        courses = db.query(Course).filter(Course.teacher_id == current_user.id).offset(skip).limit(limit).all()
     else:  # student
         enrolled_course_ids = select(Enrollment.course_id).filter(
             Enrollment.student_id == current_user.id,
             Enrollment.status == "active",
         )
-        return db.query(Course).filter(Course.id.in_(enrolled_course_ids)).offset(skip).limit(limit).all()
+        courses = db.query(Course).filter(Course.id.in_(enrolled_course_ids)).offset(skip).limit(limit).all()
+
+    _attach_sessions(db, courses)
+    return courses
+
+
+def _attach_sessions(db: Session, courses: list):
+    """Compute the BSCS session label for each course.
+
+    Adds a ``session`` attribute like "23-27" derived from the enrollment year of
+    a student in the course (preferring a student whose semester matches the
+    course semester). Falls back to any student in the same semester when the
+    course has no enrollments yet. Assumes a 4-year / 8-semester program.
+    """
+    if not courses:
+        return
+
+    course_ids = [c.id for c in courses]
+    enrolled_rows = (
+        db.query(Enrollment.course_id, StudentProfile.semester, StudentProfile.enrollment_year)
+        .join(User, Enrollment.student_id == User.id)
+        .join(StudentProfile, StudentProfile.user_id == User.id)
+        .filter(
+            Enrollment.course_id.in_(course_ids),
+            Enrollment.status == "active",
+            StudentProfile.enrollment_year.isnot(None),
+        )
+        .all()
+    )
+    enrolled_by_course = {}
+    for course_id, semester, enrollment_year in enrolled_rows:
+        enrolled_by_course.setdefault(course_id, []).append((semester, enrollment_year))
+
+    # Fallback map: semester -> enrollment_year from any student in that semester.
+    semester_year = {}
+    if any(c.semester is not None for c in courses):
+        sem_rows = (
+            db.query(StudentProfile.semester, StudentProfile.enrollment_year)
+            .filter(StudentProfile.enrollment_year.isnot(None))
+            .all()
+        )
+        for semester, enrollment_year in sem_rows:
+            semester_year.setdefault(semester, enrollment_year)
+
+    for course in courses:
+        matches = enrolled_by_course.get(course.id) or []
+        year = None
+        if matches:
+            # Prefer an enrolled student whose semester matches the course.
+            year = next((ey for sem, ey in matches if sem == course.semester), None)
+            if year is None:
+                year = matches[0][1]
+        elif course.semester is not None:
+            # No enrollments yet — use any student in the same semester.
+            year = semester_year.get(course.semester)
+
+        if year:
+            end_year = year + 4
+            course.session = f"{year % 100:02d}-{end_year % 100:02d}"
 
 
 @router.post("/", response_model=CourseOut, status_code=status.HTTP_201_CREATED)
@@ -110,6 +168,25 @@ def delete_course(
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+
+    from app.models import (
+        Submission, Assignment, AttendanceRecord, AttendanceSession,
+        StudyMaterial, Enrollment,
+    )
+    db.query(Submission).filter(
+        Submission.assignment_id.in_(
+            db.query(Assignment.id).filter(Assignment.course_id == course_id)
+        )
+    ).delete(synchronize_session=False)
+    db.query(Assignment).filter(Assignment.course_id == course_id).delete()
+    db.query(AttendanceRecord).filter(
+        AttendanceRecord.session_id.in_(
+            db.query(AttendanceSession.id).filter(AttendanceSession.course_id == course_id)
+        )
+    ).delete(synchronize_session=False)
+    db.query(AttendanceSession).filter(AttendanceSession.course_id == course_id).delete()
+    db.query(StudyMaterial).filter(StudyMaterial.course_id == course_id).delete()
+    db.query(Enrollment).filter(Enrollment.course_id == course_id).delete()
 
     db.delete(course)
     db.commit()

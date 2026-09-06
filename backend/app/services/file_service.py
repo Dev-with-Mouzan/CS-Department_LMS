@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import UploadFile, HTTPException
 
@@ -15,10 +15,10 @@ def get_upload_dir() -> str:
 
 def validate_file(file: UploadFile) -> None:
     """Validate file size and extension."""
-    # Check file extension
-    allowed = settings.ALLOWED_FILE_EXTENSIONS.split(",")
+    # Check file extension (skip when "*" = allow every format)
+    allowed = [a.strip().lower() for a in settings.ALLOWED_FILE_EXTENSIONS.split(",") if a.strip()]
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
-    if ext not in allowed:
+    if allowed and "*" not in allowed and ext not in allowed:
         raise HTTPException(
             status_code=400,
             detail=f"File type '{ext}' not allowed. Allowed: {', '.join(allowed)}",
@@ -42,7 +42,7 @@ def save_file(file: UploadFile, subdirectory: str = "assignments") -> str:
 
     # Generate unique filename
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "bin"
-    unique_name = f"{uuid.uuid4().hex}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.{ext}"
+    unique_name = f"{uuid.uuid4().hex}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.{ext}"
     file_path = os.path.join(target_dir, unique_name)
 
     # Write file

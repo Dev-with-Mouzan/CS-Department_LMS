@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.dependencies.auth import (
     create_access_token, get_current_user, hash_password
 )
+from app.dependencies.ratelimit import limiter
 from app.models import User
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse,
@@ -31,7 +32,8 @@ def get_user_count(db: Session = Depends(get_db)):
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
-def register(data: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def register(request: Request, data: RegisterRequest, db: Session = Depends(get_db)):
     """Register a new student account (teachers are created by admin only)."""
     existing = get_user_by_email(db, data.email)
     if existing:
@@ -57,7 +59,8 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(data: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)):
     """Login with email and password."""
     user = authenticate_user(db, data.email, data.password)
     if not user:
@@ -87,7 +90,8 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
-def verify_otp_code(data: OTPVerifyRequest, db: Session = Depends(get_db)):
+@limiter.limit("15/minute")
+def verify_otp_code(request: Request, data: OTPVerifyRequest, db: Session = Depends(get_db)):
     """Verify OTP code for account activation and return a login token."""
     user = get_user_by_email(db, data.email)
     if not user:
@@ -126,7 +130,8 @@ def verify_otp_code(data: OTPVerifyRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/resend-otp", response_model=MessageResponse)
-def resend_otp(data: OTPResendRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def resend_otp(request: Request, data: OTPResendRequest, db: Session = Depends(get_db)):
     """Resend OTP code."""
     user = get_user_by_email(db, data.email)
     if not user:
@@ -146,7 +151,8 @@ def resend_otp(data: OTPResendRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
-def forgot_password(data: PasswordResetRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def forgot_password(request: Request, data: PasswordResetRequest, db: Session = Depends(get_db)):
     """Request password reset via OTP sent to phone."""
     user = get_user_by_phone(db, data.phone)
     if not user:
@@ -160,7 +166,8 @@ def forgot_password(data: PasswordResetRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/reset-password", response_model=MessageResponse)
-def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def reset_password(request: Request, data: PasswordResetConfirm, db: Session = Depends(get_db)):
     """Reset password using OTP."""
     user = get_user_by_phone(db, data.phone)
     if not user:

@@ -1,6 +1,8 @@
-from datetime import datetime, date
+from datetime import date
 from typing import Optional
 from pydantic import BaseModel
+
+from app.schemas.common import UTCDateTime
 
 
 class CourseCreate(BaseModel):
@@ -27,7 +29,8 @@ class CourseOut(BaseModel):
     semester: Optional[int] = None
     teacher_id: str
     is_active: bool
-    created_at: datetime
+    session: Optional[str] = None
+    created_at: UTCDateTime
 
     class Config:
         from_attributes = True

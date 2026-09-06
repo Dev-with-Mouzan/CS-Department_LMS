@@ -2,12 +2,16 @@ from app.models.models import (
     Role, User, TeacherProfile, StudentProfile,
     Course, Enrollment, Assignment, Submission,
     AttendanceSession, AttendanceRecord,
-    OTPVerification, Notification, Notice, StudyMaterial
+    Quiz, QuizQuestion,
+    OTPVerification, Notification, Notice, StudyMaterial, Result, Review,
+    utcnow
 )
 
 __all__ = [
     "Role", "User", "TeacherProfile", "StudentProfile",
     "Course", "Enrollment", "Assignment", "Submission",
     "AttendanceSession", "AttendanceRecord",
-    "OTPVerification", "Notification", "Notice", "StudyMaterial"
+    "Quiz", "QuizQuestion",
+    "OTPVerification", "Notification", "Notice", "StudyMaterial", "Result", "Review",
+    "utcnow"
 ]

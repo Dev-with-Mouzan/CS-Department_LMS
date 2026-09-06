@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
 import { resultsAPI, coursesAPI } from '../services/api'
-import Modal from '../components/Modal'
-import Button from '../components/Button'
 import {
-  Trophy, FileText, GraduationCap, ScrollText, PlusCircle, Trash2,
+  Trophy, FileText, GraduationCap, ScrollText, Trash2,
   Download, BookOpen, TrendingDown, TrendingUp, ChevronRight, ChevronLeft,
 } from 'lucide-react'
 
@@ -24,19 +22,11 @@ const ordinal = (n) => {
 const semLabel = (semKey) =>
   semKey === 'other' ? 'General' : `${ordinal(Number(semKey))} Semester`
 
-export default function Results() {
+export default function Examinations() {
   const [tab, setTab] = useState('midterm')
   const [courses, setCourses] = useState([])
   const [allResults, setAllResults] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [form, setForm] = useState({
-    title: '', exam_type: 'midterm', course_id: '',
-  })
-  const [worstPaper, setWorstPaper] = useState(null)
-  const [bestPaper, setBestPaper] = useState(null)
-  const [resultFile, setResultFile] = useState(null)
   const [activeSemester, setActiveSemester] = useState(null)
   const [activeCourse, setActiveCourse] = useState(null)
 
@@ -48,42 +38,8 @@ export default function Results() {
       .finally(() => setLoading(false))
   }, [])
 
-  const openCreate = () => {
-    setForm({
-      title: '', exam_type: tab, course_id: activeCourse?.id || '',
-    })
-    setWorstPaper(null)
-    setBestPaper(null)
-    setResultFile(null)
-    setShowModal(true)
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!resultFile || !worstPaper || !bestPaper) {
-      alert('Please upload the complete result, best paper and worst paper')
-      return
-    }
-    setSubmitting(true)
-    try {
-      const fd = new FormData()
-      fd.append('title', form.title)
-      fd.append('exam_type', form.exam_type)
-      fd.append('course_id', form.course_id)
-      fd.append('file', resultFile)
-      fd.append('best_paper', bestPaper)
-      fd.append('worst_paper', worstPaper)
-      await resultsAPI.create(fd)
-      setShowModal(false)
-      const res = await resultsAPI.list()
-      setAllResults(res.data)
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to add result')
-    } finally { setSubmitting(false) }
-  }
-
   const handleDelete = async (r) => {
-    if (!confirm(`Delete "${r.title}"?`)) return
+    if (!confirm(`Delete "${r.title}"? This cannot be undone.`)) return
     try {
       await resultsAPI.delete(r.id)
       setAllResults(allResults.filter(x => x.id !== r.id))
@@ -152,10 +108,10 @@ export default function Results() {
       <div className="text-center mb-6">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
           <Trophy className="w-3 h-3" />
-          Results Management
+          Result Management
         </span>
-        <h1 className="text-3xl font-extrabold text-navy-900 tracking-tight">Results</h1>
-        <p className="text-navy-400 mt-1.5">Pick a semester and book to manage its result sheets</p>
+        <h1 className="text-3xl font-extrabold text-navy-900 tracking-tight">Result</h1>
+        <p className="text-navy-400 mt-1.5">Pick a semester and book to view or delete result sheets</p>
       </div>
 
       {/* Tab Switcher */}
@@ -220,7 +176,7 @@ export default function Results() {
             semesters.length === 0 ? (
               <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center bg-white">
                 <Trophy className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                <p className="text-sm text-navy-400">No courses yet. Ask the admin to assign you some.</p>
+                <p className="text-sm text-navy-400">No courses created yet.</p>
               </div>
             ) : (
               <SemesterGrid semesters={semesters} tabLabel={examLabels[tab]} onPick={setActiveSemester} />
@@ -238,21 +194,15 @@ export default function Results() {
           ) : (
             <>
               {/* Toolbar */}
-              <div className="border border-surface-200 rounded-xl bg-white p-3 mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-navy-900 flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-accent-500" />
-                    {activeCourse.title}
-                    <span className="text-xs font-medium text-navy-400">({filtered.length})</span>
-                  </p>
-                  <p className="text-xs text-navy-400 mt-0.5">
-                    {examLabels[tab]} result sheets for {activeCourse.course_code}.
-                  </p>
-                </div>
-                <Button onClick={openCreate}>
-                  <PlusCircle className="w-4 h-4" />
-                  Add Result
-                </Button>
+              <div className="border border-surface-200 rounded-xl bg-white p-3 mb-6">
+                <p className="text-sm font-semibold text-navy-900 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-accent-500" />
+                  {activeCourse.title}
+                  <span className="text-xs font-medium text-navy-400">({filtered.length})</span>
+                </p>
+                <p className="text-xs text-navy-400 mt-0.5">
+                  {examLabels[tab]} result sheets for {activeCourse.course_code}.
+                </p>
               </div>
 
               {/* Results list */}
@@ -260,7 +210,7 @@ export default function Results() {
                 <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
                   <Trophy className="w-8 h-8 text-navy-300 mx-auto mb-2" />
                   <p className="text-sm text-navy-400">
-                    No {examLabels[tab].toLowerCase()} results yet. Add one with the complete result and the best & worst papers.
+                    No {examLabels[tab].toLowerCase()} results for this book yet.
                   </p>
                 </div>
               ) : (
@@ -292,6 +242,7 @@ export default function Results() {
                           {r.file_name && <span className="text-[10px] text-navy-300">· Complete: {r.file_name}</span>}
                           {r.best_paper_name && <span className="text-[10px] text-navy-300">· Best: {r.best_paper_name}</span>}
                           {r.worst_paper_name && <span className="text-[10px] text-navy-300">· Worst: {r.worst_paper_name}</span>}
+                          {r.uploader_name && <span className="text-[10px] text-navy-300">· by {r.uploader_name}</span>}
                           <span className="text-[10px] text-navy-300">· {new Date(r.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
@@ -320,70 +271,6 @@ export default function Results() {
           )}
         </>
       )}
-
-      {/* Add Result Modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Add Result">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="input-label">Title</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="input-field" required placeholder="e.g. Mid-Term Result Sheet" />
-          </div>
-
-          <div>
-            <label className="input-label">Complete result <span className="text-red-500">*</span></label>
-            <input type="file" onChange={(e) => setResultFile(e.target.files[0])}
-              className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent-500 file:text-white file:cursor-pointer" />
-            <p className="text-[10px] text-navy-400 mt-1">Main result sheet for this exam.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="input-label">Best paper <span className="text-red-500">*</span></label>
-              <input type="file" onChange={(e) => setBestPaper(e.target.files[0])}
-                className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-500 file:text-white file:cursor-pointer" />
-              <p className="text-[10px] text-navy-400 mt-1">Best performing answer script.</p>
-            </div>
-            <div>
-              <label className="input-label">Worst paper <span className="text-red-500">*</span></label>
-              <input type="file" onChange={(e) => setWorstPaper(e.target.files[0])}
-                className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-red-500 file:text-white file:cursor-pointer" />
-              <p className="text-[10px] text-navy-400 mt-1">Weakest performing answer script.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="input-label">Exam</label>
-              <select value={form.exam_type} onChange={(e) => setForm({ ...form, exam_type: e.target.value })}
-                className="input-field">
-                {tabs.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="input-label">Course</label>
-              <select value={form.course_id} onChange={(e) => setForm({ ...form, course_id: e.target.value })}
-                className="input-field" required>
-                <option value="">Select course</option>
-                {courses.map(c => <option key={c.id} value={c.id}>{c.course_code} — {c.title}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <p className="text-[11px] text-navy-400 bg-accent-50 border border-accent-100 rounded-lg px-3 py-2">
-            Upload in order — <span className="font-semibold text-accent-600">complete result</span> first, then the{' '}
-            <span className="font-semibold text-emerald-600">best</span> and{' '}
-            <span className="font-semibold text-red-600">worst</span> paper. All three are mandatory.
-          </p>
-
-          <div className="flex gap-3 justify-end pt-2">
-            <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? 'Adding...' : 'Add Result'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   )
 }

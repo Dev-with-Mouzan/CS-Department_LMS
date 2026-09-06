@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr
 
+from app.schemas.common import UTCDateTime
+
 
 # ── Role ──────────────────────────────────────────────
 class RoleOut(BaseModel):
@@ -17,7 +19,6 @@ class RoleOut(BaseModel):
 class UserBase(BaseModel):
     first_name: str
     last_name: str
-    username: Optional[str] = None
     email: EmailStr
     phone: Optional[str] = None
 
@@ -36,7 +37,6 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    username: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     is_active: Optional[bool] = None
@@ -47,7 +47,6 @@ class UserUpdate(BaseModel):
 class TeacherUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    username: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     is_active: Optional[bool] = None
@@ -65,8 +64,8 @@ class UserOut(UserBase):
     role_id: str
     is_verified: bool
     is_active: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
 
     class Config:
         from_attributes = True

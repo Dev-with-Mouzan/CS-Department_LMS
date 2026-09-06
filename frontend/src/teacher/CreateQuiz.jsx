@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { coursesAPI } from '../services/api'
+import { coursesAPI, quizzesAPI } from '../services/api'
 import Button from '../components/Button'
 import {
   BookOpen, FileText, AlertCircle,
   Plus, Trash2, PenLine, FileUp, CheckCircle2,
 } from 'lucide-react'
 
-export default function CreateQuiz() {
+export default function CreateQuiz({ onSuccess, onCancel }) {
   const [courses, setCourses] = useState([])
   const [form, setForm] = useState({
     course_id: '', title: '', description: '', time_limit: '',
@@ -70,20 +70,35 @@ export default function CreateQuiz() {
 
     setLoading(true)
     try {
-      const payload = {
-        course_id: form.course_id,
-        title: form.title,
-        description: form.description || '',
-        time_limit: form.time_limit ? parseInt(form.time_limit) : null,
-        questions: inputMode === 'type' ? questions : null,
+      if (inputMode === 'file') {
+        setError('File-based quiz import is not supported yet — switch to "Type Questions" instead.')
+        setLoading(false)
+        return
       }
 
-      // For now, store locally until backend quiz endpoint is ready
-      console.log('Quiz payload:', payload)
-      console.log('File:', questionFile)
+      const payload = {
+        course_id: form.course_id,
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        time_limit: form.time_limit ? parseInt(form.time_limit) : null,
+        questions: questions.map((q) => {
+          const options = q.options.map((o) => o.trim()).filter((o) => o.length)
+          const correct = options.indexOf(options[q.correct] || '')
+          return {
+            text: q.text.trim(),
+            options,
+            correct: correct === -1 ? 0 : correct,
+          }
+        }),
+      }
 
+      await quizzesAPI.create(payload)
       setSuccess('Quiz created successfully! Students can now attempt it.')
-      setTimeout(() => navigate('/teacher'), 1500)
+      if (onSuccess) {
+        setTimeout(() => onSuccess(), 800)
+      } else {
+        setTimeout(() => navigate('/teacher'), 1500)
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create quiz')
     } finally {
@@ -256,7 +271,7 @@ export default function CreateQuiz() {
 
         {/* ── Actions ────────────────────────────── */}
         <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2">
-          <Button variant="ghost" type="button" onClick={() => navigate(-1)}>Cancel</Button>
+          <Button variant="ghost" type="button" onClick={() => (onCancel ? onCancel() : navigate(-1))}>Cancel</Button>
           <Button type="submit" disabled={loading}>
             {loading ? 'Creating...' : 'Create Quiz'}
           </Button>

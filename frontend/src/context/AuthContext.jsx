@@ -29,13 +29,23 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const res = await authAPI.login({ email, password })
-    const { access_token, user_id, role, is_verified } = res.data
-    const userData = { id: user_id, role, is_verified, email }
+    const { access_token } = res.data
     localStorage.setItem('token', access_token)
-    localStorage.setItem('user', JSON.stringify(userData))
     setToken(access_token)
+    const userData = await fetchFullProfile({ id: res.data.user_id, role: res.data.role, is_verified: res.data.is_verified, email })
+    localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
     return res.data
+  }
+
+  const fetchFullProfile = async (fallback) => {
+    try {
+      const me = await authAPI.getMe()
+      if (me.data) return me.data
+    } catch {
+      // keep working with the minimal login payload if profile fetch fails
+    }
+    return fallback
   }
 
   const register = async (data) => {
@@ -53,12 +63,12 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  const loginAfterVerify = (access_token, user_id, role, is_verified, email) => {
-    const userData = { id: user_id, role, is_verified, email }
+  const loginAfterVerify = async (access_token, user_id, role, is_verified, email) => {
     localStorage.setItem('token', access_token)
+    setToken(access_token)
+    const userData = await fetchFullProfile({ id: user_id, role, is_verified, email })
     localStorage.setItem('user', JSON.stringify(userData))
     localStorage.removeItem('pendingVerification')
-    setToken(access_token)
     setUser(userData)
   }
 

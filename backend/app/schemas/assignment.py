@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
 
+from app.schemas.common import UTCDateTime
+
 
 class AssignmentCreate(BaseModel):
     course_id: str
@@ -24,10 +26,17 @@ class AssignmentOut(BaseModel):
     teacher_id: str
     title: str
     description: Optional[str] = None
-    due_date: datetime
+    due_date: UTCDateTime
     attachment_url: Optional[str] = None
     max_marks: int
-    created_at: datetime
+    created_at: UTCDateTime
+    course_title: Optional[str] = None
+    course_code: Optional[str] = None
+    submitted: bool = False
+    submission_status: Optional[str] = None
+    submitted_at: Optional[datetime] = None
+    submission_grade: Optional[float] = None
+    submission_feedback: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -49,7 +58,7 @@ class SubmissionOut(BaseModel):
     student_name: Optional[str] = None
     roll_number: Optional[str] = None
     file_url: Optional[str] = None
-    submitted_at: datetime
+    submitted_at: UTCDateTime
     grade: Optional[float] = None
     feedback: Optional[str] = None
     status: str

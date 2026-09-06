@@ -12,6 +12,8 @@ from app.services.file_service import save_file
 
 router = APIRouter(prefix="/api/materials", tags=["Study Materials"])
 
+VALID_CATEGORIES = {"notes", "slides", "assignment", "reference", "other"}
+
 
 def _material_out(m: StudyMaterial, db: Session) -> dict:
     course = db.query(Course).filter(Course.id == m.course_id).first()
@@ -78,6 +80,12 @@ def upload_material(
         raise HTTPException(status_code=404, detail="Course not found")
     if course.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only upload materials for your courses")
+
+    if category not in VALID_CATEGORIES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid category '{category}'. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}",
+        )
 
     file_path = save_file(file, subdirectory="materials")
 

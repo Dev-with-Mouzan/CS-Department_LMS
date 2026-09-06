@@ -1,6 +1,14 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 from pydantic import BaseModel
+
+from app.schemas.common import UTCDateTime
+
+
+class StudyMaterialCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    category: Literal["notes", "slides", "assignment", "reference", "other"] = "notes"
 
 
 class StudyMaterialOut(BaseModel):
@@ -14,7 +22,7 @@ class StudyMaterialOut(BaseModel):
     course_name: Optional[str] = None
     uploaded_by: str
     uploader_name: Optional[str] = None
-    created_at: datetime
+    created_at: UTCDateTime
 
     class Config:
         from_attributes = True

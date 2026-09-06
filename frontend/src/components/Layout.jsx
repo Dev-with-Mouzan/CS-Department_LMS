@@ -20,6 +20,7 @@ import {
   UserCheck,
   UserCog,
   Trophy,
+  Star,
   Facebook,
   Instagram,
   Twitter,
@@ -35,7 +36,7 @@ const navConfig = {
     { to: '/admin/users', label: 'Users', icon: Users },
     { to: '/admin/teachers', label: 'Teachers', icon: UserCheck },
     { to: '/admin/courses', label: 'Courses', icon: BookOpen },
-    { to: '/admin/semesters', label: 'Semesters', icon: GraduationCap },
+    { to: '/admin/examinations', label: 'Result', icon: Trophy },
     { to: '/admin/enrollments', label: 'Enrollments', icon: UserPlus },
   ],
   teacher: [
@@ -48,10 +49,11 @@ const navConfig = {
   ],
   student: [
     { to: '/student', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/student/assignments', label: 'Assignments', icon: ClipboardList },
+    { to: '/student/assignments', label: 'Assessment', icon: ClipboardList },
     { to: '/student/attendance', label: 'Attendance', icon: CalendarCheck },
-    { to: '/student/review', label: 'Review', icon: UserCog },
+    { to: '/student/results', label: 'Results', icon: Trophy },
     { to: '/student/materials', label: 'Materials', icon: FolderOpen },
+    { to: '/student/review', label: 'Review', icon: Star },
   ],
 }
 

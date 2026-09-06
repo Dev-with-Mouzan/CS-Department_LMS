@@ -1,19 +1,21 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 from pydantic import BaseModel
+
+from app.schemas.common import UTCDateTime
 
 
 class NoticeCreate(BaseModel):
     title: str
     content: Optional[str] = None
-    category: str = "news"  # news, photo, document
+    category: Literal["news", "photo", "document"] = "news"
     is_pinned: bool = False
 
 
 class NoticeUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
-    category: Optional[str] = None
+    category: Optional[Literal["news", "photo", "document"]] = None
     is_pinned: Optional[bool] = None
 
 
@@ -28,9 +30,9 @@ class NoticeOut(BaseModel):
     author_role: Optional[str] = None
     target_semester: Optional[int] = None
     is_pinned: bool
-    expires_at: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
+    expires_at: Optional[UTCDateTime] = None
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
 
     class Config:
         from_attributes = True

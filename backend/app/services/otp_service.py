@@ -1,11 +1,11 @@
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import OTPVerification, User
+from app.models import OTPVerification, User, utcnow
 from app.dependencies.auth import hash_password, verify_password
 from app.services.sms_service import send_otp_sms
 
@@ -28,7 +28,7 @@ def create_otp(db: Session, user: User):
     otp_record = OTPVerification(
         user_id=user.id,
         otp_hash=hash_password(otp_code),
-        expires_at=datetime.utcnow() + timedelta(minutes=settings.OTP_EXPIRE_MINUTES),
+        expires_at=utcnow() + timedelta(minutes=settings.OTP_EXPIRE_MINUTES),
         attempts=0,
         is_used=False,
     )
@@ -54,7 +54,7 @@ def verify_otp(db: Session, user: User, otp_code: str) -> bool:
         return False
 
     # Check expiration
-    if datetime.utcnow() > otp_record.expires_at:
+    if utcnow() > otp_record.expires_at:
         otp_record.is_used = True
         db.commit()
         return False
@@ -72,7 +72,7 @@ def verify_otp(db: Session, user: User, otp_code: str) -> bool:
     # Verify code
     if verify_password(otp_code, otp_record.otp_hash):
         otp_record.is_used = True
-        otp_record.verified_at = datetime.utcnow()
+        otp_record.verified_at = utcnow()
         user.is_verified = True
         db.commit()
         return True
@@ -84,6 +84,6 @@ def can_resend_otp(db: Session, user: User) -> bool:
     """Check if user can request a new OTP (cooldown check)."""
     recent = db.query(OTPVerification).filter(
         OTPVerification.user_id == user.id,
-        OTPVerification.created_at >= datetime.utcnow() - timedelta(minutes=1),
+        OTPVerification.created_at >= utcnow() - timedelta(minutes=1),
     ).first()
     return recent is None

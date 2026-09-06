@@ -68,6 +68,7 @@ export default {
         'card-hover': '0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.06)',
         'elevated': '0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04)',
         'inner-glow': 'inset 0 1px 0 0 rgb(255 255 255 / 0.05)',
+        'glow': '0 0 18px 2px rgb(245 158 11 / 0.35), 0 10px 15px -3px rgb(0 0 0 / 0.08)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',

@@ -35,6 +35,16 @@ def create_session(
     if course.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    existing = db.query(AttendanceSession).filter(
+        AttendanceSession.course_id == data.course_id,
+        AttendanceSession.session_date == data.session_date,
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Attendance already marked for {course.course_code} on {data.session_date}",
+        )
+
     session = AttendanceSession(
         course_id=data.course_id,
         teacher_id=current_user.id,

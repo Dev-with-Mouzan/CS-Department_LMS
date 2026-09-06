@@ -75,8 +75,12 @@ export default function ManageUsers() {
         if (editing.role?.name === 'student' && semester) payload.semester = parseInt(semester, 10)
         await usersAPI.update(editing.id, payload)
       } else {
-        const payload = { ...form }
-        if (payload.semester) payload.semester = parseInt(payload.semester, 10)
+        const { first_name, last_name, email, phone, password, role_name, department, semester } = form
+        const payload = { first_name, last_name, email, phone, password, role_name }
+        if (role_name === 'student') {
+          if (semester) payload.semester = parseInt(semester, 10)
+          if (department) payload.department = department
+        }
         await usersAPI.create(payload)
       }
       setShowModal(false)

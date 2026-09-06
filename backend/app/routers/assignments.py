@@ -41,7 +41,33 @@ def list_assignments(
     if course_id:
         query = query.filter(Assignment.course_id == course_id)
 
-    return query.order_by(Assignment.created_at.desc()).offset(skip).limit(limit).all()
+    assignments = query.order_by(Assignment.created_at.desc()).offset(skip).limit(limit).all()
+
+    course_ids = {a.course_id for a in assignments}
+    courses = {}
+    if course_ids:
+        courses = {c.id: c for c in db.query(Course).filter(Course.id.in_(course_ids)).all()}
+
+    submissions = {}
+    if role == "student":
+        subs = db.query(Submission).filter(Submission.student_id == current_user.id).all()
+        submissions = {s.assignment_id: s for s in subs}
+
+    out = []
+    for a in assignments:
+        item = AssignmentOut.model_validate(a)
+        course = courses.get(a.course_id)
+        item.course_title = course.title if course else None
+        item.course_code = course.course_code if course else None
+        sub = submissions.get(a.id)
+        if sub:
+            item.submitted = True
+            item.submission_status = sub.status
+            item.submitted_at = sub.submitted_at
+            item.submission_grade = sub.grade
+            item.submission_feedback = sub.feedback
+        out.append(item)
+    return out
 
 
 @router.post("/assignments", response_model=AssignmentOut, status_code=status.HTTP_201_CREATED)
@@ -147,6 +173,11 @@ def delete_assignment(
     if assignment.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    db.query(Submission).filter(Submission.assignment_id == assignment_id).delete()
+    if assignment.attachment_url:
+        from app.services.file_service import delete_file
+        delete_file(assignment.attachment_url)
+
     db.delete(assignment)
     db.commit()
     return {"message": "Assignment deleted successfully"}
@@ -186,8 +217,8 @@ def submit_assignment(
     file_path = save_file(file, subdirectory="submissions")
 
     # Check if late
-    from datetime import datetime
-    is_late = datetime.utcnow() > assignment.due_date
+    from datetime import datetime, timezone
+    is_late = datetime.now(timezone.utc).replace(tzinfo=None) > assignment.due_date
 
     submission = Submission(
         assignment_id=assignment_id,

@@ -13,7 +13,7 @@ import AdminDashboard from './admin/AdminDashboard'
 import ManageUsers from './admin/ManageUsers'
 import ManageTeachers from './admin/ManageTeachers'
 import ManageCourses from './admin/ManageCourses'
-import ManageSemesters from './admin/ManageSemesters'
+import Examinations from './admin/Examinations'
 import ManageEnrollments from './admin/ManageEnrollments'
 import TeacherDashboard from './teacher/TeacherDashboard'
 import Assessments from './teacher/Assessments'
@@ -25,8 +25,9 @@ import MarkAttendance from './teacher/MarkAttendance'
 import Results from './teacher/Results'
 
 import StudentDashboard from './student/StudentDashboard'
-import StudentReview from './teacher/StudentReview'
+import MyReview from './student/MyReview'
 import MyAssignments from './student/MyAssignments'
+import MyResults from './student/MyResults'
 import MyMaterials from './student/MyMaterials'
 import MyAttendance from './student/MyAttendance'
 
@@ -58,7 +59,7 @@ export default function App() {
           <Route path="/admin/users" element={<ManageUsers />} />
           <Route path="/admin/teachers" element={<ManageTeachers />} />
           <Route path="/admin/courses" element={<ManageCourses />} />
-          <Route path="/admin/semesters" element={<ManageSemesters />} />
+          <Route path="/admin/examinations" element={<Examinations />} />
           <Route path="/admin/enrollments" element={<ManageEnrollments />} />
         </Route>
       </Route>
@@ -82,8 +83,9 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/student" element={<StudentDashboard />} />
           <Route path="/student/assignments" element={<MyAssignments />} />
+          <Route path="/student/results" element={<MyResults />} />
           <Route path="/student/attendance" element={<MyAttendance />} />
-          <Route path="/student/review" element={<StudentReview />} />
+          <Route path="/student/review" element={<MyReview />} />
           <Route path="/student/materials" element={<MyMaterials />} />
         </Route>
       </Route>

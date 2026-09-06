@@ -72,7 +72,7 @@ export default function ManageEnrollments() {
     if (!q) return true
     return (
       `${s?.first_name || ''} ${s?.last_name || ''}`.toLowerCase().includes(q) ||
-      (s?.username || '').toLowerCase().includes(q) ||
+      (s?.phone || '').toLowerCase().includes(q) ||
       (s?.email || '').toLowerCase().includes(q)
     )
   })
@@ -129,7 +129,7 @@ export default function ManageEnrollments() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search enrolled students by name, username or email..."
+            placeholder="Search enrolled students by name, phone or email..."
             className="w-full pl-9 pr-4 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm text-navy-900 placeholder-navy-300 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 transition-all"
           />
         </div>
@@ -208,7 +208,7 @@ export default function ManageEnrollments() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-navy-900 truncate">{s?.first_name} {s?.last_name}</p>
-                            <p className="text-2xs font-mono text-navy-300">{s?.username ? `@${s.username}` : (s?.phone || '—')}</p>
+                            <p className="text-2xs font-mono text-navy-300">{s?.phone || (s?.email || '—')}</p>
                           </div>
                         </div>
                       </td>

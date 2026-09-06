@@ -1,10 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
+import logging
 
 from sqlalchemy.orm import Session
 
 from app.models import User, Role, TeacherProfile, StudentProfile
 from app.dependencies.auth import hash_password, verify_password
+
+logger = logging.getLogger(__name__)
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -69,7 +72,7 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
 
 def update_password(db: Session, user: User, new_password: str) -> None:
     user.password_hash = hash_password(new_password)
-    user.updated_at = datetime.utcnow()
+    user.updated_at = datetime.now(timezone.utc)
     db.commit()
 
 
@@ -110,4 +113,4 @@ def create_default_admin(db: Session) -> None:
     )
     db.add(admin)
     db.commit()
-    print(f"✅ Default admin created — Email: {settings.ADMIN_EMAIL}")
+    logger.info("Default admin created. Email: %s", settings.ADMIN_EMAIL)

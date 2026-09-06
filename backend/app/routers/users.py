@@ -23,22 +23,61 @@ def _get_user_or_404(db: Session, user_id) -> User:
     return user
 
 
-def _check_username_available(db: Session, username: str, exclude_user_id=None) -> None:
-    if not username:
-        return
-    query = db.query(User).filter(User.username == username)
-    if exclude_user_id:
-        query = query.filter(User.id != exclude_user_id)
-    if query.first():
-        raise HTTPException(status_code=400, detail="Username already taken")
-
-
 def _check_email_available(db: Session, email: str, exclude_user_id=None) -> None:
     query = db.query(User).filter(User.email == email)
     if exclude_user_id:
         query = query.filter(User.id != exclude_user_id)
     if query.first():
         raise HTTPException(status_code=400, detail="Email already registered")
+
+
+def _delete_user_dependencies(db: Session, user: User) -> None:
+    """Hard-delete a user and every row that references them (dependency order).
+
+    Covers submissions, attendance, enrollments, OTP/notification records,
+    profiles, and — for teachers — their assignments, materials, notices and
+    taught courses (with each course's own children).
+    """
+    from app.models import (
+        Submission, AttendanceRecord, Enrollment, OTPVerification,
+        Notification, Assignment, StudyMaterial, Notice,
+        AttendanceSession,
+    )
+
+    user_id = user.id
+
+    # Course children for every course this user teaches (teacher case)
+    taught_course_ids = [
+        cid for (cid,) in db.query(Course.id).filter(Course.teacher_id == user_id).all()
+    ]
+    for course_id in taught_course_ids:
+        db.query(Submission).filter(
+            Submission.assignment_id.in_(
+                db.query(Assignment.id).filter(Assignment.course_id == course_id)
+            )
+        ).delete(synchronize_session=False)
+        db.query(Assignment).filter(Assignment.course_id == course_id).delete()
+        db.query(AttendanceRecord).filter(
+            AttendanceRecord.session_id.in_(
+                db.query(AttendanceSession.id).filter(AttendanceSession.course_id == course_id)
+            )
+        ).delete(synchronize_session=False)
+        db.query(AttendanceSession).filter(AttendanceSession.course_id == course_id).delete()
+        db.query(StudyMaterial).filter(StudyMaterial.course_id == course_id).delete()
+        db.query(Enrollment).filter(Enrollment.course_id == course_id).delete()
+    db.query(Course).filter(Course.teacher_id == user_id).delete()
+
+    # Direct user references
+    db.query(Submission).filter(Submission.student_id == user_id).delete()
+    db.query(AttendanceRecord).filter(AttendanceRecord.student_id == user_id).delete()
+    db.query(Enrollment).filter(Enrollment.student_id == user_id).delete()
+    db.query(Assignment).filter(Assignment.teacher_id == user_id).delete()
+    db.query(StudyMaterial).filter(StudyMaterial.uploaded_by == user_id).delete()
+    db.query(Notice).filter(Notice.posted_by == user_id).delete()
+    db.query(OTPVerification).filter(OTPVerification.user_id == user_id).delete()
+    db.query(Notification).filter(Notification.user_id == user_id).delete()
+    db.query(TeacherProfile).filter(TeacherProfile.user_id == user_id).delete()
+    db.query(StudentProfile).filter(StudentProfile.user_id == user_id).delete()
 
 
 # ── Static routes (must precede dynamic /{user_id}) ───
@@ -142,7 +181,6 @@ def create_user(
 ):
     """Create a new user (admin only)."""
     _check_email_available(db, data.email)
-    _check_username_available(db, data.username)
     if data.phone:
         phone_existing = db.query(User).filter(User.phone == data.phone).first()
         if phone_existing:
@@ -162,7 +200,6 @@ def update_user(
     """Update user details (admin only)."""
     user = _get_user_or_404(db, user_id)
     _check_email_available(db, data.email, exclude_user_id=user.id)
-    _check_username_available(db, data.username, exclude_user_id=user.id)
 
     update_data = data.model_dump(exclude_unset=True)
     semester = update_data.pop("semester", None)
@@ -210,11 +247,7 @@ def hard_delete_user(
     """Permanently delete a user (admin only — hard delete)."""
     user = _get_user_or_404(db, user_id)
 
-    db.query(TeacherProfile).filter(TeacherProfile.user_id == user.id).delete()
-    db.query(StudentProfile).filter(StudentProfile.user_id == user.id).delete()
-    from app.models import Enrollment
-    db.query(Enrollment).filter(Enrollment.student_id == user.id).delete()
-
+    _delete_user_dependencies(db, user)
     db.delete(user)
     db.commit()
     return {"message": "User deleted permanently"}
@@ -280,7 +313,6 @@ def update_teacher(
         raise HTTPException(status_code=400, detail="User is not a teacher")
 
     _check_email_available(db, data.email, exclude_user_id=user.id)
-    _check_username_available(db, data.username, exclude_user_id=user.id)
 
     update_data = data.model_dump(exclude_unset=True)
     profile_fields = {
@@ -330,7 +362,7 @@ def hard_delete_teacher(
     if user.role.name != "teacher":
         raise HTTPException(status_code=400, detail="User is not a teacher")
 
-    db.query(TeacherProfile).filter(TeacherProfile.user_id == user.id).delete()
+    _delete_user_dependencies(db, user)
     db.delete(user)
     db.commit()
     return {"message": "Teacher deleted permanently"}

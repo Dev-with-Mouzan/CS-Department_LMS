@@ -6,13 +6,13 @@ import {
   Bell,
   FolderOpen,
   Users,
-  GraduationCap,
   UserPlus,
   Star,
   Shield,
   Zap,
   BarChart3,
   MessageCircle,
+  Trophy,
 } from 'lucide-react'
 
 /* ──────── Landing Page Tour ──────── */
@@ -230,11 +230,11 @@ export const adminTourSteps = [
     placement: 'right',
   },
   {
-    target: 'a[href="/admin/semesters"]',
-    title: 'Semesters',
-    subtitle: 'Academic terms',
-    content: 'Manage semesters and view course-wise semester overview.',
-    icon: GraduationCap,
+    target: 'a[href="/admin/examinations"]',
+    title: 'Result',
+    subtitle: 'Result management',
+    content: 'Manage mid-term, final year, and complete result sheets for all courses.',
+    icon: Trophy,
     placement: 'right',
   },
   {

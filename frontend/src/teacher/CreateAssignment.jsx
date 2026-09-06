@@ -4,7 +4,7 @@ import { coursesAPI, assignmentsAPI } from '../services/api'
 import Button from '../components/Button'
 import { BookOpen, FileText, CalendarDays, Award, AlertCircle } from 'lucide-react'
 
-export default function CreateAssignment() {
+export default function CreateAssignment({ onSuccess, onCancel }) {
   const [courses, setCourses] = useState([])
   const [form, setForm] = useState({
     course_id: '', title: '', description: '', due_date: '', max_marks: 100,
@@ -30,6 +30,10 @@ export default function CreateAssignment() {
       if (attachment) formData.append('attachment', attachment)
 
       await assignmentsAPI.create(formData)
+      if (onSuccess) {
+        onSuccess()
+        return
+      }
       navigate('/teacher')
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create assignment')
@@ -106,7 +110,7 @@ export default function CreateAssignment() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2">
-          <Button variant="ghost" type="button" onClick={() => navigate(-1)}>Cancel</Button>
+          <Button variant="ghost" type="button" onClick={() => (onCancel ? onCancel() : navigate(-1))}>Cancel</Button>
           <Button type="submit" disabled={loading}>
             {loading ? 'Creating...' : 'Create Assignment'}
           </Button>

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
@@ -12,6 +12,16 @@ from app.schemas.notice import NoticeOut
 from app.services.file_service import save_file
 
 router = APIRouter(prefix="/api/notices", tags=["Notices"])
+
+VALID_CATEGORIES = {"news", "photo", "document"}
+
+
+def _validate_category(category: str) -> None:
+    if category not in VALID_CATEGORIES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid category '{category}'. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}",
+        )
 
 
 def _notice_out(notice: Notice, db: Session) -> dict:
@@ -96,7 +106,7 @@ def list_notices(
         )
 
     # Filter out expired notices
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     query = query.filter(
         (Notice.expires_at.is_(None)) | (Notice.expires_at > now)
     )
@@ -142,6 +152,8 @@ def create_notice(
     if role not in ("admin", "teacher"):
         raise HTTPException(status_code=403, detail="Only admins and teachers can post notices")
 
+    _validate_category(category)
+
     # Teachers: validate target_semester matches courses they teach
     if role == "teacher" and target_semester is not None:
         teaches_semester = db.query(Course).filter(
@@ -166,7 +178,7 @@ def create_notice(
         posted_by=current_user.id,
         target_semester=target_semester,
         is_pinned=is_pinned,
-        expires_at=datetime.utcnow() + timedelta(hours=24),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24),
     )
     db.add(notice)
     db.commit()
@@ -200,6 +212,7 @@ def update_notice(
     if content is not None:
         notice.content = content
     if category is not None:
+        _validate_category(category)
         notice.category = category
     if target_semester is not None:
         notice.target_semester = target_semester
