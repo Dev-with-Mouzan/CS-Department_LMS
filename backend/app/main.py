@@ -24,6 +24,7 @@ _ALLOWLISTED_MIGRATIONS = {
     "users": [("phone", "VARCHAR(20)")],
     "courses": [("semester", "INTEGER")],
     "student_profiles": [("roll_number", "VARCHAR(50)")],
+    "quizzes": [("deadline", "DATETIME")],
     "results": [
         ("worst_paper_url", "VARCHAR(500)"),
         ("worst_paper_name", "VARCHAR(255)"),

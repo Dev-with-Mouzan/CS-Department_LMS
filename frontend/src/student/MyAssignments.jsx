@@ -118,18 +118,18 @@ export default function MyAssignments() {
 
       {/* Tab Switcher */}
       <div className="flex justify-center mb-6">
-        <div className="inline-flex rounded-xl border border-surface-200 bg-white p-1 gap-1">
+        <div className="inline-flex rounded-xl border border-surface-200 bg-white p-1 gap-1 w-full sm:w-auto">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
                 tab === t.id
                   ? 'bg-accent-500 text-white shadow-md shadow-accent-500/20'
                   : 'text-navy-500 hover:text-navy-700 hover:bg-surface-50'
               }`}
             >
-              <t.icon className="w-4 h-4" />
+              <t.icon className="w-4 h-4 shrink-0" />
               {t.label}
             </button>
           ))}
@@ -550,6 +550,10 @@ function QuizCard({ quiz, courseCode }) {
   const [expanded, setExpanded] = useState(false)
   const [detail, setDetail] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [answers, setAnswers] = useState({})
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
 
   const toggle = async () => {
     const next = !expanded
@@ -559,6 +563,13 @@ function QuizCard({ quiz, courseCode }) {
       try {
         const r = await quizzesAPI.get(quiz.id)
         setDetail(r.data)
+        // Check if already attempted
+        try {
+          const attemptRes = await quizzesAPI.getAttempt(quiz.id)
+          setResult(attemptRes.data)
+        } catch {
+          // No previous attempt — fresh quiz
+        }
       } catch {
         setDetail({ questions: [] })
       } finally {
@@ -566,6 +577,42 @@ function QuizCard({ quiz, courseCode }) {
       }
     }
   }
+
+  const selectAnswer = (questionId, index) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: index }))
+  }
+
+  const handleSubmit = async () => {
+    if (!detail || !detail.questions) return
+    // Check all questions answered
+    const unanswered = detail.questions.filter((q) => answers[q.id] === undefined)
+    if (unanswered.length > 0) {
+      setError(`Please answer all ${detail.questions.length} questions before submitting.`)
+      return
+    }
+    setError('')
+    setSubmitting(true)
+    try {
+      const payload = detail.questions.map((q) => ({
+        question_id: q.id,
+        selected_index: answers[q.id],
+      }))
+      const res = await quizzesAPI.submit(quiz.id, payload)
+      setResult(res.data)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to submit quiz')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const scorePercent = result ? Math.round((result.score / result.total) * 100) : 0
+  const scoreTone = scorePercent >= 70 ? 'text-emerald-600' : scorePercent >= 40 ? 'text-amber-600' : 'text-red-500'
+
+  const isExpired = quiz.deadline && new Date() > new Date(quiz.deadline)
+  const deadlineFormatted = quiz.deadline
+    ? new Date(quiz.deadline).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
 
   return (
     <div className={`border rounded-xl bg-white overflow-hidden transition-all ${expanded ? 'border-accent-300 shadow-elevated' : 'border-surface-200'}`}>
@@ -579,7 +626,17 @@ function QuizCard({ quiz, courseCode }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-navy-900">{quiz.title}</h3>
-            {!quiz.is_published ? (
+            {result ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-2xs font-bold">
+                <CheckCircle2 className="w-3 h-3" />
+                Completed
+              </span>
+            ) : isExpired ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 text-2xs font-bold">
+                <Clock className="w-3 h-3" />
+                Expired
+              </span>
+            ) : !quiz.is_published ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-100 text-navy-400 text-2xs font-bold">
                 <Clock className="w-3 h-3" />
                 Draft
@@ -608,6 +665,17 @@ function QuizCard({ quiz, courseCode }) {
                 {quiz.time_limit} min
               </span>
             )}
+            {deadlineFormatted && (
+              <span className={`inline-flex items-center gap-1 text-2xs font-semibold ${isExpired ? 'text-red-500' : 'text-navy-400'}`}>
+                <Clock className="w-3 h-3" />
+                {isExpired ? 'Deadline passed' : `Due: ${deadlineFormatted}`}
+              </span>
+            )}
+            {result && (
+              <span className={`inline-flex items-center gap-1 text-2xs font-bold ${scoreTone}`}>
+                Score: {result.score}/{result.total}
+              </span>
+            )}
           </div>
         </div>
         <ChevronDown className={`w-4 h-4 text-navy-300 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -623,8 +691,98 @@ function QuizCard({ quiz, courseCode }) {
             <div className="flex items-center justify-center py-8">
               <div className="w-8 h-8 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
             </div>
-          ) : (
+          ) : result ? (
+            /* ── Result View ── */
             <div className="space-y-4">
+              {/* Score banner */}
+              <div className={`flex items-center gap-4 p-4 rounded-xl border ${
+                scorePercent >= 70
+                  ? 'bg-emerald-50 border-emerald-200'
+                  : scorePercent >= 40
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-red-50 border-red-200'
+              }`}>
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-extrabold ${
+                  scorePercent >= 70
+                    ? 'bg-emerald-500 text-white'
+                    : scorePercent >= 40
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-red-500 text-white'
+                }`}>
+                  {result.score}/{result.total}
+                </div>
+                <div>
+                  <p className={`text-sm font-bold ${scoreTone}`}>
+                    {scorePercent >= 70 ? 'Great job!' : scorePercent >= 40 ? 'Keep practicing!' : 'Needs improvement'}
+                  </p>
+                  <p className="text-xs text-navy-500 mt-0.5">
+                    You scored {scorePercent}% — {result.score} out of {result.total} correct
+                  </p>
+                </div>
+              </div>
+
+              {/* Question-by-question review */}
+              {result.answers.map((a, i) => (
+                <div
+                  key={a.question_id}
+                  className={`rounded-xl border p-4 ${
+                    a.is_correct ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                      a.is_correct ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                    }`}>
+                      {a.is_correct ? (
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      ) : (
+                        <X className="w-3.5 h-3.5" />
+                      )}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-navy-900">
+                        <span className="text-navy-400 font-bold mr-1.5">Q{i + 1}.</span>
+                        {a.question_text}
+                      </p>
+                      <div className="mt-2.5 space-y-1.5">
+                        {a.options.map((opt, oi) => {
+                          const isCorrect = oi === a.correct_index
+                          const isSelected = oi === a.selected_index
+                          return (
+                            <div key={oi} className={`flex items-center gap-2.5 text-xs rounded-lg px-2.5 py-1.5 ${
+                              isCorrect ? 'bg-emerald-100 text-emerald-800 font-semibold' :
+                              isSelected && !isCorrect ? 'bg-red-100 text-red-700 line-through' :
+                              'text-navy-500'
+                            }`}>
+                              <span className={`w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${
+                                isCorrect ? 'border-emerald-500 bg-emerald-500 text-white' :
+                                isSelected ? 'border-red-500 bg-red-500 text-white' :
+                                'border-surface-300 text-navy-400'
+                              }`}>
+                                {String.fromCharCode(65 + oi)}
+                              </span>
+                              <span>{opt}</span>
+                              {isCorrect && <span className="ml-auto text-emerald-600 font-bold">✓ Correct</span>}
+                              {isSelected && !isCorrect && <span className="ml-auto text-red-500 font-bold">✗ Your answer</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* ── Quiz Form View ── */
+            <div className="space-y-4">
+              {error && (
+                <div className="flex items-start gap-2 bg-danger-light text-danger-dark px-3.5 py-2.5 rounded-xl text-xs font-medium border border-danger/20">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  {error}
+                </div>
+              )}
+
               {detail && detail.questions.length > 0 ? (
                 detail.questions.map((q, i) => (
                   <div key={q.id} className="rounded-xl border border-surface-100 bg-surface-50/70 p-4">
@@ -635,12 +793,25 @@ function QuizCard({ quiz, courseCode }) {
                     {Array.isArray(q.options) && q.options.length > 0 ? (
                       <div className="mt-3 space-y-2">
                         {q.options.map((opt, oi) => (
-                          <div key={oi} className="flex items-center gap-2.5 text-xs text-navy-600">
-                            <span className="w-5 h-5 shrink-0 rounded-md bg-white border border-surface-200 flex items-center justify-center font-bold text-[10px] text-navy-400">
+                          <button
+                            key={oi}
+                            type="button"
+                            onClick={() => selectAnswer(q.id, oi)}
+                            className={`w-full flex items-center gap-2.5 text-left text-xs rounded-lg px-3 py-2.5 border transition-all ${
+                              answers[q.id] === oi
+                                ? 'border-accent-400 bg-accent-50 text-navy-900 font-semibold shadow-sm'
+                                : 'border-surface-200 bg-white text-navy-600 hover:border-accent-200 hover:bg-surface-50'
+                            }`}
+                          >
+                            <span className={`w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center font-bold text-[10px] transition-colors ${
+                              answers[q.id] === oi
+                                ? 'border-accent-500 bg-accent-500 text-white'
+                                : 'border-surface-300 text-navy-400'
+                            }`}>
                               {String.fromCharCode(65 + oi)}
                             </span>
                             <span>{opt}</span>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     ) : (
@@ -650,6 +821,38 @@ function QuizCard({ quiz, courseCode }) {
                 ))
               ) : (
                 <p className="text-sm text-navy-400 text-center py-4">No questions available for this quiz.</p>
+              )}
+
+              {isExpired && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-xs font-semibold">
+                  <Clock className="w-4 h-4 shrink-0" />
+                  The deadline for this quiz has passed. You can no longer submit answers.
+                </div>
+              )}
+
+              {detail && detail.questions.length > 0 && !isExpired && (
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-xs text-navy-400">
+                    {Object.keys(answers).length} of {detail.questions.length} answered
+                  </p>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-accent-500 text-white hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-accent-500/20"
+                  >
+                    {submitting ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        Submit Quiz
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           )}

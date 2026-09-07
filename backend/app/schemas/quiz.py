@@ -23,6 +23,7 @@ class QuizCreate(BaseModel):
     title: str
     description: Optional[str] = None
     time_limit: Optional[int] = None  # minutes
+    deadline: Optional[datetime] = None  # deadline to attempt
     questions: List[QuestionIn]
 
 
@@ -30,6 +31,7 @@ class QuizUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     time_limit: Optional[int] = None
+    deadline: Optional[datetime] = None
     is_published: Optional[bool] = None
     questions: Optional[List[QuestionIn]] = None
 
@@ -51,6 +53,7 @@ class QuizOut(BaseModel):
     title: str
     description: Optional[str] = None
     time_limit: Optional[int] = None
+    deadline: Optional[datetime] = None
     question_count: int
     is_published: bool
     created_at: UTCDateTime
@@ -58,3 +61,30 @@ class QuizOut(BaseModel):
 
 class QuizDetailOut(QuizOut):
     questions: List[QuestionDetailOut] = []
+
+
+class QuizAnswerIn(BaseModel):
+    question_id: str
+    selected_index: int
+
+
+class QuizSubmitIn(BaseModel):
+    answers: List[QuizAnswerIn]
+
+
+class QuizAnswerResultOut(BaseModel):
+    question_id: str
+    question_text: str
+    options: List[str]
+    selected_index: int
+    correct_index: int
+    is_correct: bool
+
+
+class QuizAttemptOut(BaseModel):
+    id: str
+    quiz_id: str
+    score: int
+    total: int
+    submitted_at: object
+    answers: List[QuizAnswerResultOut] = []

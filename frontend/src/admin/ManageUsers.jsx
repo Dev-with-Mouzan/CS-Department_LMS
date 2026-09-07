@@ -88,7 +88,18 @@ export default function ManageUsers() {
       }
       setShowModal(false)
       loadUsers()
-    } catch (err) { alert(err.response?.data?.detail || 'Failed to save user') }
+    } catch (err) {
+      const data = err.response?.data
+      let msg = 'Failed to save user'
+      if (data?.detail) {
+        if (Array.isArray(data.detail)) {
+          msg = data.detail.map(e => e.msg || e.detail || JSON.stringify(e)).join('\n')
+        } else {
+          msg = data.detail
+        }
+      }
+      alert(msg)
+    }
   }
 
   const handleHardDelete = async (user) => {

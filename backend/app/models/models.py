@@ -203,6 +203,7 @@ class Quiz(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text)
     time_limit = Column(Integer, nullable=True)  # minutes; null = no limit
+    deadline = Column(DateTime, nullable=True)  # deadline to attempt; null = no deadline
     is_published = Column(Boolean, default=True)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
@@ -215,6 +216,7 @@ class Quiz(Base):
         cascade="all, delete-orphan",
         order_by="QuizQuestion.order_index",
     )
+    attempts = relationship("QuizAttempt", back_populates="quiz", cascade="all, delete-orphan")
 
 
 class QuizQuestion(Base):
@@ -282,6 +284,38 @@ class Result(Base):
 
     course = relationship("Course", back_populates="results")
     uploader = relationship("User")
+
+
+class QuizAttempt(Base):
+    __tablename__ = "quiz_attempts"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    quiz_id = Column(String(36), ForeignKey("quizzes.id"), nullable=False, index=True)
+    student_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    score = Column(Integer, nullable=False, default=0)
+    total = Column(Integer, nullable=False, default=0)
+    submitted_at = Column(DateTime, default=utcnow)
+
+    quiz = relationship("Quiz", back_populates="attempts")
+    student = relationship("User")
+    answers = relationship("QuizAttemptAnswer", back_populates="attempt", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("quiz_id", "student_id", name="uq_quiz_student_attempt"),
+    )
+
+
+class QuizAttemptAnswer(Base):
+    __tablename__ = "quiz_attempt_answers"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    attempt_id = Column(String(36), ForeignKey("quiz_attempts.id"), nullable=False, index=True)
+    question_id = Column(String(36), ForeignKey("quiz_questions.id"), nullable=False)
+    selected_index = Column(Integer, nullable=False)
+    is_correct = Column(Boolean, nullable=False, default=False)
+
+    attempt = relationship("QuizAttempt", back_populates="answers")
+    question = relationship("QuizQuestion")
 
 
 class Notification(Base):

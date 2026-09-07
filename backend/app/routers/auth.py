@@ -14,7 +14,8 @@ from app.schemas.auth import (
     MessageResponse, RegisterResponse,
 )
 from app.services.auth_service import (
-    get_user_by_email, get_user_by_phone, create_user, authenticate_user, update_password
+    get_user_by_email, get_user_by_phone, create_user, authenticate_user, update_password,
+    get_student_by_roll_number,
 )
 from app.services.otp_service import (
     create_otp, verify_otp, can_resend_otp
@@ -42,6 +43,10 @@ def register(request: Request, data: RegisterRequest, db: Session = Depends(get_
     phone_existing = get_user_by_phone(db, data.phone)
     if phone_existing:
         raise HTTPException(status_code=400, detail="Phone number already registered")
+
+    roll_existing = get_student_by_roll_number(db, data.roll_number)
+    if roll_existing:
+        raise HTTPException(status_code=400, detail="Roll number already registered")
 
     user_data = data.model_dump()
     user_data["role_name"] = "student"

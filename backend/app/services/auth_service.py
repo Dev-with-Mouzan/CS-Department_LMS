@@ -18,6 +18,10 @@ def get_user_by_phone(db: Session, phone: str) -> User | None:
     return db.query(User).filter(User.phone == phone).first()
 
 
+def get_student_by_roll_number(db: Session, roll_number: str) -> StudentProfile | None:
+    return db.query(StudentProfile).filter(StudentProfile.roll_number == roll_number).first()
+
+
 def get_role_by_name(db: Session, role_name: str) -> Role | None:
     return db.query(Role).filter(Role.name == role_name).first()
 

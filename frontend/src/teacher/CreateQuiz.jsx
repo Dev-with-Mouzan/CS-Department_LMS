@@ -7,10 +7,10 @@ import {
   Plus, Trash2, PenLine, FileUp, CheckCircle2,
 } from 'lucide-react'
 
-export default function CreateQuiz({ onSuccess, onCancel }) {
+export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
   const [courses, setCourses] = useState([])
   const [form, setForm] = useState({
-    course_id: '', title: '', description: '', time_limit: '',
+    course_id: courseId || '', title: '', description: '', time_limit: '', deadline: '',
   })
   const [questions, setQuestions] = useState([
     { text: '', options: ['', '', '', ''], correct: 0 },
@@ -22,7 +22,14 @@ export default function CreateQuiz({ onSuccess, onCancel }) {
   const [success, setSuccess] = useState('')
   const navigate = useNavigate()
 
-  useEffect(() => { coursesAPI.list().then(r => setCourses(r.data)).catch(console.error) }, [])
+  useEffect(() => {
+    coursesAPI.list().then(r => {
+      setCourses(r.data)
+      if (courseId && !form.course_id) {
+        setForm(prev => ({ ...prev, course_id: courseId }))
+      }
+    }).catch(console.error)
+  }, [courseId])
 
   // ── Question helpers ──────────────────────────────────
   const addQuestion = () => {
@@ -81,6 +88,7 @@ export default function CreateQuiz({ onSuccess, onCancel }) {
         title: form.title.trim(),
         description: form.description.trim() || null,
         time_limit: form.time_limit ? parseInt(form.time_limit) : null,
+        deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
         questions: questions.map((q) => {
           const options = q.options.map((o) => o.trim()).filter((o) => o.length)
           const correct = options.indexOf(options[q.correct] || '')
@@ -130,11 +138,14 @@ export default function CreateQuiz({ onSuccess, onCancel }) {
             <label className="input-label">Course</label>
             <div className="relative">
               <BookOpen className="w-4 h-4 text-navy-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select value={form.course_id} onChange={(e) => setForm({ ...form, course_id: e.target.value })}
-                className="input-field pl-10" required>
-                <option value="">Select a course</option>
-                {courses.map(c => <option key={c.id} value={c.id}>{c.course_code} — {c.title}</option>)}
-              </select>
+              <input
+                type="text"
+                readOnly
+                value={courses.find(c => c.id === form.course_id)
+                  ? `${courses.find(c => c.id === form.course_id).course_code} — ${courses.find(c => c.id === form.course_id).title}`
+                  : ''}
+                className="input-field pl-10 bg-surface-50 text-navy-700 cursor-default"
+              />
             </div>
           </div>
 
@@ -153,11 +164,19 @@ export default function CreateQuiz({ onSuccess, onCancel }) {
               className="input-field resize-none" placeholder="Any instructions for students..." />
           </div>
 
-          <div className="max-w-xs">
-            <label className="input-label">Time Limit (minutes, optional)</label>
-            <input type="number" value={form.time_limit} min={1}
-              onChange={(e) => setForm({ ...form, time_limit: e.target.value })}
-              className="input-field" placeholder="No limit" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="input-label">Time Limit (minutes, optional)</label>
+              <input type="number" value={form.time_limit} min={1}
+                onChange={(e) => setForm({ ...form, time_limit: e.target.value })}
+                className="input-field" placeholder="No limit" />
+            </div>
+            <div>
+              <label className="input-label">Deadline (optional)</label>
+              <input type="datetime-local" value={form.deadline}
+                onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+                className="input-field" />
+            </div>
           </div>
         </div>
 

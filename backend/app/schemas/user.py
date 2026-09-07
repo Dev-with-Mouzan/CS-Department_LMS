@@ -34,19 +34,21 @@ class UserCreate(UserBase):
     semester: Optional[int] = None
     enrollment_year: Optional[int] = None
 
-    @field_validator("email")
-    @classmethod
-    def email_must_be_gmail(cls, v):
-        if not v.lower().endswith("@gmail.com"):
-            raise ValueError("Email must be a valid @gmail.com address")
-        return v.lower()
-
     @field_validator("phone")
     @classmethod
     def phone_must_be_pakistani(cls, v):
         if v is not None and v != "":
-            if not re.match(r"^\+92\d{10}$", v):
-                raise ValueError("Phone must be exactly 13 characters: +92 followed by 10 digits")
+            # Auto-prepend +92 if missing and only digits provided
+            digits = v.replace(" ", "").replace("-", "")
+            if not digits.startswith("+92"):
+                # Strip any leading zeros or country codes and prepend +92
+                raw = re.sub(r"^\+?92", "", digits)
+                raw = re.sub(r"^0+", "", raw)  # remove leading zeros
+                if len(raw) == 10:
+                    return f"+92{raw}"
+            if not re.match(r"^\+92\d{10}$", digits):
+                raise ValueError("Phone must be a valid Pakistani number: +92 followed by 10 digits")
+            return digits
         return v
 
 

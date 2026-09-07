@@ -1,15 +1,18 @@
 import json
 from typing import List
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_teacher
-from app.models import User, Quiz, QuizQuestion, Course, Enrollment
+from app.models import User, Quiz, QuizQuestion, QuizAttempt, QuizAttemptAnswer, Course, Enrollment
 from app.schemas.quiz import (
     QuizCreate, QuizUpdate, QuizOut, QuizDetailOut, QuestionDetailOut,
+    QuizSubmitIn, QuizAttemptOut, QuizAnswerResultOut,
 )
 
 router = APIRouter(prefix="/api", tags=["Quizzes"])
@@ -45,6 +48,7 @@ def _quiz_out(q: Quiz) -> QuizOut:
         title=q.title,
         description=q.description,
         time_limit=q.time_limit,
+        deadline=q.deadline,
         question_count=len(q.questions),
         is_published=q.is_published,
         created_at=q.created_at,
@@ -123,6 +127,7 @@ def create_quiz(
         title=data.title.strip(),
         description=data.description,
         time_limit=data.time_limit,
+        deadline=data.deadline,
     )
     db.add(quiz)
     db.flush()
@@ -221,3 +226,135 @@ def delete_quiz(
     db.delete(quiz)
     db.commit()
     return {"message": "Quiz deleted successfully"}
+
+
+@router.post("/quizzes/{quiz_id}/submit", response_model=QuizAttemptOut)
+def submit_quiz(
+    quiz_id: str,
+    data: QuizSubmitIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Submit quiz answers and return the graded result."""
+    if current_user.role.name != "student":
+        raise HTTPException(status_code=403, detail="Only students can submit quizzes")
+
+    quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    if not quiz.is_published:
+        raise HTTPException(status_code=400, detail="Quiz is not published yet")
+    if quiz.deadline and datetime.now(timezone.utc).replace(tzinfo=None) > quiz.deadline:
+        raise HTTPException(status_code=400, detail="Quiz deadline has passed")
+
+    # Check enrollment
+    enrollment = db.query(Enrollment).filter(
+        Enrollment.student_id == current_user.id,
+        Enrollment.course_id == quiz.course_id,
+        Enrollment.status == "active",
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=403, detail="Not enrolled in this course")
+
+    # Check if already attempted
+    existing = db.query(QuizAttempt).filter(
+        QuizAttempt.quiz_id == quiz_id,
+        QuizAttempt.student_id == current_user.id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="You have already attempted this quiz")
+
+    # Load questions for grading
+    questions = {q.id: q for q in quiz.questions}
+
+    score = 0
+    total = len(questions)
+    answer_results = []
+
+    for ans in data.answers:
+        question = questions.get(ans.question_id)
+        if not question:
+            continue
+        is_correct = ans.selected_index == question.correct_index
+        if is_correct:
+            score += 1
+        answer_results.append({
+            "question_id": question.id,
+            "question_text": question.text,
+            "options": _parse_options(question),
+            "selected_index": ans.selected_index,
+            "correct_index": question.correct_index,
+            "is_correct": is_correct,
+        })
+
+    # Create attempt
+    attempt = QuizAttempt(
+        quiz_id=quiz_id,
+        student_id=current_user.id,
+        score=score,
+        total=total,
+    )
+    db.add(attempt)
+    db.flush()
+
+    # Save individual answers
+    for ans in data.answers:
+        question = questions.get(ans.question_id)
+        if not question:
+            continue
+        db.add(QuizAttemptAnswer(
+            attempt_id=attempt.id,
+            question_id=ans.question_id,
+            selected_index=ans.selected_index,
+            is_correct=ans.selected_index == question.correct_index,
+        ))
+
+    db.commit()
+    db.refresh(attempt)
+
+    return QuizAttemptOut(
+        id=attempt.id,
+        quiz_id=attempt.quiz_id,
+        score=attempt.score,
+        total=attempt.total,
+        submitted_at=attempt.submitted_at,
+        answers=[QuizAnswerResultOut(**a) for a in answer_results],
+    )
+
+
+@router.get("/quizzes/{quiz_id}/attempts", response_model=QuizAttemptOut)
+def get_my_attempt(
+    quiz_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get the current student's attempt result for a quiz."""
+    attempt = db.query(QuizAttempt).filter(
+        QuizAttempt.quiz_id == quiz_id,
+        QuizAttempt.student_id == current_user.id,
+    ).first()
+    if not attempt:
+        raise HTTPException(status_code=404, detail="No attempt found")
+
+    # Rebuild answer details from stored answers
+    answers_out = []
+    for aa in attempt.answers:
+        q = db.query(QuizQuestion).filter(QuizQuestion.id == aa.question_id).first()
+        if q:
+            answers_out.append(QuizAnswerResultOut(
+                question_id=q.id,
+                question_text=q.text,
+                options=_parse_options(q),
+                selected_index=aa.selected_index,
+                correct_index=q.correct_index,
+                is_correct=aa.is_correct,
+            ))
+
+    return QuizAttemptOut(
+        id=attempt.id,
+        quiz_id=attempt.quiz_id,
+        score=attempt.score,
+        total=attempt.total,
+        submitted_at=attempt.submitted_at,
+        answers=answers_out,
+    )

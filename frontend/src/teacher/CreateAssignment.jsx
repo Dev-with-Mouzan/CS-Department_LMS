@@ -4,17 +4,24 @@ import { coursesAPI, assignmentsAPI } from '../services/api'
 import Button from '../components/Button'
 import { BookOpen, FileText, CalendarDays, Award, AlertCircle } from 'lucide-react'
 
-export default function CreateAssignment({ onSuccess, onCancel }) {
+export default function CreateAssignment({ courseId, onSuccess, onCancel }) {
   const [courses, setCourses] = useState([])
   const [form, setForm] = useState({
-    course_id: '', title: '', description: '', due_date: '', max_marks: 100,
+    course_id: courseId || '', title: '', description: '', due_date: '', max_marks: 100,
   })
   const [attachment, setAttachment] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  useEffect(() => { coursesAPI.list().then(r => setCourses(r.data)).catch(console.error) }, [])
+  useEffect(() => {
+    coursesAPI.list().then(r => {
+      setCourses(r.data)
+      if (courseId && !form.course_id) {
+        setForm(prev => ({ ...prev, course_id: courseId }))
+      }
+    }).catch(console.error)
+  }, [courseId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -58,11 +65,14 @@ export default function CreateAssignment({ onSuccess, onCancel }) {
             <label className="input-label">Course</label>
             <div className="relative">
               <BookOpen className="w-4 h-4 text-navy-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select value={form.course_id} onChange={(e) => setForm({ ...form, course_id: e.target.value })}
-                className="input-field pl-10" required>
-                <option value="">Select a course</option>
-                {courses.map(c => <option key={c.id} value={c.id}>{c.course_code} — {c.title}</option>)}
-              </select>
+              <input
+                type="text"
+                readOnly
+                value={courses.find(c => c.id === form.course_id)
+                  ? `${courses.find(c => c.id === form.course_id).course_code} — ${courses.find(c => c.id === form.course_id).title}`
+                  : ''}
+                className="input-field pl-10 bg-surface-50 text-navy-700 cursor-default"
+              />
             </div>
           </div>
 

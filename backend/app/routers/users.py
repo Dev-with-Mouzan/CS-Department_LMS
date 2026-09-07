@@ -160,10 +160,11 @@ def create_user(
 
     user = create_user_service(db, data.model_dump())
 
-    # Students created by admin: send an OTP to the phone number so the
-    # account can be verified (same SMS flow as public registration).
-    if user.role.name == "student" and user.phone:
-        create_otp(db, user)
+    # Students created by admin: auto-verify so they can login immediately
+    if user.role.name == "student":
+        user.is_verified = True
+        db.commit()
+        db.refresh(user)
 
     # Teachers created by admin: auto-verify so they can login immediately,
     # and email the credentials (email, phone, password) to the teacher.

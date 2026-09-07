@@ -132,6 +132,8 @@ export const quizzesAPI = {
   create: (data) => api.post('/quizzes', data),
   update: (id, data) => api.put(`/quizzes/${id}`, data),
   delete: (id) => api.delete(`/quizzes/${id}`),
+  submit: (quizId, answers) => api.post(`/quizzes/${quizId}/submit`, { answers }),
+  getAttempt: (quizId) => api.get(`/quizzes/${quizId}/attempts`),
 }
 
 // ── Reviews API ───────────────────────────────────

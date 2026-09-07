@@ -166,21 +166,21 @@ export default function Submissions() {
 
       {/* Tab Switcher */}
       <div className="flex justify-center mb-8">
-        <div className="inline-flex rounded-xl border border-surface-200 bg-white p-1 gap-1">
+        <div className="inline-flex rounded-xl border border-surface-200 bg-white p-1 gap-1 w-full sm:w-auto">
           {[
-            { id: 'assignments', label: 'Assignments', icon: ClipboardList },
-            { id: 'quizzes', label: 'Quizzes', icon: HelpCircle },
+            { id: 'assignments', label: 'Assignments', mobile: 'Assignments', icon: ClipboardList },
+            { id: 'quizzes', label: 'Quizzes', mobile: 'Quizzes', icon: HelpCircle },
           ].map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
                 tab === t.id
                   ? 'bg-accent-500 text-white shadow-md shadow-accent-500/20'
                   : 'text-navy-500 hover:text-navy-700 hover:bg-surface-50'
               }`}
             >
-              <t.icon className="w-4 h-4" />
+              <t.icon className="w-4 h-4 shrink-0" />
               {t.label}
             </button>
           ))}
@@ -422,41 +422,41 @@ function AssignmentList({ items, selected, counts, onSelect }) {
                 : 'border-surface-200 hover:border-accent-300'
             }`}
           >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 min-w-0">
-                <span className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                  selected?.id === a.id ? 'bg-accent-500 text-white' : 'bg-navy-900/5 text-navy-600 group-hover:bg-navy-900/10'
-                }`}>
-                  <ClipboardList className="w-5 h-5" />
-                </span>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-navy-900 truncate">{a.title}</h3>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                    <span className="inline-flex items-center gap-1.5 text-2xs text-navy-400">
-                      <Clock className="w-3 h-3 text-navy-300" />
-                      Due: {new Date(a.due_date).toLocaleDateString()}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 text-2xs text-navy-400">
-                      <Award className="w-3 h-3 text-navy-300" />
-                      Max {a.max_marks}
-                    </span>
-                  </div>
+            <div className="flex items-start gap-3">
+              <span className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                selected?.id === a.id ? 'bg-accent-500 text-white' : 'bg-navy-900/5 text-navy-600 group-hover:bg-navy-900/10'
+              }`}>
+                <ClipboardList className="w-5 h-5" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-navy-900 truncate flex-1 min-w-0">{a.title}</h3>
+                  <ChevronRight className={`w-4 h-4 text-navy-300 shrink-0 transition-transform ${
+                    selected?.id === a.id ? 'translate-x-0.5 text-accent-600' : 'group-hover:translate-x-0.5'
+                  }`} />
                 </div>
-              </div>
-              <div className="flex items-center gap-3 shrink-0 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-surface-200 bg-surface-50 text-2xs font-bold text-navy-600">
-                  <Inbox className="w-3 h-3" />
-                  {counts[a.id]?.total ?? 0} submissions
-                </span>
-                {toReview > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-amber-200 bg-amber-50 text-2xs font-bold text-amber-700">
-                    <Clock className="w-3 h-3" />
-                    {toReview} to review
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                  <span className="inline-flex items-center gap-1 text-2xs text-navy-400">
+                    <Clock className="w-3 h-3 text-navy-300" />
+                    Due: {new Date(a.due_date).toLocaleDateString()}
                   </span>
-                )}
-                <ChevronRight className={`w-4 h-4 text-navy-300 transition-transform ${
-                  selected?.id === a.id ? 'translate-x-0.5 text-accent-600' : 'group-hover:translate-x-0.5'
-                }`} />
+                  <span className="inline-flex items-center gap-1 text-2xs text-navy-400">
+                    <Award className="w-3 h-3 text-navy-300" />
+                    Max {a.max_marks}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-surface-200 bg-surface-50 text-2xs font-bold text-navy-600">
+                    <Inbox className="w-3 h-3" />
+                    {counts[a.id]?.total ?? 0} submissions
+                  </span>
+                  {toReview > 0 && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-200 bg-amber-50 text-2xs font-bold text-amber-700">
+                      <Clock className="w-3 h-3" />
+                      {toReview} to review
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -468,8 +468,8 @@ function AssignmentList({ items, selected, counts, onSelect }) {
 
 function SubmissionsTable({ submissions, maxMarks, onGrade, gradedCount }) {
   return (
-    <div className="border border-surface-200 rounded-xl bg-white overflow-hidden">
-      <div className="px-6 py-4 border-b border-surface-100 bg-surface-50/60 flex flex-wrap items-center justify-between gap-3">
+    <div className="border border-surface-200 rounded-xl bg-white overflow-hidden mt-6">
+      <div className="px-4 sm:px-6 py-4 border-b border-surface-100 bg-surface-50/60 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-bold text-navy-900">
             Submissions ({submissions.length})
@@ -484,79 +484,136 @@ function SubmissionsTable({ submissions, maxMarks, onGrade, gradedCount }) {
         </span>
       </div>
 
-      <div className="overflow-x-auto">
-        {submissions.length === 0 ? (
-          <div className="px-6 py-12 text-center text-navy-400 text-sm">No submissions yet</div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-surface-100">
-                <th className="px-6 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Student</th>
-                <th className="px-6 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Submitted</th>
-                <th className="px-6 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Grade</th>
-                <th className="px-6 py-3 text-left text-2xs font-bold text-navy-400 uppercase">File</th>
-                <th className="px-6 py-3 text-left text-2xs font-bold text-navy-400 uppercase"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-100">
-              {submissions.map((s) => (
-                <tr key={s.id} className="hover:bg-surface-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <span className="w-9 h-9 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center">
-                        <UserIcon className="w-4 h-4 text-navy-950" />
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-navy-900">{s.student_name || 'Unknown'}</p>
-                        {s.roll_number && <p className="text-2xs text-navy-400">Roll No: {s.roll_number}</p>}
+      {submissions.length === 0 ? (
+        <div className="px-6 py-12 text-center text-navy-400 text-sm">No submissions yet</div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-surface-100">
+                  <th className="px-5 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Student</th>
+                  <th className="px-5 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Submitted</th>
+                  <th className="px-5 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Status</th>
+                  <th className="px-5 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Grade</th>
+                  <th className="px-5 py-3 text-left text-2xs font-bold text-navy-400 uppercase">File</th>
+                  <th className="px-5 py-3 text-right text-2xs font-bold text-navy-400 uppercase">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-100">
+                {submissions.map((s) => (
+                  <tr key={s.id} className="hover:bg-surface-50 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center shrink-0">
+                          <UserIcon className="w-3.5 h-3.5 text-navy-950" />
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-navy-900">{s.student_name || 'Unknown'}</p>
+                          {s.roll_number && <p className="text-2xs text-navy-400">Roll: {s.roll_number}</p>}
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-xs text-navy-500">{new Date(s.submitted_at).toLocaleString()}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold border ${
-                      s.status === 'graded' ? 'bg-success-light text-success-dark border-success/20'
-                        : s.status === 'late' ? 'bg-warning-light text-warning-dark border-warning/20'
-                        : 'bg-info-light text-info-dark border-info/20'
-                    }`}>
-                      {s.status === 'graded' ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                      {s.status}
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-navy-500 whitespace-nowrap">{new Date(s.submitted_at).toLocaleDateString()}</td>
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold border ${
+                        s.status === 'graded' ? 'bg-success-light text-success-dark border-success/20'
+                          : s.status === 'late' ? 'bg-warning-light text-warning-dark border-warning/20'
+                          : 'bg-info-light text-info-dark border-info/20'
+                      }`}>
+                        {s.status === 'graded' ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                        {s.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className="inline-flex items-center gap-1 text-sm font-bold text-navy-900">
+                        <Star className={`w-3.5 h-3.5 ${s.grade ? 'text-accent-500' : 'text-navy-200'}`} />
+                        {s.grade ?? '—'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      {s.file_url ? (
+                        <a
+                          href={`/${s.file_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-accent-200 bg-accent-50 text-accent-700 text-2xs font-semibold hover:bg-accent-100 transition-colors"
+                        >
+                          <FileText className="w-3 h-3" />
+                          View
+                        </a>
+                      ) : (
+                        <span className="text-2xs text-navy-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => onGrade(s)}>
+                        {s.status === 'graded' ? 'Re-grade' : 'Grade'}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="sm:hidden divide-y divide-surface-100">
+            {submissions.map((s) => (
+              <div key={s.id} className="p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center shrink-0">
+                    <UserIcon className="w-4 h-4 text-navy-950" />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-navy-900 truncate">{s.student_name || 'Unknown'}</p>
+                    {s.roll_number && <p className="text-2xs text-navy-400">Roll: {s.roll_number}</p>}
+                  </div>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold border shrink-0 ${
+                    s.status === 'graded' ? 'bg-success-light text-success-dark border-success/20'
+                      : s.status === 'late' ? 'bg-warning-light text-warning-dark border-warning/20'
+                      : 'bg-info-light text-info-dark border-info/20'
+                  }`}>
+                    {s.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 text-2xs text-navy-400">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {new Date(s.submitted_at).toLocaleDateString()}
                     </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1 text-sm font-bold text-navy-900">
-                      <Star className={`w-3.5 h-3.5 ${s.grade ? 'text-accent-500' : 'text-navy-200'}`} />
+                    <span className="inline-flex items-center gap-1 font-bold text-navy-700">
+                      <Star className={`w-3 h-3 ${s.grade ? 'text-accent-500' : 'text-navy-200'}`} />
                       {s.grade ?? '—'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {s.file_url ? (
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {s.file_url && (
                       <a
                         href={`/${s.file_url}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-accent-200 bg-accent-50 text-accent-700 text-2xs font-semibold hover:bg-accent-100 transition-colors"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-accent-200 bg-accent-50 text-accent-700 text-2xs font-semibold"
                       >
                         <FileText className="w-3 h-3" />
                         View
-                        <Download className="w-3 h-3" />
                       </a>
-                    ) : (
-                      <span className="text-2xs text-navy-300">—</span>
                     )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Button variant="ghost" size="sm" onClick={() => onGrade(s)}>
+                    <button
+                      onClick={() => onGrade(s)}
+                      className="text-2xs font-semibold text-accent-600 hover:text-accent-700 px-2 py-1"
+                    >
                       {s.status === 'graded' ? 'Re-grade' : 'Grade'}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
