@@ -27,6 +27,7 @@ import {
   MapPin,
   Phone,
   Mail,
+  Download,
 } from 'lucide-react'
 
 const navConfig = {
@@ -36,7 +37,8 @@ const navConfig = {
     { to: '/admin/courses', label: 'Courses', icon: BookOpen },
     { to: '/admin/attendance', label: 'Attendance', icon: CalendarCheck },
     { to: '/admin/examinations', label: 'Result', icon: Trophy },
-    { to: '/admin/enrollments', label: 'Enrollments', icon: UserPlus },
+    { to: '/admin/promotion', label: 'Promotion', icon: UserPlus },
+    { to: '/admin/backup', label: 'Backup', icon: Download },
   ],
   teacher: [
     { to: '/teacher', label: 'Dashboard', icon: LayoutDashboard },
@@ -89,7 +91,7 @@ function Navbar({ links, role, user, onLogout }) {
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <Link to="/" className="flex items-center gap-3 min-w-0 shrink-0 group">
-              <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg object-cover shrink-0" />
+              <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg object-cover shrink-0" loading="eager" />
               <div className="leading-tight min-w-0">
                 <p className="text-sm lg:text-base font-bold text-white tracking-tight truncate">CS Department LMS</p>
                 <p className="text-2xs font-medium text-white/40 truncate">
@@ -207,7 +209,7 @@ function Footer({ links, role }) {
           {/* Brand */}
           <div className="lg:col-span-1">
             <div className="flex items-center gap-3 mb-4">
-              <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 rounded-lg object-cover" />
+              <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 rounded-lg object-cover" loading="lazy" />
               <div>
                 <p className="text-sm font-bold text-white">CS Department LMS</p>
                 <p className="text-2xs text-white/40">Govt. Graduate College Burewala</p>

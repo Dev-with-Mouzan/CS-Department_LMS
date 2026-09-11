@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { usersAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
+import ConfirmDialog from '../components/ConfirmDialog'
 import {
   Users, UserPlus, Mail, Pencil, ShieldCheck, ShieldOff,
-  Trash2, Search, GraduationCap, UserCheck, Clock, Eye, EyeOff,
+  Trash2, Search, GraduationCap, UserCheck, Clock, Eye, EyeOff, AlertTriangle,
+  CheckCircle2, Copy, ArrowRight,
 } from 'lucide-react'
 
 const ROLE_BAGE = {
@@ -22,6 +24,7 @@ const AVATAR_GRADIENT = {
 export default function ManageUsers() {
   const [users, setUsers] = useState([])
   const [filter, setFilter] = useState('')
+  const [subFilter, setSubFilter] = useState('active')
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -31,6 +34,10 @@ export default function ManageUsers() {
     first_name: '', last_name: '', email: '', phone: '', password: '',
     role_name: 'student', semester: '',
   })
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [error, setError] = useState(null)
+  const [createdUser, setCreatedUser] = useState(null)
+  const [modalError, setModalError] = useState(null)
 
   useEffect(() => { loadUsers() }, [filter])
 
@@ -48,6 +55,7 @@ export default function ManageUsers() {
     setEditing(null)
     setForm({ first_name: '', last_name: '', email: '', phone: '', password: '', role_name: 'student', semester: '' })
     setShowPassword(false)
+    setModalError(null)
     setShowModal(true)
   }
 
@@ -85,9 +93,11 @@ export default function ManageUsers() {
           payload.semester = parseInt(semester, 10)
         }
         await usersAPI.create(payload)
+        setCreatedUser({ first_name, last_name, email, password, role_name })
+        loadUsers()
+        return
       }
       setShowModal(false)
-      loadUsers()
     } catch (err) {
       const data = err.response?.data
       let msg = 'Failed to save user'
@@ -98,17 +108,43 @@ export default function ManageUsers() {
           msg = data.detail
         }
       }
-      alert(msg)
+      if (!editing) {
+        setModalError(msg)
+      } else {
+        setError(msg)
+      }
     }
   }
 
   const handleHardDelete = async (user) => {
-    if (!confirm(`Permanently delete ${user.first_name} ${user.last_name}? This cannot be undone.`)) return
-    try { await usersAPI.hardDelete(user.id); loadUsers() } catch { alert('Failed') }
+    setDeleteTarget(user)
+  }
+
+  const confirmHardDelete = async () => {
+    if (!deleteTarget) return
+    try { await usersAPI.hardDelete(deleteTarget.id); loadUsers() } catch { setError('Failed to delete user') }
+    setDeleteTarget(null)
   }
 
 
   const filteredUsers = users.filter((user) => {
+    const role = user.role?.name || 'student'
+    if (filter === 'admin' || filter === 'teacher') {
+      if (role !== filter) return false
+      if (subFilter === 'active') return user.is_active
+      if (subFilter === 'inactive') return !user.is_active
+      return true
+    }
+    if (filter === 'student') {
+      if (role !== 'student') return false
+      if (subFilter && subFilter !== 'active' && subFilter !== 'inactive') {
+        const sem = parseInt(subFilter, 10)
+        if (user.student_profile?.semester !== sem) return false
+      }
+      return true
+    }
+    return true
+  }).filter((user) => {
     const q = search.trim().toLowerCase()
     if (!q) return true
     return (
@@ -117,15 +153,22 @@ export default function ManageUsers() {
     )
   })
 
-  const stats = [
+  const stats = useMemo(() => [
     { label: 'Total Users', value: users.length, icon: Users, chip: 'bg-navy-900/10 text-navy-800 border-navy-900/10' },
     { label: 'Students', value: users.filter((u) => u.role?.name === 'student').length, icon: GraduationCap, chip: 'bg-success/10 text-success-dark border-success/20' },
     { label: 'Teachers', value: users.filter((u) => u.role?.name === 'teacher').length, icon: UserCheck, chip: 'bg-info/10 text-info-dark border-info/20' },
-    { label: 'Pending Verification', value: users.filter((u) => !u.is_verified).length, icon: Clock, chip: 'bg-warning/10 text-warning-dark border-warning/20' },
-  ]
+    { label: 'Inactive', value: users.filter((u) => !u.is_active).length, icon: ShieldOff, chip: 'bg-danger/10 text-danger-dark border-danger/20' },
+  ], [users])
 
   return (
     <div className="p-5 lg:p-8 max-w-5xl mx-auto w-full">
+      {error && (
+        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-danger-light text-danger-dark text-sm font-medium animate-slide-up">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="flex-1">{error}</div>
+          <button onClick={() => setError(null)} className="text-current opacity-50 hover:opacity-100">&times;</button>
+        </div>
+      )}
       {/* Header */}
       <div className="text-center mb-8">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
@@ -158,7 +201,7 @@ export default function ManageUsers() {
       <div className="border border-surface-200 rounded-xl bg-white p-3 mb-8 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
         <div className="inline-flex justify-center gap-1 p-1 bg-navy-900/5 rounded-xl self-center w-full lg:w-auto lg:self-center">
           {[{ value: '', label: 'All' }, { value: 'admin', label: 'Admin' }, { value: 'teacher', label: 'Teacher' }, { value: 'student', label: 'Student' }].map((r) => (
-            <button key={r.value} onClick={() => setFilter(r.value)}
+            <button key={r.value} onClick={() => { setFilter(r.value); setSubFilter('') }}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
                 filter === r.value
                   ? 'bg-navy-900 text-white shadow-md shadow-navy-900/10'
@@ -183,6 +226,46 @@ export default function ManageUsers() {
           New User
         </Button>
       </div>
+
+      {/* Sub-tab: Active/Inactive for admin/teacher, Semester tabs for student */}
+      {(filter === 'admin' || filter === 'teacher') && (
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
+            {[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }].map((s) => (
+              <button key={s.value} onClick={() => setSubFilter(s.value)}
+                className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  subFilter === s.value
+                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                    : 'text-navy-400 hover:text-navy-600'
+                }`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-navy-400">
+            {filteredUsers.length} {filter}{filteredUsers.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
+      {filter === 'student' && (
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg flex-wrap">
+            {[{ value: '', label: 'All' }, ...Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: `Sem ${i + 1}` }))].map((s) => (
+              <button key={s.value} onClick={() => setSubFilter(s.value)}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  subFilter === s.value
+                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                    : 'text-navy-400 hover:text-navy-600'
+                }`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-navy-400">
+            {filteredUsers.length} students
+          </span>
+        </div>
+      )}
 
       {/* Users table */}
       <div className="border border-surface-200 rounded-xl bg-white overflow-hidden">
@@ -265,7 +348,6 @@ export default function ManageUsers() {
                           className="w-8 h-8 rounded-lg flex items-center justify-center text-navy-500 border border-surface-200 bg-white hover:bg-surface-50 hover:text-navy-900 transition-all">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-
                         <button onClick={() => handleHardDelete(user)} title="Delete"
                           className="w-8 h-8 rounded-lg flex items-center justify-center text-red-600 border border-red-200 bg-white hover:bg-red-50 transition-all">
                           <Trash2 className="w-3.5 h-3.5" />
@@ -283,6 +365,13 @@ export default function ManageUsers() {
       {/* Modal */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit User' : 'Create User'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
+          {modalError && (
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-danger-light text-danger-dark text-sm font-medium border border-danger/20 animate-slide-up">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="flex-1 whitespace-pre-line">{modalError}</div>
+              <button type="button" onClick={() => setModalError(null)} className="text-current opacity-50 hover:opacity-100">&times;</button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="input-label">First name</label>
@@ -347,7 +436,7 @@ export default function ManageUsers() {
                 <div className="relative">
                   <input type={showPassword ? 'text' : 'password'} value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    className="input-field pr-10" required minLength={6} />
+                    className="input-field pr-10" required minLength={8} />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-400 hover:text-navy-600 transition-colors">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -380,6 +469,84 @@ export default function ManageUsers() {
           </div>
         </form>
       </Modal>
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmHardDelete}
+        title="Delete User"
+        message={`Permanently delete ${deleteTarget?.first_name} ${deleteTarget?.last_name}? This cannot be undone.`}
+        confirmLabel="Delete User"
+      />
+
+      {/* Created User Success Screen */}
+      {createdUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-slide-up">
+            {/* Header */}
+            <div className="bg-gradient-to-br from-accent-500 to-accent-600 px-8 pt-10 pb-8 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/20 flex items-center justify-center animate-bounce-in">
+                <CheckCircle2 className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-extrabold text-navy-950 tracking-tight">
+                {createdUser.role_name === 'student' ? 'Student' : createdUser.role_name === 'teacher' ? 'Teacher' : 'Admin'} Created!
+              </h2>
+              <p className="text-navy-800/70 mt-1.5 text-sm">
+                Share these credentials with {createdUser.first_name}
+              </p>
+            </div>
+
+            {/* Credentials */}
+            <div className="px-8 py-6 space-y-4">
+              <div className="bg-surface-50 rounded-xl border border-surface-200 p-5 space-y-3">
+                <div>
+                  <p className="text-[10px] font-bold text-navy-400 uppercase tracking-wider mb-1">Name</p>
+                  <p className="text-sm font-semibold text-navy-900">{createdUser.first_name} {createdUser.last_name}</p>
+                </div>
+                <div className="border-t border-surface-200" />
+                <div>
+                  <p className="text-[10px] font-bold text-navy-400 uppercase tracking-wider mb-1">Email</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-mono font-semibold text-navy-900 flex-1 truncate">{createdUser.email}</p>
+                    <button onClick={() => navigator.clipboard.writeText(createdUser.email)}
+                      className="p-1.5 rounded-lg hover:bg-surface-200 text-navy-400 hover:text-navy-700 transition-colors" title="Copy email">
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="border-t border-surface-200" />
+                <div>
+                  <p className="text-[10px] font-bold text-navy-400 uppercase tracking-wider mb-1">Password</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-mono font-semibold text-navy-900 flex-1">{createdUser.password}</p>
+                    <button onClick={() => navigator.clipboard.writeText(createdUser.password)}
+                      className="p-1.5 rounded-lg hover:bg-surface-200 text-navy-400 hover:text-navy-700 transition-colors" title="Copy password">
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-navy-400 text-center leading-relaxed">
+                The user can log in immediately using these credentials.
+                {createdUser.role_name === 'student' && ' OTP verification is auto-completed.'}
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="px-8 pb-6 flex gap-3">
+              <button onClick={() => { setCreatedUser(null); setShowModal(false) }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-surface-100 text-navy-700 hover:bg-surface-200 transition-colors">
+                Close
+              </button>
+              <button onClick={() => { navigator.clipboard.writeText(`${createdUser.email}\n${createdUser.password}`) }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-accent-500 text-navy-950 hover:bg-accent-400 transition-colors inline-flex items-center justify-center gap-2">
+                Copy All
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

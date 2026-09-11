@@ -29,7 +29,7 @@ const FAQ_DATA = [
   },
   {
     keywords: ['course', 'enroll', 'semester'],
-    answer: '**Course Management**\n\n- Admins manage courses and enrollments\n- Students are auto-enrolled in their semester courses\n- Contact your admin if you need to be enrolled in a course',
+    answer: '**Course Access**\n\n- Students see courses matching their session and semester\n- Admins manage courses and assign teachers\n- Contact your admin if you need access to a course',
     followUp: ['How do I add a new course?', 'Can I drop a course?'],
   },
   {
@@ -49,7 +49,7 @@ const FAQ_DATA = [
   },
   {
     keywords: ['admin', 'administrator'],
-    answer: '**Admin Capabilities**\n\nAdmins have full oversight:\n- 👥 Manage users\n- 📚 Manage courses & semesters\n- 📋 Manage enrollments\n- 📊 View system analytics',
+    answer: '**Admin Capabilities**\n\nAdmins have full oversight:\n- 👥 Manage users\n- 📚 Manage courses & semesters\n- 📋 Manage promotions\n- 📊 View system analytics',
     followUp: ['How do I add a new user?', 'How do I create a course?'],
   },
   {
@@ -79,34 +79,44 @@ function getAnswer(input) {
 }
 
 function renderMarkdown(text) {
-  // Simple markdown: **bold**, bullet points, line breaks
+  // Parse markdown into safe React elements (no dangerouslySetInnerHTML)
   const lines = text.split('\n')
-  
+
   return lines.map((line, i) => {
-    // Bold
-    let processed = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    
-    // Bullet points with emoji or dash
-    if (line.trim().startsWith('- ') || line.trim().startsWith('• ')) {
-      processed = processed.replace(/^[\s]*[-•]\s/, '')
-      return `<li class="ml-4 list-disc">${processed}</li>`
+    const trimmed = line.trim()
+
+    // Empty lines → spacing
+    if (trimmed === '') return <br key={i} />
+
+    // Bullet points
+    if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+      const content = trimmed.replace(/^[-•]\s/, '')
+      return <li key={i} className="ml-4 list-disc">{renderBold(content)}</li>
     }
-    
+
     // Numbered list
-    if (/^\d+\./.test(line.trim())) {
-      return `<li class="ml-4 list-decimal">${processed}</li>`
+    if (/^\d+\./.test(trimmed)) {
+      return <li key={i} className="ml-4 list-decimal">{renderBold(trimmed.replace(/^\d+\.\s*/, ''))}</li>
     }
-    
-    // Checkmark items
-    if (line.trim().startsWith('✅') || line.trim().startsWith('📝') || line.trim().startsWith('📊') || line.trim().startsWith('📚') || line.trim().startsWith('📢') || line.trim().startsWith('👥') || line.trim().startsWith('📋')) {
-      return `<li class="ml-4">${processed}</li>`
+
+    // Checkmark / emoji items
+    if (/^[✅📝📊📚📢👥📋]/.test(trimmed)) {
+      return <li key={i} className="ml-4">{renderBold(trimmed)}</li>
     }
-    
-    // Empty lines
-    if (line.trim() === '') return '<br/>'
-    
-    return `<p>${processed}</p>`
-  }).join('')
+
+    return <p key={i}>{renderBold(trimmed)}</p>
+  })
+}
+
+function renderBold(text) {
+  // Split on **bold** markers and render <strong> tags safely
+  const parts = text.split(/(\*\*.*?\*\*)/)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>
+    }
+    return part
+  })
 }
 
 export default function ChatWidget() {
@@ -123,6 +133,7 @@ export default function ChatWidget() {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const botTimeoutRef = useRef(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -131,6 +142,12 @@ export default function ChatWidget() {
   useEffect(() => {
     if (isOpen) inputRef.current?.focus()
   }, [isOpen])
+
+  useEffect(() => {
+    return () => {
+      if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
+    }
+  }, [])
 
   const sendMessage = (text) => {
     const question = text || input.trim()
@@ -147,7 +164,7 @@ export default function ChatWidget() {
     setInput('')
 
     // Simulate bot thinking
-    setTimeout(() => {
+    botTimeoutRef.current = setTimeout(() => {
       const { text: answerText, followUp } = getAnswer(question)
       const botMsg = {
         id: Date.now() + 1,
@@ -221,7 +238,7 @@ export default function ChatWidget() {
                       ? 'bg-surface-50 text-navy-800 border border-surface-200 rounded-tl-md'
                       : 'bg-accent-500 text-navy-950 rounded-tr-md'
                   }`}>
-                    <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.text) }} />
+                    <div>{msg.role === 'bot' ? renderMarkdown(msg.text) : msg.text}</div>
                   </div>
                 </div>
                 

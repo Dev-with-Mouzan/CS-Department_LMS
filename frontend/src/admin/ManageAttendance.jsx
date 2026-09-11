@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { coursesAPI, attendanceAPI } from '../services/api'
+import { ordinal, semLabel } from '../utils/format'
 import {
   CalendarCheck, XCircle, Users, Download, GraduationCap,
-  BookOpen, ChevronRight, ChevronLeft, Activity,
+  BookOpen, ChevronRight, ChevronLeft, Activity, Archive,
 } from 'lucide-react'
 
 const statusLabels = { present: 'Present', absent: 'Absent', late: 'Late', excused: 'Excused' }
@@ -16,15 +17,6 @@ const cellStyle = {
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-
-const ordinal = (n) => {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
-}
-
-const semLabel = (semKey) =>
-  semKey === 'other' ? 'General' : `${ordinal(Number(semKey))} Semester`
 
 const shortDate = (iso) => {
   const d = new Date(iso)
@@ -44,13 +36,16 @@ export default function ManageAttendance() {
   const [error, setError] = useState('')
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear] = useState(now.getFullYear())
+  const [activeTab, setActiveTab] = useState('active')
 
   useEffect(() => {
-    coursesAPI.list()
+    setLoading(true)
+    const params = activeTab === 'active' ? { is_active: true } : { is_active: false }
+    coursesAPI.list(params)
       .then((r) => setCourses(r.data))
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [activeTab])
 
   const semesters = Object.values(
     courses.reduce((acc, c) => {
@@ -90,6 +85,7 @@ export default function ManageAttendance() {
     setActiveSemester(null)
     setActiveCourse(null)
     setMatrix(null)
+    setActiveTab('active')
   }
 
   const goCourses = () => {
@@ -165,6 +161,32 @@ export default function ManageAttendance() {
           View attendance of every book and every semester, or download the monthly Excel register.
         </p>
       </div>
+
+      {/* Active / Inactive Tab Switcher */}
+      {activeSemester == null && (
+        <div className="flex items-center justify-center gap-1 mb-6 p-1 bg-surface-100 rounded-xl w-fit mx-auto">
+          <button
+            onClick={() => { setActiveTab('active'); setActiveSemester(null); setActiveCourse(null); setMatrix(null) }}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === 'active'
+                ? 'bg-white text-navy-900 shadow-sm'
+                : 'text-navy-400 hover:text-navy-600'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" /> Active
+          </button>
+          <button
+            onClick={() => { setActiveTab('inactive'); setActiveSemester(null); setActiveCourse(null); setMatrix(null) }}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === 'inactive'
+                ? 'bg-white text-navy-900 shadow-sm'
+                : 'text-navy-400 hover:text-navy-600'
+            }`}
+          >
+            <Archive className="w-3.5 h-3.5" /> Inactive
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl mb-6 text-sm font-medium bg-red-50 text-red-600 border border-red-200">

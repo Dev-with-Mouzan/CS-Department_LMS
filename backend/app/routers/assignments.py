@@ -1,24 +1,27 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
-from sqlalchemy import select
+from fastapi import Request,  APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_teacher, require_student
-from app.models import User, Assignment, Submission, Course, Enrollment
+from app.models import User, Assignment, Submission, Course
 from app.schemas.assignment import (
     AssignmentCreate, AssignmentUpdate, AssignmentOut,
     SubmissionOut, SubmissionGrade
 )
 from app.models import StudentProfile
 from app.services.file_service import save_file
+from app.routers.courses import student_has_access, get_student_courses
+from app.dependencies.ratelimit import limiter
 
 router = APIRouter(prefix="/api", tags=["Assignments"])
 
 
 # ── Assignment CRUD (Teacher) ─────────────────────────
+@limiter.limit("30/minute")
 @router.get("/assignments", response_model=List[AssignmentOut])
-def list_assignments(
+def list_assignments(request: Request, 
     course_id: str = None,
     skip: int = 0,
     limit: int = 100,
@@ -30,13 +33,14 @@ def list_assignments(
     query = db.query(Assignment)
 
     if role == "teacher":
-        query = query.filter(Assignment.teacher_id == current_user.id)
+        from app.routers.courses import get_teacher_course_ids
+        teacher_course_ids = get_teacher_course_ids(db, current_user.id)
+        if not teacher_course_ids:
+            return []
+        query = query.filter(Assignment.course_id.in_(teacher_course_ids))
     elif role == "student":
-        enrolled_ids = select(Enrollment.course_id).filter(
-            Enrollment.student_id == current_user.id,
-            Enrollment.status == "active",
-        )
-        query = query.filter(Assignment.course_id.in_(enrolled_ids))
+        student_course_ids = [c.id for c in get_student_courses(db, current_user)]
+        query = query.filter(Assignment.course_id.in_(student_course_ids))
 
     if course_id:
         query = query.filter(Assignment.course_id == course_id)
@@ -70,8 +74,9 @@ def list_assignments(
     return out
 
 
+@limiter.limit("30/minute")
 @router.post("/assignments", response_model=AssignmentOut, status_code=status.HTTP_201_CREATED)
-def create_assignment(
+def create_assignment(request: Request, 
     course_id: str = Form(...),
     title: str = Form(...),
     description: Optional[str] = Form(None),
@@ -90,6 +95,8 @@ def create_assignment(
         raise HTTPException(status_code=404, detail="Course not found")
     if course.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only create assignments for your courses")
+    if not course.is_active:
+        raise HTTPException(status_code=400, detail="Cannot create assignments for an archived course")
 
     # Save attachment if provided
     attachment_url = None
@@ -111,8 +118,9 @@ def create_assignment(
     return assignment
 
 
+@limiter.limit("30/minute")
 @router.get("/assignments/{assignment_id}", response_model=AssignmentOut)
-def get_assignment(
+def get_assignment(request: Request, 
     assignment_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -126,19 +134,16 @@ def get_assignment(
     if role == "teacher" and assignment.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
     if role == "student":
-        enrollment = db.query(Enrollment).filter(
-            Enrollment.student_id == current_user.id,
-            Enrollment.course_id == assignment.course_id,
-            Enrollment.status == "active",
-        ).first()
-        if not enrollment:
-            raise HTTPException(status_code=403, detail="Not enrolled in this course")
+        course = db.query(Course).filter(Course.id == assignment.course_id).first()
+        if not course or not course.is_active or not student_has_access(db, current_user, course):
+            raise HTTPException(status_code=403, detail="Access denied")
 
     return assignment
 
 
+@limiter.limit("30/minute")
 @router.put("/assignments/{assignment_id}", response_model=AssignmentOut)
-def update_assignment(
+def update_assignment(request: Request, 
     assignment_id: str,
     data: AssignmentUpdate,
     db: Session = Depends(get_db),
@@ -160,8 +165,9 @@ def update_assignment(
     return assignment
 
 
+@limiter.limit("30/minute")
 @router.delete("/assignments/{assignment_id}")
-def delete_assignment(
+def delete_assignment(request: Request, 
     assignment_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_teacher),
@@ -184,8 +190,9 @@ def delete_assignment(
 
 
 # ── Submissions ───────────────────────────────────────
+@limiter.limit("30/minute")
 @router.post("/assignments/{assignment_id}/submit", response_model=SubmissionOut, status_code=status.HTTP_201_CREATED)
-def submit_assignment(
+def submit_assignment(request: Request, 
     assignment_id: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -196,14 +203,10 @@ def submit_assignment(
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
 
-    # Check enrollment
-    enrollment = db.query(Enrollment).filter(
-        Enrollment.student_id == current_user.id,
-        Enrollment.course_id == assignment.course_id,
-        Enrollment.status == "active",
-    ).first()
-    if not enrollment:
-        raise HTTPException(status_code=403, detail="Not enrolled in this course")
+    # Check access via session+semester
+    course = db.query(Course).filter(Course.id == assignment.course_id).first()
+    if not course or not course.is_active or not student_has_access(db, current_user, course):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     # Check duplicate submission
     existing = db.query(Submission).filter(
@@ -227,13 +230,18 @@ def submit_assignment(
         status="late" if is_late else "submitted",
     )
     db.add(submission)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="You have already submitted this assignment")
     db.refresh(submission)
     return submission
 
 
+@limiter.limit("30/minute")
 @router.get("/assignments/{assignment_id}/submissions", response_model=List[SubmissionOut])
-def list_submissions(
+def list_submissions(request: Request, 
     assignment_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -262,9 +270,12 @@ def list_submissions(
         ).all()
 
     result = []
+    student_ids = list({s.student_id for s in submissions})
+    students = {u.id: u for u in db.query(User).filter(User.id.in_(student_ids)).all()} if student_ids else {}
+    profiles = {p.user_id: p for p in db.query(StudentProfile).filter(StudentProfile.user_id.in_(student_ids)).all()} if student_ids else {}
     for sub in submissions:
-        student = db.query(User).filter(User.id == sub.student_id).first()
-        profile = db.query(StudentProfile).filter(StudentProfile.user_id == sub.student_id).first()
+        student = students.get(sub.student_id)
+        profile = profiles.get(sub.student_id)
         student_name = None
         roll_number = None
         if student:
@@ -286,8 +297,9 @@ def list_submissions(
     return result
 
 
+@limiter.limit("30/minute")
 @router.put("/submissions/{submission_id}/grade", response_model=SubmissionOut)
-def grade_submission(
+def grade_submission(request: Request, 
     submission_id: str,
     data: SubmissionGrade,
     db: Session = Depends(get_db),

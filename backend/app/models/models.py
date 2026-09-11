@@ -74,10 +74,12 @@ class StudentProfile(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey("users.id"), unique=True, nullable=False)
     student_id = Column(String(50), unique=True)
-    roll_number = Column(String(50))
+    roll_number = Column(String(50), index=True)
     department = Column(String(100))
     semester = Column(Integer)
     enrollment_year = Column(Integer)
+    session = Column(String(20), index=True)
+    is_graduated = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utcnow)
 
     user = relationship("User", back_populates="student_profile")
@@ -91,35 +93,20 @@ class Course(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text)
     semester = Column(Integer, index=True)
+    session = Column(String(20), index=True)  # e.g. "23-27"
     teacher_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    source_course_id = Column(String(36), ForeignKey("courses.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     teacher = relationship("User", back_populates="taught_courses")
-    enrollments = relationship("Enrollment", back_populates="course", cascade="all, delete-orphan")
+    source_course = relationship("Course", remote_side="Course.id", backref="derived_courses")
     assignments = relationship("Assignment", back_populates="course", cascade="all, delete-orphan")
     attendance_sessions = relationship("AttendanceSession", back_populates="course", cascade="all, delete-orphan")
     quizzes = relationship("Quiz", back_populates="course", cascade="all, delete-orphan")
-    study_materials = relationship("StudyMaterial", cascade="all, delete-orphan")
-    results = relationship("Result", cascade="all, delete-orphan")
-
-
-class Enrollment(Base):
-    __tablename__ = "enrollments"
-
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    student_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    course_id = Column(String(36), ForeignKey("courses.id"), nullable=False, index=True)
-    enrollment_date = Column(Date, default=utcnow)
-    status = Column(String(20), default="active")
-
-    __table_args__ = (
-        UniqueConstraint("student_id", "course_id", name="uq_student_course"),
-    )
-
-    student = relationship("User")
-    course = relationship("Course", back_populates="enrollments")
+    study_materials = relationship("StudyMaterial", back_populates="course", cascade="all, delete-orphan")
+    results = relationship("Result", back_populates="course", cascade="all, delete-orphan")
 
 
 class Assignment(Base):
@@ -127,7 +114,7 @@ class Assignment(Base):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     course_id = Column(String(36), ForeignKey("courses.id"), nullable=False, index=True)
-    teacher_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    teacher_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text)
     due_date = Column(DateTime, nullable=False)
@@ -204,6 +191,8 @@ class Quiz(Base):
     description = Column(Text)
     time_limit = Column(Integer, nullable=True)  # minutes; null = no limit
     deadline = Column(DateTime, nullable=True)  # deadline to attempt; null = no deadline
+    attachment_url = Column(String(500), nullable=True)
+    attachment_name = Column(String(255), nullable=True)
     is_published = Column(Boolean, default=True)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
@@ -227,6 +216,7 @@ class QuizQuestion(Base):
     text = Column(Text, nullable=False)
     options = Column(Text, nullable=False)  # JSON array of options
     correct_index = Column(Integer, nullable=False)
+    is_mandatory = Column(Boolean, default=True)
     order_index = Column(Integer, default=0)
 
     quiz = relationship("Quiz", back_populates="questions")
@@ -242,7 +232,8 @@ class OTPVerification(Base):
     verified_at = Column(DateTime, nullable=True)
     attempts = Column(Integer, default=0)
     is_used = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=utcnow)
+    purpose = Column(String(50), default="registration", nullable=False, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
 
     user = relationship("User", back_populates="otp_records")
 
@@ -294,6 +285,8 @@ class QuizAttempt(Base):
     student_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     score = Column(Integer, nullable=False, default=0)
     total = Column(Integer, nullable=False, default=0)
+    submission_url = Column(String(500), nullable=True)
+    submission_name = Column(String(255), nullable=True)
     submitted_at = Column(DateTime, default=utcnow)
 
     quiz = relationship("Quiz", back_populates="attempts")
@@ -339,8 +332,23 @@ class Review(Base):
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     rating = Column(Integer, nullable=False)  # 1-5 stars
     text = Column(Text, nullable=False)
-    is_approved = Column(Boolean, default=False)
+    is_approved = Column(Boolean, default=False, index=True)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     user = relationship("User")
+
+
+class PromotionHistory(Base):
+    __tablename__ = "promotion_history"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    student_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    from_semester = Column(Integer, nullable=False)
+    to_semester = Column(Integer, nullable=False)
+    session = Column(String(20), nullable=False)
+    promoted_at = Column(DateTime, default=utcnow)
+    promoted_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+
+    student = relationship("User", foreign_keys=[student_id])
+    admin = relationship("User", foreign_keys=[promoted_by])

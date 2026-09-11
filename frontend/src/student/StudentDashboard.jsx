@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { coursesAPI, assignmentsAPI, resultsAPI, attendanceAPI } from '../services/api'
+import { authAPI, coursesAPI, assignmentsAPI, resultsAPI, attendanceAPI } from '../services/api'
+import { parseDate, MONTHS } from '../utils/format'
 import {
   BookOpen,
   CalendarClock,
@@ -13,16 +14,10 @@ import {
   AlertTriangle,
   RefreshCw,
   X,
+  Lock,
 } from 'lucide-react'
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const EMPTY_ATT = { total_sessions: 0, present_count: 0, percentage: 0 }
-
-const parseDate = (value) => {
-  if (!value) return null
-  const d = new Date(value)
-  return isNaN(d.getTime()) ? null : d
-}
 
 const toneOf = (pct) => {
   if (pct >= 75) return { text: 'text-emerald-600', bar: 'bg-emerald-500' }
@@ -38,25 +33,38 @@ const examTone = (type) => {
   return { label: 'Midterm', chip: 'bg-amber-100 text-amber-700' }
 }
 
-function CourseCard({ course, att }) {
+const CourseCard = React.memo(function CourseCard({ course, att, isPast }) {
   const a = att || EMPTY_ATT
   const pct = a.percentage || (a.total_sessions ? (a.present_count / a.total_sessions) * 100 : 0)
   const tone = toneOf(pct)
   return (
-    <div className="rounded-xl border border-surface-200 p-3.5 transition-colors hover:border-accent-300">
+    <div className={`rounded-xl border p-3.5 transition-colors ${
+      isPast
+        ? 'border-surface-200 bg-surface-50/50 opacity-70'
+        : 'border-surface-200 hover:border-accent-300'
+    }`}>
       <div className="flex items-center gap-3">
-        <span className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-navy-800 to-navy-950 text-white flex items-center justify-center text-xs font-bold">
-          {course.course_code.slice(0, 2).toUpperCase()}
+        <span className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-xs font-bold ${
+          isPast
+            ? 'bg-surface-200 text-navy-400'
+            : 'bg-gradient-to-br from-navy-800 to-navy-950 text-white'
+        }`}>
+          {isPast ? <Lock className="w-4 h-4" /> : course.course_code.slice(0, 2).toUpperCase()}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-navy-900 truncate">{course.title}</p>
+          <div className="flex items-center gap-2">
+            <p className={`text-sm font-medium truncate ${isPast ? 'text-navy-500' : 'text-navy-900'}`}>{course.title}</p>
+            {isPast && (
+              <span className="shrink-0 px-1.5 py-0.5 rounded bg-surface-200 text-[9px] font-bold text-navy-500">PAST</span>
+            )}
+          </div>
           <p className="text-[11px] text-navy-400 font-mono truncate">
             {course.course_code}
             {course.session ? ` · ${course.session}` : ''}
           </p>
         </div>
         <div className="text-right shrink-0">
-          <p className={`text-lg font-bold tabular-nums leading-none ${tone.text}`}>
+          <p className={`text-lg font-bold tabular-nums leading-none ${isPast ? 'text-navy-400' : tone.text}`}>
             {pct.toFixed(0)}
             <span className="text-[11px] font-semibold text-navy-400">%</span>
           </p>
@@ -67,16 +75,18 @@ function CourseCard({ course, att }) {
       </div>
       <div className="mt-3 h-1.5 w-full rounded-full bg-surface-100 overflow-hidden">
         <div
-          className={`h-full rounded-full ${tone.bar} transition-all duration-700`}
+          className={`h-full rounded-full transition-all duration-700 ${isPast ? 'bg-navy-300' : tone.bar}`}
           style={{ width: `${Math.min(pct, 100)}%` }}
         />
       </div>
     </div>
   )
-}
+})
 
 export default function StudentDashboard() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
+  const userRef = useRef(user)
+  userRef.current = user
   const [courses, setCourses] = useState([])
   const [assignments, setAssignments] = useState([])
   const [results, setResults] = useState([])
@@ -89,19 +99,28 @@ export default function StudentDashboard() {
     setLoading(true)
     setError(null)
     try {
+      // Refresh user profile to get latest semester after promotion
+      try {
+        const meRes = await authAPI.getMe()
+        if (meRes.data?.semester !== undefined) {
+          setUser((prev) => prev ? { ...prev, semester: meRes.data.semester } : prev)
+        }
+      } catch { /* keep current user data */ }
+
       const [c, a, r] = await Promise.all([
         coursesAPI.list(),
         assignmentsAPI.list(),
         resultsAPI.list(),
       ])
+      const attResults = await Promise.all(
+        c.data.map((course) =>
+          attendanceAPI.getPercentage(userRef.current.id, course.id)
+            .then((r) => ({ courseId: course.id, data: r.data }))
+            .catch(() => ({ courseId: course.id, data: EMPTY_ATT }))
+        )
+      )
       const attMap = {}
-      for (const course of c.data) {
-        try {
-          attMap[course.id] = (await attendanceAPI.getPercentage(user.id, course.id)).data
-        } catch {
-          attMap[course.id] = EMPTY_ATT
-        }
-      }
+      for (const r of attResults) attMap[r.courseId] = r.data
       setCourses(c.data)
       setAssignments(a.data)
       setResults(r.data)
@@ -112,7 +131,7 @@ export default function StudentDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [])
 
   useEffect(() => {
     load()
@@ -166,6 +185,9 @@ export default function StudentDashboard() {
     year: 'numeric',
   })
 
+  const currentCourses = courses.filter((c) => c.semester === semester)
+  const pastCourses = courses.filter((c) => c.semester < semester)
+
   const upcoming = assignments
     .map((a) => ({ ...a, due: parseDate(a.due_date) }))
     .filter((a) => a.due && a.due >= new Date().setHours(0, 0, 0, 0))
@@ -181,7 +203,7 @@ export default function StudentDashboard() {
   const attTone = toneOf(overallPct)
 
   const heroStats = [
-    { label: 'Courses', value: courses.length },
+    { label: 'Courses', value: currentCourses.length },
     { label: 'Pending', value: pendingCount, note: 'assessments' },
     { label: 'Results', value: results.length },
     { label: 'Attendance', value: `${overallPct.toFixed(0)}%` },
@@ -342,28 +364,28 @@ export default function StudentDashboard() {
                   My courses
                 </h2>
                 <p className="text-xs text-navy-400 mt-1">
-                  {courses.length > 2
-                    ? `Showing 2 of ${courses.length} with live attendance.`
-                    : 'Session attendance at a glance.'}
+                  {currentCourses.length > 2
+                    ? `Showing 2 of ${currentCourses.length} current semester courses.`
+                    : 'Current semester courses.'}
                 </p>
               </div>
-              <span className="text-xs font-medium text-navy-400 tabular-nums">{courses.length} courses</span>
+              <span className="text-xs font-medium text-navy-400 tabular-nums">{currentCourses.length} active</span>
             </div>
 
-            {courses.length === 0 ? (
+            {currentCourses.length === 0 ? (
               <div className="mt-5 rounded-xl border border-dashed border-surface-200 py-10 text-center">
                 <BookOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-navy-900">No courses enrolled yet</p>
+                <p className="text-sm font-medium text-navy-900">No courses available yet</p>
                 <p className="text-xs text-navy-400 mt-1">Your semester courses will show up here.</p>
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                {courses.slice(0, 2).map((course) => (
+                {currentCourses.slice(0, 2).map((course) => (
                   <CourseCard key={course.id} course={course} att={att[course.id]} />
                 ))}
               </div>
             )}
-            {courses.length > 0 && (
+            {currentCourses.length > 0 && (
               <button
                 onClick={() => setShowCourses(true)}
                 className="mt-3.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-surface-200 py-2.5 text-xs font-semibold text-navy-500 transition-all hover:border-accent-300 hover:text-accent-600 hover:bg-accent-500/5 active:scale-[0.99]"
@@ -373,6 +395,29 @@ export default function StudentDashboard() {
               </button>
             )}
           </section>
+
+          {/* Past courses */}
+          {pastCourses.length > 0 && (
+            <section className="flex-1 rounded-2xl border border-surface-200 bg-white p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold text-navy-900 flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-lg bg-surface-200 text-navy-500 flex items-center justify-center">
+                      <Lock className="w-3.5 h-3.5" />
+                    </span>
+                    Past courses
+                  </h2>
+                  <p className="text-xs text-navy-400 mt-1">Courses from previous semesters (read-only).</p>
+                </div>
+                <span className="text-xs font-medium text-navy-400 tabular-nums">{pastCourses.length} archived</span>
+              </div>
+              <div className="mt-4 space-y-3">
+                {pastCourses.map((course) => (
+                  <CourseCard key={course.id} course={course} att={att[course.id]} isPast />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         {/* Right rail */}
@@ -502,7 +547,7 @@ export default function StudentDashboard() {
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-navy-900">All courses</h3>
                 <p className="text-xs text-navy-400 mt-0.5">
-                  {courses.length} course{courses.length === 1 ? '' : 's'} · live attendance
+                  {currentCourses.length} active · {pastCourses.length} past
                 </p>
               </div>
               <button
@@ -513,10 +558,27 @@ export default function StudentDashboard() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto space-y-3 p-5">
-              {courses.map((course) => (
-                <CourseCard key={course.id} course={course} att={att[course.id]} />
-              ))}
+            <div className="max-h-[60vh] overflow-y-auto p-5 space-y-5">
+              {currentCourses.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold text-navy-500 uppercase tracking-wider mb-2">Current Semester</p>
+                  <div className="space-y-3">
+                    {currentCourses.map((course) => (
+                      <CourseCard key={course.id} course={course} att={att[course.id]} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {pastCourses.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold text-navy-500 uppercase tracking-wider mb-2">Past Semesters</p>
+                  <div className="space-y-3">
+                    {pastCourses.map((course) => (
+                      <CourseCard key={course.id} course={course} att={att[course.id]} isPast />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { materialsAPI } from '../services/api'
+import api, { materialsAPI } from '../services/api'
 import {
   FolderOpen, FileText, Presentation, BookOpen, File, Download, Search,
   ChevronLeft, ChevronRight,
@@ -55,8 +55,9 @@ export default function MyMaterials() {
 
   const handleDownload = async (url, fileName) => {
     try {
-      const response = await fetch(`/${url}`)
-      const blob = await response.blob()
+      const fileUrl = url.replace(/^uploads[\\/]/, 'files/')
+      const response = await api.get(`/${fileUrl}`, { responseType: 'blob' })
+      const blob = new Blob([response.data])
       const downloadUrl = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = downloadUrl
@@ -65,9 +66,8 @@ export default function MyMaterials() {
       link.click()
       link.remove()
       window.URL.revokeObjectURL(downloadUrl)
-    } catch (err) {
-      console.error('Download failed:', err)
-      window.open(`/${url}`, '_blank')
+    } catch {
+      window.open(`/${url}`, '_blank', 'noopener,noreferrer')
     }
   }
 

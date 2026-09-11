@@ -2,17 +2,18 @@ import os
 import mimetypes
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
+from fastapi import Request,  APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
 from fastapi.responses import FileResponse
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_teacher
-from app.models import User, Result, Course, Enrollment
+from app.models import User, Result, Course
 from app.schemas.result import ResultOut
 from app.services.file_service import save_file, delete_file
+from app.routers.courses import student_has_access, get_student_courses
+from app.dependencies.ratelimit import limiter
 
 router = APIRouter(prefix="/api/results", tags=["Results"])
 
@@ -25,9 +26,9 @@ _FILE_KINDS = {
 }
 
 
-def _result_out(r: Result, db: Session) -> dict:
-    course = db.query(Course).filter(Course.id == r.course_id).first()
-    uploader = db.query(User).filter(User.id == r.uploaded_by).first()
+def _result_out(r: Result, courses: dict, users: dict) -> dict:
+    course = courses.get(r.course_id)
+    uploader = users.get(r.uploaded_by)
     return {
         "id": r.id,
         "title": r.title,
@@ -48,10 +49,12 @@ def _result_out(r: Result, db: Session) -> dict:
     }
 
 
+@limiter.limit("30/minute")
 @router.get("/", response_model=List[ResultOut])
-def list_results(
+def list_results(request: Request, 
     course_id: str = None,
     exam_type: str = None,
+    active: bool = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -59,31 +62,41 @@ def list_results(
     - Teacher: results for their courses
     - Student: results for enrolled courses
     - Admin: all results
+    active=true returns only active course results, active=false returns inactive.
     """
     role = current_user.role.name
     query = db.query(Result)
 
     if role == "teacher":
-        teacher_course_ids = select(Course.id).filter(Course.teacher_id == current_user.id)
+        from app.routers.courses import get_teacher_course_ids
+        teacher_course_ids = get_teacher_course_ids(db, current_user.id)
+        if not teacher_course_ids:
+            return []
         query = query.filter(Result.course_id.in_(teacher_course_ids))
     elif role == "student":
-        enrolled_course_ids = select(Enrollment.course_id).filter(
-            Enrollment.student_id == current_user.id,
-            Enrollment.status == "active",
-        )
-        query = query.filter(Result.course_id.in_(enrolled_course_ids))
+        student_course_ids = [c.id for c in get_student_courses(db, current_user)]
+        query = query.filter(Result.course_id.in_(student_course_ids))
 
     if course_id:
         query = query.filter(Result.course_id == course_id)
     if exam_type:
         query = query.filter(Result.exam_type == exam_type)
 
+    if active is not None:
+        subq = db.query(Course.id).filter(Course.is_active == active).subquery()
+        query = query.filter(Result.course_id.in_(subq))
+
     results = query.order_by(Result.created_at.desc()).all()
-    return [_result_out(r, db) for r in results]
+    course_ids = list({r.course_id for r in results})
+    uploader_ids = list({r.uploaded_by for r in results})
+    courses = {c.id: c for c in db.query(Course).filter(Course.id.in_(course_ids)).all()} if course_ids else {}
+    users = {u.id: u for u in db.query(User).filter(User.id.in_(uploader_ids)).all()} if uploader_ids else {}
+    return [_result_out(r, courses, users) for r in results]
 
 
+@limiter.limit("30/minute")
 @router.get("/{result_id}/view")
-def view_result_file(
+def view_result_file(request: Request, 
     result_id: str,
     kind: str = Query("result"),
     db: Session = Depends(get_db),
@@ -104,13 +117,9 @@ def view_result_file(
         if not course or course.teacher_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
     elif role == "student":
-        enrollment = db.query(Enrollment).filter(
-            Enrollment.student_id == current_user.id,
-            Enrollment.course_id == result.course_id,
-            Enrollment.status == "active",
-        ).first()
-        if not enrollment:
-            raise HTTPException(status_code=403, detail="Not enrolled in this course")
+        course = db.query(Course).filter(Course.id == result.course_id).first()
+        if not course or not student_has_access(db, current_user, course):
+            raise HTTPException(status_code=403, detail="Access denied")
 
     if kind not in _FILE_KINDS:
         raise HTTPException(status_code=422, detail="Invalid file kind")
@@ -127,8 +136,9 @@ def view_result_file(
     )
 
 
+@limiter.limit("30/minute")
 @router.post("/", response_model=ResultOut, status_code=status.HTTP_201_CREATED)
-def create_result(
+def create_result(request: Request, 
     title: str = Form(...),
     exam_type: str = Form(...),
     course_id: str = Form(...),
@@ -185,11 +195,16 @@ def create_result(
     db.add(result)
     db.commit()
     db.refresh(result)
-    return _result_out(result, db)
+    course = db.query(Course).filter(Course.id == result.course_id).first()
+    uploader = db.query(User).filter(User.id == result.uploaded_by).first() if result.uploaded_by else None
+    courses = {course.id: course} if course else {}
+    users = {uploader.id: uploader} if uploader else {}
+    return _result_out(result, courses, users)
 
 
+@limiter.limit("30/minute")
 @router.delete("/{result_id}")
-def delete_result(
+def delete_result(request: Request, 
     result_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

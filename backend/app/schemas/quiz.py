@@ -9,6 +9,7 @@ class QuestionIn(BaseModel):
     text: str
     options: List[str]
     correct: int  # index of correct option
+    is_mandatory: bool = True
 
     @field_validator("options")
     @classmethod
@@ -41,6 +42,7 @@ class QuestionDetailOut(BaseModel):
     text: str
     options: List[str]
     order_index: int
+    is_mandatory: bool = True
     # only populated for the owning teacher (hidden from students)
     correct_index: Optional[int] = None
 
@@ -54,6 +56,8 @@ class QuizOut(BaseModel):
     description: Optional[str] = None
     time_limit: Optional[int] = None
     deadline: Optional[datetime] = None
+    attachment_url: Optional[str] = None
+    attachment_name: Optional[str] = None
     question_count: int
     is_published: bool
     created_at: UTCDateTime
@@ -86,5 +90,20 @@ class QuizAttemptOut(BaseModel):
     quiz_id: str
     score: int
     total: int
+    submission_url: Optional[str] = None
+    submission_name: Optional[str] = None
     submitted_at: object
     answers: List[QuizAnswerResultOut] = []
+
+
+class QuizTeacherAttemptOut(BaseModel):
+    id: str
+    quiz_id: str
+    student_id: str
+    student_name: str
+    score: int
+    total: int
+    percentage: float
+    submission_url: Optional[str] = None
+    submission_name: Optional[str] = None
+    submitted_at: object

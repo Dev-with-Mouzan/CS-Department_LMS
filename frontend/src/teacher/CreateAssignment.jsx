@@ -32,7 +32,7 @@ export default function CreateAssignment({ courseId, onSuccess, onCancel }) {
       formData.append('course_id', form.course_id)
       formData.append('title', form.title)
       if (form.description) formData.append('description', form.description)
-      formData.append('due_date', new Date(form.due_date).toISOString())
+      formData.append('due_date', form.due_date ? form.due_date.replace('T', ' ') + ':00' : '')
       formData.append('max_marks', parseInt(form.max_marks))
       if (attachment) formData.append('attachment', attachment)
 

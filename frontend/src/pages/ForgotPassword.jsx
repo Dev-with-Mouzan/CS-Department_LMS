@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { authAPI } from '../services/api'
 import {
@@ -10,7 +10,6 @@ import {
   Eye,
   EyeOff,
   KeyRound,
-  UserPlus,
 } from 'lucide-react'
 
 export default function ForgotPassword() {
@@ -22,26 +21,63 @@ export default function ForgotPassword() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [phoneNotFound, setPhoneNotFound] = useState(false)
+  const [resendSeconds, setResendSeconds] = useState(0)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
+
+  const startResendTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    setResendSeconds(120)
+    timerRef.current = setInterval(() => {
+      setResendSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  const handleResendOTP = async () => {
+    setError('')
+    setMessage('')
+    setLoading(true)
+    try {
+      const fullPhone = `+92${phone}`
+      await authAPI.resendResetOTP({ phone: fullPhone })
+      setMessage('New OTP sent to your phone number')
+      startResendTimer()
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to resend OTP')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleRequestReset = async (e) => {
     e.preventDefault()
     setError('')
-    setPhoneNotFound(false)
     setLoading(true)
+    if (phone.length !== 10) {
+      setError('Please enter a valid 10-digit phone number')
+      setLoading(false)
+      return
+    }
     try {
       const fullPhone = `+92${phone}`
       await authAPI.forgotPassword({ phone: fullPhone })
-      setMessage('OTP has been sent to your phone number')
+      setMessage('OTP sent to your phone number')
       setStep(2)
+      startResendTimer()
     } catch (err) {
-      const detail = err.response?.data?.detail || 'Failed to send reset code'
-      if (err.response?.status === 404) {
-        setPhoneNotFound(true)
-        setError(detail)
-      } else {
-        setError(detail)
-      }
+      const msg = err.response?.data?.detail || 'Failed to send OTP'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -173,6 +209,9 @@ export default function ForgotPassword() {
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full px-4 py-2.5 bg-surface-0 border border-surface-200 rounded-r-xl text-sm text-navy-900 placeholder-navy-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 hover:border-navy-300"
                     placeholder="3XX XXXXXXX"
+                    maxLength={10}
+                    pattern="[0-9]*"
+                    inputMode="numeric"
                     required
                   />
                 </div>
@@ -195,19 +234,6 @@ export default function ForgotPassword() {
                   </span>
                 )}
               </button>
-
-              {phoneNotFound && (
-                <div className="flex items-center gap-3 p-4 rounded-xl border border-accent-200 bg-accent-50 animate-slide-down">
-                  <UserPlus className="w-5 h-5 text-accent-600 shrink-0" />
-                  <div className="text-sm">
-                    <p className="text-navy-700 font-medium">No account found with this phone number.</p>
-                    <Link to="/register" className="text-accent-600 hover:text-accent-700 font-semibold inline-flex items-center gap-1 mt-1">
-                      Create an account
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              )}
             </form>
           ) : (
             <form onSubmit={handleResetPassword} className="space-y-4">
@@ -234,6 +260,17 @@ export default function ForgotPassword() {
                 </div>
               </div>
 
+              <button
+                type="button"
+                onClick={handleResendOTP}
+                disabled={loading || resendSeconds > 0}
+                className="w-full text-sm text-navy-400 hover:text-accent-600 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {resendSeconds > 0
+                  ? `Resend OTP in ${String(Math.floor(resendSeconds / 60)).padStart(2, '0')}:${String(resendSeconds % 60).padStart(2, '0')}`
+                  : 'Resend OTP code'}
+              </button>
+
               <div>
                 <label className="input-label">New password</label>
                 <div className="relative">
@@ -243,9 +280,9 @@ export default function ForgotPassword() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className={`${inputBase} pr-11`}
-                    placeholder="Min. 6 characters"
+                    placeholder="Min. 8 characters"
                     required
-                    minLength={6}
+                    minLength={8}
                   />
                   <button
                     type="button"

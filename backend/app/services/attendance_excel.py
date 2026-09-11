@@ -9,9 +9,10 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy.orm import Session
 
 from app.models import (
-    User, Course, Enrollment, StudentProfile,
+    User, Course, StudentProfile,
     AttendanceSession, AttendanceRecord,
 )
+from app.routers.courses import student_has_access
 
 
 def generate_attendance_excel(
@@ -27,23 +28,22 @@ def generate_attendance_excel(
     if not course:
         raise ValueError("Course not found")
 
-    # Get enrolled students with profiles
-    enrollments = db.query(Enrollment).filter(
-        Enrollment.course_id == course_id,
-        Enrollment.status == "active",
+    # Get students who have access to this course (session+semester match)
+    all_profiles = db.query(StudentProfile).filter(
+        StudentProfile.semester == course.semester,
+        StudentProfile.enrollment_year.isnot(None),
     ).all()
 
     students = []
-    for e in enrollments:
-        user = db.query(User).filter(User.id == e.student_id).first()
-        profile = db.query(StudentProfile).filter(
-            StudentProfile.user_id == e.student_id
-        ).first()
-        if user:
+    all_user_ids = {sp.user_id for sp in all_profiles}
+    users_map = {u.id: u for u in db.query(User).filter(User.id.in_(all_user_ids)).all()} if all_user_ids else {}
+    for sp in all_profiles:
+        user = users_map.get(sp.user_id)
+        if user and student_has_access(db, user, course):
             students.append({
                 "user": user,
-                "profile": profile,
-                "roll_number": profile.roll_number if profile else "",
+                "profile": sp,
+                "roll_number": sp.roll_number if sp else "",
                 "name": f"{user.first_name} {user.last_name}".strip(),
             })
 
@@ -63,12 +63,14 @@ def generate_attendance_excel(
 
     # Build a map: student_id -> { day -> status }
     attendance_map = {}
-    for session in sessions:
-        day = session.session_date.day
-        records = db.query(AttendanceRecord).filter(
-            AttendanceRecord.session_id == session.id,
-        ).all()
-        for r in records:
+    session_ids = [s.id for s in sessions]
+    all_records = db.query(AttendanceRecord).filter(
+        AttendanceRecord.session_id.in_(session_ids),
+    ).all() if session_ids else []
+    session_date_map = {s.id: s.session_date.day for s in sessions}
+    for r in all_records:
+        day = session_date_map.get(r.session_id)
+        if day is not None:
             if r.student_id not in attendance_map:
                 attendance_map[r.student_id] = {}
             attendance_map[r.student_id][day] = r.status

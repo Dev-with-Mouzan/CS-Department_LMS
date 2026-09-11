@@ -1,36 +1,31 @@
-import { useState, useEffect, useMemo } from 'react'
-import { assignmentsAPI, coursesAPI } from '../services/api'
+import React, { useState, useEffect, useMemo } from 'react'
+import { assignmentsAPI, coursesAPI, quizzesAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
+import { ordinal, semLabel } from '../utils/format'
 import {
   Inbox, ClipboardList, HelpCircle, Clock, Award,
   CheckCircle2, AlertTriangle, ChevronRight, ChevronLeft,
   User as UserIcon, MessageSquare, Star, FileText, Download,
-  GraduationCap, BookOpen,
+  GraduationCap, BookOpen, Paperclip,
 } from 'lucide-react'
-
-const ordinal = (n) => {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
-}
-
-const semLabel = (semKey) =>
-  semKey === 'other' ? 'General' : `${ordinal(Number(semKey))} Semester`
 
 export default function Submissions() {
   const [tab, setTab] = useState('assignments') // 'assignments' | 'quizzes'
   const [courses, setCourses] = useState([])
   const [assignments, setAssignments] = useState([])
+  const [quizzes, setQuizzes] = useState([])
+  const [quizAttempts, setQuizAttempts] = useState({})
   const [submissionCounts, setSubmissionCounts] = useState({})
   const [activeSemester, setActiveSemester] = useState(null) // semester key
   const [activeCourse, setActiveCourse] = useState(null) // course object
-  const [selected, setSelected] = useState(null) // assignment
+  const [selected, setSelected] = useState(null) // assignment or quiz
   const [submissions, setSubmissions] = useState([])
   const [showGradeModal, setShowGradeModal] = useState(false)
   const [selectedSub, setSelectedSub] = useState(null)
   const [gradeForm, setGradeForm] = useState({ grade: '', feedback: '' })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     setLoading(true)
@@ -38,23 +33,36 @@ export default function Submissions() {
     setActiveCourse(null)
     setSelected(null)
     setSubmissions([])
-    Promise.all([coursesAPI.list(), assignmentsAPI.list()])
-      .then(async ([c, a]) => {
+    Promise.all([coursesAPI.list(), assignmentsAPI.list(), quizzesAPI.list()])
+      .then(async ([c, a, q]) => {
         setCourses(c.data)
         setAssignments(a.data)
+        setQuizzes(q.data)
         const counts = {}
-        for (const item of a.data) {
-          try {
-            const res = await assignmentsAPI.listSubmissions(item.id)
-            counts[item.id] = {
-              total: res.data.length,
-              graded: res.data.filter((s) => s.status === 'graded').length,
-            }
-          } catch {
-            counts[item.id] = { total: 0, graded: 0 }
-          }
-        }
+        const countResults = await Promise.all(
+          a.data.map((item) =>
+            assignmentsAPI.listSubmissions(item.id)
+              .then((res) => ({
+                id: item.id,
+                total: res.data.length,
+                graded: res.data.filter((s) => s.status === 'graded').length,
+              }))
+              .catch(() => ({ id: item.id, total: 0, graded: 0 }))
+          )
+        )
+        for (const r of countResults) counts[r.id] = { total: r.total, graded: r.graded }
         setSubmissionCounts(counts)
+
+        const attempts = {}
+        const attemptResults = await Promise.all(
+          q.data.map((quiz) =>
+            quizzesAPI.getAllAttempts(quiz.id)
+              .then((res) => ({ id: quiz.id, data: res.data || [] }))
+              .catch(() => ({ id: quiz.id, data: [] }))
+          )
+        )
+        for (const r of attemptResults) attempts[r.id] = r.data
+        setQuizAttempts(attempts)
       })
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -128,12 +136,12 @@ export default function Submissions() {
     try {
       await assignmentsAPI.grade(selectedSub.id, {
         grade: parseFloat(gradeForm.grade),
-        feedback: gradeForm.feedback,
+        feedback: gradeForm.feedback.trim() || null,
       })
       setShowGradeModal(false)
       if (selected) await viewSubmissions(selected)
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed')
+      setError(err.response?.data?.detail || 'Failed to grade submission')
     }
   }
 
@@ -154,6 +162,13 @@ export default function Submissions() {
 
   return (
     <div className="p-5 lg:p-8 max-w-5xl mx-auto">
+      {error && (
+        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-danger-light text-danger-dark text-sm font-medium animate-slide-up">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="flex-1">{error}</div>
+          <button onClick={() => setError(null)} className="text-current opacity-50 hover:opacity-100">&times;</button>
+        </div>
+      )}
       {/* Header */}
       <div className="text-center mb-8">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
@@ -192,7 +207,95 @@ export default function Submissions() {
           <div className="w-10 h-10 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
         </div>
       ) : tab === 'quizzes' ? (
-        <EmptyState icon={HelpCircle} message="No quizzes yet. Create a quiz from the Assessments tab." />
+        !activeCourse ? (
+          <EmptyState icon={HelpCircle} message="Select a course to view quiz attempts." />
+        ) : quizzes.filter((q) => q.course_id === activeCourse.id).length === 0 ? (
+          <EmptyState icon={HelpCircle} message="No quizzes in this course." />
+        ) : !selected ? (
+          <div className="space-y-3">
+            {quizzes.filter((q) => q.course_id === activeCourse.id).map((quiz) => {
+              const attempts = quizAttempts[quiz.id] || []
+              return (
+                <button key={quiz.id} onClick={() => { setSelected(quiz); setSubmissions(attempts); }}
+                  className="w-full text-left p-5 rounded-xl border border-surface-200 hover:border-accent-300 hover:bg-accent-50/50 transition-all">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-navy-900">{quiz.title}</p>
+                      {quiz.description && <p className="text-xs text-navy-400 mt-0.5 line-clamp-1">{quiz.description}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 text-[10px] text-navy-500">
+                      <span className="px-2 py-1 rounded-full bg-accent-50 text-accent-600 font-semibold">{attempts.length} attempts</span>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-4">
+              <button onClick={() => { setSelected(null); setSubmissions([]); }}
+                className="text-accent-600 hover:underline font-medium text-sm">
+                {selected.title}
+              </button>
+            </div>
+            {submissions.length === 0 ? (
+              <EmptyState icon={HelpCircle} message="No attempts submitted yet." />
+            ) : (
+              <div className="overflow-x-auto border border-surface-200 rounded-xl">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-surface-200 bg-surface-50/60">
+                      <th className="px-4 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Student</th>
+                      <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">Score</th>
+                      <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">%</th>
+                      <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">File</th>
+                      <th className="px-4 py-3 text-right text-2xs font-bold text-navy-400 uppercase">Submitted</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-100">
+                    {submissions.map((att) => (
+                      <tr key={att.id} className="hover:bg-surface-50">
+                        <td className="px-4 py-3 font-medium text-navy-900">{att.student_name}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="font-semibold text-navy-800">{att.score}</span>
+                          <span className="text-navy-400">/{att.total}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-semibold ${
+                            att.percentage >= 70 ? 'bg-success/10 text-success-dark' :
+                            att.percentage >= 40 ? 'bg-warning/10 text-warning-dark' :
+                            'bg-danger/10 text-danger-dark'
+                          }`}>
+                            {att.percentage}%
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {att.submission_url ? (
+                            <a
+                              href={`/api/files/${att.submission_url}?token=${localStorage.getItem('token')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 font-medium"
+                            >
+                              <Paperclip className="w-3 h-3" />
+                              {att.submission_name || 'View'}
+                            </a>
+                          ) : (
+                            <span className="text-xs text-navy-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs text-navy-500">
+                          {att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )
       ) : (
         <>
           {/* Breadcrumbs */}
@@ -304,7 +407,7 @@ export default function Submissions() {
 
 /* ── Sub-components ─────────────────────────────────── */
 
-function EmptyState({ icon: Icon, message }) {
+const EmptyState = React.memo(function EmptyState({ icon: Icon, message }) {
   return (
     <div className="border border-dashed border-surface-200 rounded-xl p-16 text-center">
       <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
@@ -313,9 +416,9 @@ function EmptyState({ icon: Icon, message }) {
       <p className="text-navy-500 text-sm font-medium">{message}</p>
     </div>
   )
-}
+})
 
-function SemesterGrid({ semesters, onPick }) {
+const SemesterGrid = React.memo(function SemesterGrid({ semesters, onPick }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {semesters.map((s) => (
@@ -355,9 +458,9 @@ function SemesterGrid({ semesters, onPick }) {
       ))}
     </div>
   )
-}
+})
 
-function CourseGrid({ courses, assignmentsByCourse, counts, onPick }) {
+const CourseGrid = React.memo(function CourseGrid({ courses, assignmentsByCourse, counts, onPick }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {courses.map((c) => {
@@ -405,9 +508,9 @@ function CourseGrid({ courses, assignmentsByCourse, counts, onPick }) {
       })}
     </div>
   )
-}
+})
 
-function AssignmentList({ items, selected, counts, onSelect }) {
+const AssignmentList = React.memo(function AssignmentList({ items, selected, counts, onSelect }) {
   return (
     <div className="space-y-2 mb-8">
       {items.map((a) => {
@@ -464,9 +567,9 @@ function AssignmentList({ items, selected, counts, onSelect }) {
       })}
     </div>
   )
-}
+})
 
-function SubmissionsTable({ submissions, maxMarks, onGrade, gradedCount }) {
+const SubmissionsTable = React.memo(function SubmissionsTable({ submissions, maxMarks, onGrade, gradedCount }) {
   return (
     <div className="border border-surface-200 rounded-xl bg-white overflow-hidden mt-6">
       <div className="px-4 sm:px-6 py-4 border-b border-surface-100 bg-surface-50/60 flex flex-wrap items-center justify-between gap-3">
@@ -535,7 +638,7 @@ function SubmissionsTable({ submissions, maxMarks, onGrade, gradedCount }) {
                     <td className="px-5 py-3.5">
                       {s.file_url ? (
                         <a
-                          href={`/${s.file_url}`}
+                          href={`/api/files/${s.file_url.replace(/^uploads[\\/]/, '')}?token=${localStorage.getItem('token')}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-accent-200 bg-accent-50 text-accent-700 text-2xs font-semibold hover:bg-accent-100 transition-colors"
@@ -592,7 +695,7 @@ function SubmissionsTable({ submissions, maxMarks, onGrade, gradedCount }) {
                   <div className="flex items-center gap-2 shrink-0">
                     {s.file_url && (
                       <a
-                        href={`/${s.file_url}`}
+                        href={`/api/files/${s.file_url.replace(/^uploads[\\/]/, '')}?token=${localStorage.getItem('token')}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-accent-200 bg-accent-50 text-accent-700 text-2xs font-semibold"
@@ -616,4 +719,4 @@ function SubmissionsTable({ submissions, maxMarks, onGrade, gradedCount }) {
       )}
     </div>
   )
-}
+})

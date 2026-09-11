@@ -4,7 +4,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from app.models import User, Role, TeacherProfile, StudentProfile
+from app.models import User, Role, TeacherProfile, StudentProfile, utcnow
 from app.dependencies.auth import hash_password, verify_password
 
 logger = logging.getLogger(__name__)
@@ -52,13 +52,18 @@ def create_user(db: Session, user_data: dict) -> User:
         )
         db.add(profile)
     elif role.name == "student":
+        enrollment_year = user_data.get("enrollment_year")
+        session_label = None
+        if enrollment_year:
+            session_label = f"{enrollment_year % 100:02d}-{(enrollment_year + 4) % 100:02d}"
         profile = StudentProfile(
             user_id=user.id,
             student_id=user_data.get("student_id"),
             roll_number=user_data.get("roll_number"),
             department=user_data.get("department"),
             semester=user_data.get("semester"),
-            enrollment_year=user_data.get("enrollment_year"),
+            enrollment_year=enrollment_year,
+            session=session_label,
         )
         db.add(profile)
 
@@ -75,8 +80,10 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
 
 
 def update_password(db: Session, user: User, new_password: str) -> None:
+    # NOTE: Existing JWTs remain valid after password change. Revoking them requires
+    # a token blacklist or a password_changed_at claim checked on each request.
     user.password_hash = hash_password(new_password)
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = utcnow()
     db.commit()
 
 
@@ -103,6 +110,10 @@ def create_default_admin(db: Session) -> None:
 
     existing_admin = db.query(User).filter(User.role_id == admin_role.id).first()
     if existing_admin:
+        return
+
+    if not settings.ADMIN_EMAIL or not settings.ADMIN_PASSWORD:
+        logger.info("ADMIN_EMAIL or ADMIN_PASSWORD not configured; skipping default admin creation.")
         return
 
     admin = User(

@@ -1,26 +1,20 @@
 import { useState, useEffect } from 'react'
-import { resultsAPI, coursesAPI } from '../services/api'
+import api, { resultsAPI, coursesAPI } from '../services/api'
+import ConfirmDialog from '../components/ConfirmDialog'
+import { ordinal, semLabel } from '../utils/format'
 import {
   Trophy, FileText, GraduationCap, ScrollText, Trash2,
-  Download, BookOpen, TrendingDown, TrendingUp, ChevronRight, ChevronLeft,
+  Download, BookOpen, TrendingDown, TrendingUp, ChevronRight, ChevronLeft, AlertTriangle,
+  Activity, Archive,
 } from 'lucide-react'
 
 const tabs = [
   { id: 'midterm', label: 'Mid-Term', icon: FileText },
-  { id: 'final', label: 'Final Year', icon: GraduationCap },
+  { id: 'final', label: 'Final Term', icon: GraduationCap },
   { id: 'complete', label: 'Complete Result', icon: ScrollText },
 ]
 
-const examLabels = { midterm: 'Mid-Term', final: 'Final Year', complete: 'Complete Result' }
-
-const ordinal = (n) => {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
-}
-
-const semLabel = (semKey) =>
-  semKey === 'other' ? 'General' : `${ordinal(Number(semKey))} Semester`
+const examLabels = { midterm: 'Mid-Term', final: 'Final Term', complete: 'Complete Result' }
 
 export default function Examinations() {
   const [tab, setTab] = useState('midterm')
@@ -29,27 +23,38 @@ export default function Examinations() {
   const [loading, setLoading] = useState(true)
   const [activeSemester, setActiveSemester] = useState(null)
   const [activeCourse, setActiveCourse] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [error, setError] = useState(null)
+  const [activeTab, setActiveTab] = useState('active')
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([coursesAPI.list(), resultsAPI.list()])
+    const courseParams = activeTab === 'active' ? { is_active: true } : { is_active: false }
+    const resultParams = activeTab === 'active' ? { active: true } : { active: false }
+    Promise.all([coursesAPI.list(courseParams), resultsAPI.list(resultParams)])
       .then(([c, r]) => { setCourses(c.data); setAllResults(r.data) })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [activeTab])
 
   const handleDelete = async (r) => {
-    if (!confirm(`Delete "${r.title}"? This cannot be undone.`)) return
+    setDeleteTarget(r)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await resultsAPI.delete(r.id)
-      setAllResults(allResults.filter(x => x.id !== r.id))
-    } catch { alert('Failed') }
+      await resultsAPI.delete(deleteTarget.id)
+      setAllResults(allResults.filter(x => x.id !== deleteTarget.id))
+    } catch { setError('Failed to delete result') }
+    setDeleteTarget(null)
   }
 
   const handleDownload = async (url, fileName) => {
     try {
-      const response = await fetch(`/${url}`)
-      const blob = await response.blob()
+      const fileUrl = url.replace(/^uploads[\\/]/, 'files/')
+      const response = await api.get(`/${fileUrl}`, { responseType: 'blob' })
+      const blob = new Blob([response.data])
       const downloadUrl = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = downloadUrl
@@ -58,14 +63,15 @@ export default function Examinations() {
       link.click()
       link.remove()
       window.URL.revokeObjectURL(downloadUrl)
-    } catch (err) {
-      window.open(`/${url}`, '_blank')
+    } catch {
+      window.open(`/${url}`, '_blank', 'noopener,noreferrer')
     }
   }
 
   const goSemesters = () => {
     setActiveSemester(null)
     setActiveCourse(null)
+    setActiveTab('active')
   }
 
   const goCourses = () => setActiveCourse(null)
@@ -103,7 +109,15 @@ export default function Examinations() {
   })
 
   return (
+    <>
     <div className="p-5 lg:p-8 max-w-5xl mx-auto">
+      {error && (
+        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-danger-light text-danger-dark text-sm font-medium animate-slide-up">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="flex-1">{error}</div>
+          <button onClick={() => setError(null)} className="text-current opacity-50 hover:opacity-100">&times;</button>
+        </div>
+      )}
       {/* Header */}
       <div className="text-center mb-6">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
@@ -113,6 +127,32 @@ export default function Examinations() {
         <h1 className="text-3xl font-extrabold text-navy-900 tracking-tight">Result</h1>
         <p className="text-navy-400 mt-1.5">Pick a semester and book to view or delete result sheets</p>
       </div>
+
+      {/* Active / Inactive Tab Switcher */}
+      {activeSemester == null && (
+        <div className="flex items-center justify-center gap-1 mb-5 p-1 bg-surface-100 rounded-xl w-fit mx-auto">
+          <button
+            onClick={() => { setActiveTab('active'); setActiveSemester(null); setActiveCourse(null) }}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === 'active'
+                ? 'bg-white text-navy-900 shadow-sm'
+                : 'text-navy-400 hover:text-navy-600'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" /> Active
+          </button>
+          <button
+            onClick={() => { setActiveTab('inactive'); setActiveSemester(null); setActiveCourse(null) }}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === 'inactive'
+                ? 'bg-white text-navy-900 shadow-sm'
+                : 'text-navy-400 hover:text-navy-600'
+            }`}
+          >
+            <Archive className="w-3.5 h-3.5" /> Inactive
+          </button>
+        </div>
+      )}
 
       {/* Tab Switcher */}
       <div className="mb-5 sm:flex sm:justify-center">
@@ -257,6 +297,15 @@ export default function Examinations() {
         </>
       )}
     </div>
+    <ConfirmDialog
+      isOpen={!!deleteTarget}
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={confirmDelete}
+      title="Delete Result"
+      message={`Delete "${deleteTarget?.title}"? This cannot be undone.`}
+      confirmLabel="Delete"
+    />
+    </>
   )
 }
 

@@ -4,7 +4,7 @@ import { coursesAPI, quizzesAPI } from '../services/api'
 import Button from '../components/Button'
 import {
   BookOpen, FileText, AlertCircle,
-  Plus, Trash2, PenLine, FileUp, CheckCircle2,
+  Plus, Trash2, PenLine, CheckCircle2, Paperclip,
 } from 'lucide-react'
 
 export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
@@ -15,8 +15,7 @@ export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
   const [questions, setQuestions] = useState([
     { text: '', options: ['', '', '', ''], correct: 0 },
   ])
-  const [questionFile, setQuestionFile] = useState(null)
-  const [inputMode, setInputMode] = useState('type') // 'type' | 'file'
+  const [attachment, setAttachment] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -60,16 +59,22 @@ export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
     setSuccess('')
 
     // Validate
-    if (inputMode === 'type') {
+    if (!attachment) {
+      // No document uploaded — questions are required
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i]
+        const filledOptions = q.options.filter(o => o.trim())
+        if (!q.text.trim() && filledOptions.length < 2) continue
         if (!q.text.trim()) {
           setError(`Question ${i + 1} text is required`)
           return
         }
-        const filledOptions = q.options.filter(o => o.trim())
         if (filledOptions.length < 2) {
           setError(`Question ${i + 1} needs at least 2 options`)
+          return
+        }
+        if (q.correct >= filledOptions.length) {
+          setError(`Question ${i + 1}: selected correct answer is empty. Pick a valid option.`)
           return
         }
       }
@@ -77,30 +82,28 @@ export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
 
     setLoading(true)
     try {
-      if (inputMode === 'file') {
-        setError('File-based quiz import is not supported yet — switch to "Type Questions" instead.')
-        setLoading(false)
-        return
-      }
+      const formData = new FormData()
+      formData.append('course_id', form.course_id)
+      formData.append('title', form.title.trim())
+      if (form.description) formData.append('description', form.description.trim())
+      if (form.time_limit) formData.append('time_limit', parseInt(form.time_limit))
+      if (form.deadline) formData.append('deadline', new Date(form.deadline).toISOString())
+      const validQuestions = questions.filter(q => {
+        const opts = q.options.filter(o => o.trim())
+        return q.text.trim() || opts.length >= 2
+      })
+      formData.append('questions', JSON.stringify(validQuestions.map((q) => {
+        const options = q.options.map((o) => o.trim()).filter((o) => o.length)
+        const correct = Math.min(q.correct, options.length - 1)
+        return {
+          text: q.text.trim(),
+          options,
+          correct: correct < 0 ? 0 : correct,
+        }
+      })))
+      if (attachment) formData.append('attachment', attachment)
 
-      const payload = {
-        course_id: form.course_id,
-        title: form.title.trim(),
-        description: form.description.trim() || null,
-        time_limit: form.time_limit ? parseInt(form.time_limit) : null,
-        deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
-        questions: questions.map((q) => {
-          const options = q.options.map((o) => o.trim()).filter((o) => o.length)
-          const correct = options.indexOf(options[q.correct] || '')
-          return {
-            text: q.text.trim(),
-            options,
-            correct: correct === -1 ? 0 : correct,
-          }
-        }),
-      }
-
-      await quizzesAPI.create(payload)
+      await quizzesAPI.create(formData)
       setSuccess('Quiz created successfully! Students can now attempt it.')
       if (onSuccess) {
         setTimeout(() => onSuccess(), 800)
@@ -178,43 +181,29 @@ export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
                 className="input-field" />
             </div>
           </div>
+
+          <div>
+            <label className="input-label">Attachment (optional)</label>
+            <input type="file" onChange={(e) => setAttachment(e.target.files[0])}
+              className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent-500 file:text-white file:cursor-pointer" />
+            {attachment && (
+              <p className="mt-1.5 text-xs text-navy-500 flex items-center gap-1.5">
+                <Paperclip className="w-3 h-3" />
+                {attachment.name}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* ── Question Input Mode Toggle ─────────── */}
         <div className="border border-surface-200 rounded-xl bg-white p-6 lg:p-8 space-y-5">
           <div className="flex items-center justify-between">
-            <label className="input-label !mb-0">Questions</label>
-            <div className="flex rounded-lg border border-surface-200 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setInputMode('type')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  inputMode === 'type'
-                    ? 'bg-accent-500 text-white'
-                    : 'bg-white text-navy-500 hover:bg-surface-50'
-                }`}
-              >
-                <PenLine className="w-3 h-3" />
-                Type Questions
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputMode('file')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  inputMode === 'file'
-                    ? 'bg-accent-500 text-white'
-                    : 'bg-white text-navy-500 hover:bg-surface-50'
-                }`}
-              >
-                <FileUp className="w-3 h-3" />
-                Upload File
-              </button>
-            </div>
+            <label className="input-label !mb-0">Questions {attachment && <span className="text-navy-400 font-normal">(optional — document uploaded)</span>}</label>
+            <span className="text-xs text-navy-400">{questions.length} question{questions.length !== 1 ? 's' : ''}</span>
           </div>
 
-          {/* ── Type Questions Mode ──────────────── */}
-          {inputMode === 'type' && (
-            <div className="space-y-5">
+          {/* ── Questions ──────────────────────────── */}
+          <div className="space-y-5">
               {questions.map((q, qIdx) => (
                 <div key={qIdx} className="border border-surface-200 rounded-xl p-5 space-y-4 relative">
                   <div className="flex items-start justify-between gap-3">
@@ -227,7 +216,6 @@ export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
                         onChange={(e) => updateQuestion(qIdx, 'text', e.target.value)}
                         className="input-field"
                         placeholder={`Question ${qIdx + 1}`}
-                        required
                       />
                     </div>
                     {questions.length > 1 && (
@@ -277,15 +265,6 @@ export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
                 Add Another Question
               </button>
             </div>
-          )}
-
-          {/* ── Upload File Mode ─────────────────── */}
-          {inputMode === 'file' && (
-            <div>
-              <input type="file" onChange={(e) => setQuestionFile(e.target.files[0])}
-                className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent-500 file:text-white file:cursor-pointer" />
-            </div>
-          )}
         </div>
 
         {/* ── Actions ────────────────────────────── */}

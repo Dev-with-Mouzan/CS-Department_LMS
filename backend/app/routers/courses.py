@@ -1,99 +1,86 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import Request,  APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.dependencies.auth import get_current_user, require_admin, require_teacher, require_student
-from app.models import User, Course, Enrollment, Role, StudentProfile
-from app.schemas.course import CourseCreate, CourseUpdate, CourseOut, EnrollmentCreate, EnrollmentOut
+from app.dependencies.auth import get_current_user, require_admin, require_teacher
+from app.models import User, Course, Role, StudentProfile, StudyMaterial, Assignment, Quiz, QuizQuestion
+from app.schemas.course import CourseCreate, CourseUpdate, CourseOut, ReusableCourseOut, ReuseRequest
+from app.dependencies.ratelimit import limiter
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
 
 
+def _student_session_label(enrollment_year: int) -> str:
+    """Compute session label like '23-27' from enrollment year."""
+    return f"{enrollment_year % 100:02d}-{(enrollment_year + 4) % 100:02d}"
+
+
+def student_has_access(db: Session, user: User, course: Course) -> bool:
+    """Check if a student can access a course — same session, semester <= current, active."""
+    profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.id).first()
+    if not profile or not profile.enrollment_year or not profile.semester:
+        return False
+    if not course.session or not course.semester:
+        return False
+    student_session = _student_session_label(profile.enrollment_year)
+    return course.session == student_session and course.semester <= profile.semester and course.is_active
+
+
+def get_teacher_course_ids(db: Session, teacher_id: str) -> List[str]:
+    """Get course IDs a teacher should see — active courses only."""
+    return [c.id for c in db.query(Course.id).filter(
+        Course.teacher_id == teacher_id,
+        Course.is_active == True,
+    ).all()]
+
+
+def get_student_courses(db: Session, user: User) -> List[Course]:
+    """Get all courses a student has access to — same session, semester <= current, active only."""
+    profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.id).first()
+    if not profile or not profile.enrollment_year or not profile.semester:
+        return []
+    student_session = _student_session_label(profile.enrollment_year)
+    return db.query(Course).filter(
+        Course.session == student_session,
+        Course.semester <= profile.semester,
+        Course.is_active == True,
+    ).all()
+
+
+@limiter.limit("30/minute")
 @router.get("/", response_model=List[CourseOut])
-def list_courses(
+def list_courses(request: Request, 
     skip: int = 0,
     limit: int = 100,
+    is_active: bool = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List courses based on role."""
+    """List courses based on role. Optional is_active filter."""
     role = current_user.role.name
 
     if role == "admin":
-        courses = db.query(Course).offset(skip).limit(limit).all()
+        q = db.query(Course)
+        if is_active is not None:
+            q = q.filter(Course.is_active == is_active)
+        courses = q.offset(skip).limit(limit).all()
     elif role == "teacher":
-        courses = db.query(Course).filter(Course.teacher_id == current_user.id).offset(skip).limit(limit).all()
+        courses = db.query(Course).filter(
+            Course.teacher_id == current_user.id,
+            Course.is_active == True,
+        ).offset(skip).limit(limit).all()
     else:  # student
-        enrolled_course_ids = select(Enrollment.course_id).filter(
-            Enrollment.student_id == current_user.id,
-            Enrollment.status == "active",
-        )
-        courses = db.query(Course).filter(Course.id.in_(enrolled_course_ids)).offset(skip).limit(limit).all()
+        courses = get_student_courses(db, current_user)
 
-    _attach_sessions(db, courses)
     return courses
 
 
-def _attach_sessions(db: Session, courses: list):
-    """Compute the BSCS session label for each course.
-
-    Adds a ``session`` attribute like "23-27" derived from the enrollment year of
-    a student in the course (preferring a student whose semester matches the
-    course semester). Falls back to any student in the same semester when the
-    course has no enrollments yet. Assumes a 4-year / 8-semester program.
-    """
-    if not courses:
-        return
-
-    course_ids = [c.id for c in courses]
-    enrolled_rows = (
-        db.query(Enrollment.course_id, StudentProfile.semester, StudentProfile.enrollment_year)
-        .join(User, Enrollment.student_id == User.id)
-        .join(StudentProfile, StudentProfile.user_id == User.id)
-        .filter(
-            Enrollment.course_id.in_(course_ids),
-            Enrollment.status == "active",
-            StudentProfile.enrollment_year.isnot(None),
-        )
-        .all()
-    )
-    enrolled_by_course = {}
-    for course_id, semester, enrollment_year in enrolled_rows:
-        enrolled_by_course.setdefault(course_id, []).append((semester, enrollment_year))
-
-    # Fallback map: semester -> enrollment_year from any student in that semester.
-    semester_year = {}
-    if any(c.semester is not None for c in courses):
-        sem_rows = (
-            db.query(StudentProfile.semester, StudentProfile.enrollment_year)
-            .filter(StudentProfile.enrollment_year.isnot(None))
-            .all()
-        )
-        for semester, enrollment_year in sem_rows:
-            semester_year.setdefault(semester, enrollment_year)
-
-    for course in courses:
-        matches = enrolled_by_course.get(course.id) or []
-        year = None
-        if matches:
-            # Prefer an enrolled student whose semester matches the course.
-            year = next((ey for sem, ey in matches if sem == course.semester), None)
-            if year is None:
-                year = matches[0][1]
-        elif course.semester is not None:
-            # No enrollments yet — use any student in the same semester.
-            year = semester_year.get(course.semester)
-
-        if year:
-            end_year = year + 4
-            course.session = f"{year % 100:02d}-{end_year % 100:02d}"
-
-
+@limiter.limit("30/minute")
 @router.post("/", response_model=CourseOut, status_code=status.HTTP_201_CREATED)
-def create_course(
+def create_course(request: Request, 
     data: CourseCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -111,8 +98,206 @@ def create_course(
     return course
 
 
+# ── Reuse Materials ──────────────────────────────────
+@limiter.limit("30/minute")
+@router.get("/reusable", response_model=List[ReusableCourseOut])
+def list_reusable_courses(request: Request, 
+    course_id: str,
+    show_all: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_teacher),
+):
+    """List teacher's other courses with content to reuse.
+
+    By default shows only courses with the same course_code.
+    Set show_all=true to show all past courses taught by this teacher.
+    """
+    target = db.query(Course).filter(Course.id == course_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Course not found")
+    if target.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Find other courses by same teacher
+    query = db.query(Course).filter(
+        Course.teacher_id == current_user.id,
+        Course.id != course_id,
+    )
+    if not show_all:
+        query = query.filter(Course.course_code == target.course_code)
+
+    source_courses = query.order_by(Course.created_at.desc()).all()
+
+    course_ids = [sc.id for sc in source_courses]
+    mat_counts = dict(db.query(StudyMaterial.course_id, func.count()).filter(
+        StudyMaterial.course_id.in_(course_ids)).group_by(StudyMaterial.course_id).all()) if course_ids else {}
+    asg_counts = dict(db.query(Assignment.course_id, func.count()).filter(
+        Assignment.course_id.in_(course_ids)).group_by(Assignment.course_id).all()) if course_ids else {}
+    quiz_counts = dict(db.query(Quiz.course_id, func.count()).filter(
+        Quiz.course_id.in_(course_ids)).group_by(Quiz.course_id).all()) if course_ids else {}
+
+    result = []
+    for sc in source_courses:
+        mat_count = mat_counts.get(sc.id, 0)
+        asg_count = asg_counts.get(sc.id, 0)
+        quiz_count = quiz_counts.get(sc.id, 0)
+
+        # Skip courses with no content
+        if mat_count == 0 and asg_count == 0 and quiz_count == 0:
+            continue
+
+        result.append(ReusableCourseOut(
+            id=sc.id,
+            course_code=sc.course_code,
+            title=sc.title,
+            semester=sc.semester,
+            session=sc.session,
+            material_count=mat_count,
+            assignment_count=asg_count,
+            quiz_count=quiz_count,
+            created_at=sc.created_at,
+        ))
+
+    return result
+
+
+@limiter.limit("30/minute")
+@router.post("/{course_id}/reuse", status_code=status.HTTP_200_OK)
+def reuse_materials(request: Request, 
+    course_id: str,
+    data: ReuseRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_teacher),
+):
+    """Copy selected materials, assignments, and quizzes from a source course into the target course."""
+    import shutil
+    from datetime import datetime as dt
+    import os
+
+    target = db.query(Course).filter(Course.id == course_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target course not found")
+    if target.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    source = db.query(Course).filter(Course.id == data.source_course_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source course not found")
+    if source.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    copied = {"materials": 0, "assignments": 0, "quizzes": 0}
+
+    # ── Copy Study Materials ──
+    for mat_id in data.materials:
+        mat = db.query(StudyMaterial).filter(
+            StudyMaterial.id == mat_id,
+            StudyMaterial.course_id == source.id,
+        ).first()
+        if not mat:
+            continue
+
+        new_file_url = None
+        if mat.file_url:
+            src_path = os.path.join(os.getcwd(), mat.file_url) if not os.path.isabs(mat.file_url) else mat.file_url
+            if os.path.exists(src_path):
+                ts = dt.now().strftime("%Y%m%d_%H%M%S_%f")
+                ext = os.path.splitext(mat.file_name or mat.file_url)[1]
+                new_filename = f"{ts}_{mat.file_name or 'material'}{ext}"
+                new_rel = os.path.join("uploads", "materials", new_filename)
+                dest_path = os.path.join(os.getcwd(), new_rel)
+                shutil.copy2(src_path, dest_path)
+                new_file_url = new_rel
+
+        new_mat = StudyMaterial(
+            title=mat.title,
+            description=mat.description,
+            category=mat.category,
+            file_url=new_file_url or mat.file_url,
+            file_name=mat.file_name,
+            course_id=target.id,
+            uploaded_by=current_user.id,
+        )
+        db.add(new_mat)
+        copied["materials"] += 1
+
+    # ── Copy Assignments ──
+    for asg_id in data.assignments:
+        asg = db.query(Assignment).filter(
+            Assignment.id == asg_id,
+            Assignment.course_id == source.id,
+        ).first()
+        if not asg:
+            continue
+
+        new_attachment_url = None
+        if asg.attachment_url:
+            src_path = os.path.join(os.getcwd(), asg.attachment_url) if not os.path.isabs(asg.attachment_url) else asg.attachment_url
+            if os.path.exists(src_path):
+                ts = dt.now().strftime("%Y%m%d_%H%M%S_%f")
+                ext = os.path.splitext(os.path.basename(asg.attachment_url))[1]
+                new_filename = f"{ts}_{os.path.basename(asg.attachment_url)}{ext}"
+                new_rel = os.path.join("uploads", "assignments", new_filename)
+                dest_path = os.path.join(os.getcwd(), new_rel)
+                shutil.copy2(src_path, dest_path)
+                new_attachment_url = new_rel
+
+        new_asg = Assignment(
+            course_id=target.id,
+            teacher_id=current_user.id,
+            title=asg.title,
+            description=asg.description,
+            due_date=None,
+            max_marks=asg.max_marks,
+            attachment_url=new_attachment_url or asg.attachment_url,
+        )
+        db.add(new_asg)
+        copied["assignments"] += 1
+
+    # ── Copy Quizzes ──
+    for quiz_id in data.quizzes:
+        quiz = db.query(Quiz).filter(
+            Quiz.id == quiz_id,
+            Quiz.course_id == source.id,
+        ).first()
+        if not quiz:
+            continue
+
+        new_quiz = Quiz(
+            course_id=target.id,
+            teacher_id=current_user.id,
+            title=quiz.title,
+            description=quiz.description,
+            time_limit=quiz.time_limit,
+            deadline=None,
+            is_published=False,
+        )
+        db.add(new_quiz)
+        db.flush()
+
+        for q in db.query(QuizQuestion).filter(QuizQuestion.quiz_id == quiz.id).order_by(QuizQuestion.order_index).all():
+            new_q = QuizQuestion(
+                quiz_id=new_quiz.id,
+                text=q.text,
+                options=q.options,
+                correct_index=q.correct_index,
+                order_index=q.order_index,
+            )
+            db.add(new_q)
+
+        copied["quizzes"] += 1
+
+    db.commit()
+
+    return {
+        "message": f"Reused {copied['materials']} materials, {copied['assignments']} assignments, and {copied['quizzes']} quizzes",
+        "copied": copied,
+    }
+
+
+@limiter.limit("30/minute")
 @router.get("/{course_id}", response_model=CourseOut)
-def get_course(
+def get_course(request: Request, 
     course_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -125,20 +310,67 @@ def get_course(
     role = current_user.role.name
     if role == "teacher" and course.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    if role == "student":
-        enrollment = db.query(Enrollment).filter(
-            Enrollment.student_id == current_user.id,
-            Enrollment.course_id == course_id,
-            Enrollment.status == "active",
-        ).first()
-        if not enrollment:
-            raise HTTPException(status_code=403, detail="Not enrolled in this course")
+    if role == "student" and not student_has_access(db, current_user, course):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if role == "student" and not course.is_active:
+        raise HTTPException(status_code=404, detail="Course not found")
 
     return course
 
 
+@limiter.limit("30/minute")
+@router.get("/{course_id}/students")
+def list_course_students(request: Request, 
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List students who have access to a course (session+semester match)."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    role = current_user.role.name
+    if role == "teacher" and course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    students = (
+        db.query(User, StudentProfile)
+        .join(StudentProfile, StudentProfile.user_id == User.id)
+        .join(Role, User.role_id == Role.id)
+        .filter(
+            Role.name == "student",
+            User.is_verified == True,
+            User.is_active == True,
+            StudentProfile.semester == course.semester,
+        )
+        .all()
+    )
+
+    # Filter by session — use stored session or compute from enrollment_year
+    result = []
+    for u, sp in students:
+        student_session = sp.session
+        if not student_session and sp.enrollment_year:
+            student_session = _student_session_label(sp.enrollment_year)
+        if student_session == course.session:
+            result.append({
+                "student_id": u.id,
+                "user_id": u.id,
+                "first_name": u.first_name,
+                "last_name": u.last_name,
+                "student_name": f"{u.first_name} {u.last_name}",
+                "email": u.email,
+                "roll_number": sp.roll_number,
+            })
+
+    return result
+
+
+@limiter.limit("30/minute")
 @router.put("/{course_id}", response_model=CourseOut)
-def update_course(
+def update_course(request: Request, 
     course_id: str,
     data: CourseUpdate,
     db: Session = Depends(get_db),
@@ -158,8 +390,9 @@ def update_course(
     return course
 
 
+@limiter.limit("30/minute")
 @router.delete("/{course_id}")
-def delete_course(
+def delete_course(request: Request, 
     course_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -171,7 +404,7 @@ def delete_course(
 
     from app.models import (
         Submission, Assignment, AttendanceRecord, AttendanceSession,
-        StudyMaterial, Enrollment,
+        StudyMaterial,
     )
     db.query(Submission).filter(
         Submission.assignment_id.in_(
@@ -186,88 +419,7 @@ def delete_course(
     ).delete(synchronize_session=False)
     db.query(AttendanceSession).filter(AttendanceSession.course_id == course_id).delete()
     db.query(StudyMaterial).filter(StudyMaterial.course_id == course_id).delete()
-    db.query(Enrollment).filter(Enrollment.course_id == course_id).delete()
 
     db.delete(course)
     db.commit()
     return {"message": "Course deleted successfully"}
-
-
-# ── Enrollment ────────────────────────────────────────
-@router.post("/{course_id}/enroll", response_model=EnrollmentOut)
-def enroll_student(
-    course_id: str,
-    data: EnrollmentCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Enroll a student in a course (admin only)."""
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-
-    existing = db.query(Enrollment).filter(
-        Enrollment.student_id == data.student_id,
-        Enrollment.course_id == course_id,
-    ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Student already enrolled")
-
-    enrollment = Enrollment(
-        student_id=data.student_id,
-        course_id=course_id,
-    )
-    db.add(enrollment)
-    db.commit()
-    db.refresh(enrollment)
-    return enrollment
-
-
-@router.get("/{course_id}/enrollments", response_model=List[EnrollmentOut])
-def list_enrollments(
-    course_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """List enrollments for a course."""
-    role = current_user.role.name
-
-    if role == "admin":
-        pass  # can see all
-    elif role == "teacher":
-        course = db.query(Course).filter(Course.id == course_id).first()
-        if not course or course.teacher_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
-    else:  # student
-        enrollment = db.query(Enrollment).filter(
-            Enrollment.student_id == current_user.id,
-            Enrollment.course_id == course_id,
-        ).first()
-        if not enrollment:
-            raise HTTPException(status_code=403, detail="Not enrolled in this course")
-
-    enrollments = db.query(Enrollment).filter(
-        Enrollment.course_id == course_id,
-        Enrollment.status == "active",
-    ).all()
-
-    result = []
-    for e in enrollments:
-        student = db.query(User).filter(User.id == e.student_id).first()
-        profile = db.query(StudentProfile).filter(StudentProfile.user_id == e.student_id).first()
-        student_name = None
-        roll_number = None
-        if student:
-            student_name = f"{student.first_name} {student.last_name}".strip()
-        if profile:
-            roll_number = profile.roll_number
-        result.append(EnrollmentOut(
-            id=e.id,
-            student_id=e.student_id,
-            course_id=e.course_id,
-            enrollment_date=e.enrollment_date,
-            status=e.status,
-            student_name=student_name,
-            roll_number=roll_number,
-        ))
-    return result

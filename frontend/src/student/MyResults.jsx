@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
-import { resultsAPI } from '../services/api'
+import api, { resultsAPI } from '../services/api'
 import {
   Trophy, FileText, GraduationCap, ScrollText, BookOpen,
   Eye, X, ShieldCheck, TrendingDown, TrendingUp, FileQuestion,
-  ChevronLeft, ChevronRight, Download,
+  ChevronLeft, ChevronRight, Download, AlertTriangle,
 } from 'lucide-react'
 
 const tabs = [
   { id: 'midterm', label: 'Mid-Term', icon: FileText },
-  { id: 'final', label: 'Final Year', icon: GraduationCap },
+  { id: 'final', label: 'Final Term', icon: GraduationCap },
   { id: 'complete', label: 'Complete Result', icon: ScrollText },
 ]
 
-const examLabels = { midterm: 'Mid-Term', final: 'Final Year', complete: 'Complete Result' }
+const examLabels = { midterm: 'Mid-Term', final: 'Final Term', complete: 'Complete Result' }
 
 const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico'])
 const TEXT_EXTS = new Set(['txt', 'md', 'log', 'json', 'xml', 'html', 'htm', 'css', 'js', 'py', 'step', 'tex'])
@@ -26,6 +26,7 @@ export default function MyResults() {
   const [loading, setLoading] = useState(true)
   const [activeCourseId, setActiveCourseId] = useState(null)
   const [preview, setPreview] = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     resultsAPI.list()
@@ -48,12 +49,8 @@ export default function MyResults() {
     }
 
     try {
-      const token = localStorage.getItem('token')
-      const res = await fetch(`/api/results/${r.id}/view?kind=${kind}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      if (!res.ok) throw new Error(res.statusText)
-      const blob = await res.blob()
+      const res = await api.get(`/results/${r.id}/view?kind=${kind}`, { responseType: 'blob' })
+      const blob = new Blob([res.data])
 
       if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
         const buf = await blob.arrayBuffer()
@@ -73,7 +70,7 @@ export default function MyResults() {
         setPreview({ type: 'iframe', label, title: r.title, fileName, url: URL.createObjectURL(blob) })
       }
     } catch (err) {
-      alert('Unable to load the file for online viewing')
+      setError('Unable to load the file for online viewing')
     }
   }
 
@@ -110,6 +107,14 @@ export default function MyResults() {
 
   return (
     <div className="p-5 lg:p-8 max-w-5xl mx-auto w-full">
+      {error && (
+        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-danger-light text-danger-dark text-sm font-medium animate-slide-up">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="flex-1">{error}</div>
+          <button onClick={() => setError(null)} className="text-current opacity-50 hover:opacity-100">&times;</button>
+        </div>
+      )}
+
       {/* Preview Modal */}
       {preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -174,7 +179,7 @@ export default function MyResults() {
               )}
 
               {preview.type === 'iframe' && (
-                <iframe src={preview.url} title={preview.label} className="w-full h-full border-0" />
+                <iframe src={preview.url} title={preview.label} className="w-full h-full border-0" sandbox="allow-same-origin" />
               )}
 
               {preview.type === 'unsupported' && (

@@ -1,3 +1,7 @@
+// SECURITY NOTE: This is CLIENT-SIDE ONLY route protection.
+// The backend MUST independently enforce authorization on every API endpoint.
+// Do NOT rely on this component for security — it only controls UI navigation.
+
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 

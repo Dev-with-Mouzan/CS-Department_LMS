@@ -7,6 +7,16 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Request deduplication for GET requests — prevents identical concurrent calls
+const _getCache = new Map()
+const deduplicatedGet = (url, config) => {
+  const key = `${url}:${JSON.stringify(config?.params || {})}`
+  if (_getCache.has(key)) return _getCache.get(key)
+  const promise = api.get(url, config).finally(() => _getCache.delete(key))
+  _getCache.set(key, promise)
+  return promise
+}
+
 // Attach JWT token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
@@ -26,6 +36,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isLoginAttempt) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      localStorage.removeItem('pendingVerification')
       window.location.href = '/login'
     }
     return Promise.reject(error)
@@ -39,6 +50,7 @@ export const authAPI = {
   verifyOTP: (data) => api.post('/auth/verify-otp', data),
   resendOTP: (data) => api.post('/auth/resend-otp', data),
   forgotPassword: (data) => api.post('/auth/forgot-password', data),
+  resendResetOTP: (data) => api.post('/auth/forgot-password', data),
   resetPassword: (data) => api.post('/auth/reset-password', data),
   getMe: () => api.get('/auth/me'),
 }
@@ -52,6 +64,8 @@ export const usersAPI = {
   delete: (id) => api.delete(`/users/${id}`),
   hardDelete: (id) => api.delete(`/users/${id}/hard`),
   setPassword: (id, data) => api.put(`/users/${id}/password`, data),
+  getProfile: (id) => api.get(`/users/${id}/profile`),
+  getSemesterProgress: (id) => api.get(`/users/${id}/semester-progress`),
   getStats: () => api.get('/users/stats/dashboard'),
   }
 
@@ -62,8 +76,9 @@ export const coursesAPI = {
   create: (data) => api.post('/courses/', data),
   update: (id, data) => api.put(`/courses/${id}`, data),
   delete: (id) => api.delete(`/courses/${id}`),
-  enroll: (courseId, data) => api.post(`/courses/${courseId}/enroll`, data),
-  listEnrollments: (courseId) => api.get(`/courses/${courseId}/enrollments`),
+  listCourseStudents: (courseId) => api.get(`/courses/${courseId}/students`),
+  reusable: (courseId, showAll = false) => api.get('/courses/reusable', { params: { course_id: courseId, show_all: showAll } }),
+  reuse: (courseId, data) => api.post(`/courses/${courseId}/reuse`, data),
 }
 
 // ── Assignments API ──────────────────────────────────
@@ -129,11 +144,26 @@ export const resultsAPI = {
 export const quizzesAPI = {
   list: (params) => api.get('/quizzes', { params }),
   get: (id) => api.get(`/quizzes/${id}`),
-  create: (data) => api.post('/quizzes', data),
+  create: (data) => {
+    if (data instanceof FormData) {
+      return api.post('/quizzes', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    }
+    return api.post('/quizzes', data)
+  },
   update: (id, data) => api.put(`/quizzes/${id}`, data),
   delete: (id) => api.delete(`/quizzes/${id}`),
   submit: (quizId, answers) => api.post(`/quizzes/${quizId}/submit`, { answers }),
+  submitFile: (quizId, file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/quizzes/${quizId}/submit-file`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
   getAttempt: (quizId) => api.get(`/quizzes/${quizId}/attempts`),
+  getAllAttempts: (quizId) => api.get(`/quizzes/${quizId}/all-attempts`),
 }
 
 // ── Reviews API ───────────────────────────────────
@@ -143,6 +173,31 @@ export const reviewsAPI = {
   create: (data) => api.post('/reviews/', data),
   update: (id, data) => api.put(`/reviews/${id}`, data),
   delete: (id) => api.delete(`/reviews/${id}`),
+}
+
+// ── Promotion API ─────────────────────────────────
+export const promotionAPI = {
+  getSessions: () => api.get('/users/promotion/sessions'),
+  getSessionSemesters: (session) => api.get(`/users/promotion/sessions/${session}/semesters`),
+  getSemesterStudents: (session, semester) => api.get(`/users/promotion/sessions/${session}/semesters/${semester}`),
+  promote: (data) => api.post('/users/promotion/promote', data),
+  graduate: (data) => api.post('/users/promotion/graduate', data),
+  getHistory: (session) => api.get('/users/promotion/history', { params: session ? { session } : {} }),
+}
+
+// ── Backup API ─────────────────────────────────────
+export const backupAPI = {
+  create: () => api.post('/backup/create'),
+  list: () => api.get('/backup/list'),
+  download: (id) => api.get(`/backup/download/${id}`, { responseType: 'blob' }),
+  delete: (id) => api.delete(`/backup/${id}`),
+  importBackup: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/backup/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }
 
 export default api

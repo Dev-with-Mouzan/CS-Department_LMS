@@ -21,3 +21,23 @@ Thumbs.db
 
 # Database
 *.db
+*.db-shm
+*.db-wal
+
+# Seed data / credentials
+seed.py
+seed_dummy.py
+credentials.txt
+
+# Logs
+*.log
+
+# Backups
+backups/
+
+# Archives / documents
+*.zip
+*.docx
+
+# OpenCode tooling
+.opencode/

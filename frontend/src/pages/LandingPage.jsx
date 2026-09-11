@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
 import { AnimatedSection, StaggerContainer } from '../hooks/useScrollReveal.jsx'
-import ChatWidget from '../components/ChatWidget'
+const ChatWidget = lazy(() => import('../components/ChatWidget'))
 import Tour, { useTour } from '../components/Tour'
 import { landingTourSteps } from '../config/tourSteps'
 import {
@@ -263,6 +263,7 @@ function Hero() {
           src="/college_image.jfif"
           alt="Govt. Graduate College Burewala"
           className="w-full h-full object-cover object-center"
+          loading="eager"
         />
         <div className="absolute inset-0 bg-navy-950/85" />
 
@@ -575,7 +576,7 @@ function HowItWorks() {
       step: 2,
       icon: BookOpen,
       title: 'Access Your Courses',
-      description: 'Auto-enrolled in your CS semester courses — Data Structures, OS, DB, and more appear on your dashboard.',
+      description: 'Courses appear automatically based on your session and semester — Data Structures, OS, DB, and more.',
       detail: 'All courses ready on day one',
       color: 'info',
     },
@@ -710,7 +711,7 @@ function FacultyCarousel({ faculty }) {
             <div key={f.name} className="shrink-0 flex flex-col bg-white rounded-2xl border border-surface-200 overflow-hidden group hover:-translate-y-1 hover:shadow-lg transition-all duration-300" style={{ width: `${CARD_W}px`, height: '400px' }}>
               {/* Photo */}
               <div className="relative h-72 overflow-hidden">
-                <img src={f.image} alt={f.name} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                <img src={f.image} alt={f.name} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                 <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
                 <div className="absolute bottom-3 left-4 right-4">
                   <p className="text-base font-bold text-white">{f.name}</p>
@@ -1032,6 +1033,7 @@ function CTA() {
           src="/cta bg image.jfif"
           alt="Govt. Graduate College Burewala"
           className="w-full h-full object-cover object-center opacity-40"
+          loading="lazy"
         />
         <div className="absolute inset-0 bg-navy-950/80" />
       </div>

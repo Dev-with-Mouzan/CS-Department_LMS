@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { coursesAPI, usersAPI, attendanceAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
+import ConfirmDialog from '../components/ConfirmDialog'
 import {
   BookOpen, PlusCircle, Trash2, CalendarDays, Pencil, Search, GraduationCap,
-  UserCheck, CheckCircle2, Download,
+  UserCheck, CheckCircle2, Download, AlertTriangle,
 } from 'lucide-react'
 
 export default function ManageCourses() {
@@ -13,10 +14,12 @@ export default function ManageCourses() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('')
+  const [filter, setFilter] = useState('active')
   const [search, setSearch] = useState('')
-  const [form, setForm] = useState({ course_code: '', title: '', description: '', teacher_id: '', semester: '' })
+  const [form, setForm] = useState({ course_code: '', title: '', description: '', teacher_id: '', semester: '', session: '' })
   const [downloadingId, setDownloadingId] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => { loadData() }, [])
 
@@ -25,13 +28,18 @@ export default function ManageCourses() {
       const [c, t] = await Promise.all([coursesAPI.list(), usersAPI.list({ role: 'teacher' })])
       setCourses(c.data)
       setTeachers(t.data)
+      const savedTab = localStorage.getItem('coursesTab')
+      if (savedTab) {
+        setFilter(savedTab)
+        localStorage.removeItem('coursesTab')
+      }
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ course_code: '', title: '', description: '', teacher_id: '', semester: '' })
+    setForm({ course_code: '', title: '', description: '', teacher_id: '', semester: '', session: '' })
     setShowModal(true)
   }
 
@@ -43,6 +51,7 @@ export default function ManageCourses() {
       description: course.description || '',
       teacher_id: course.teacher_id || '',
       semester: course.semester || '',
+      session: course.session || '',
       is_active: course.is_active,
     })
     setShowModal(true)
@@ -52,8 +61,8 @@ export default function ManageCourses() {
     e.preventDefault()
     try {
       if (editing) {
-        const { title, description, teacher_id, semester, is_active } = form
-        const payload = { title, description, teacher_id, is_active }
+        const { title, description, teacher_id, semester, session, is_active } = form
+        const payload = { title, description, teacher_id, session, is_active }
         if (semester) payload.semester = parseInt(semester, 10)
         await coursesAPI.update(editing.id, payload)
       } else {
@@ -63,12 +72,17 @@ export default function ManageCourses() {
       }
       setShowModal(false)
       loadData()
-    } catch (err) { alert(err.response?.data?.detail || 'Failed') }
+    } catch (err) { setError(err.response?.data?.detail || 'Failed to save course') }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this course?')) return
-    try { await coursesAPI.delete(id); loadData() } catch { alert('Failed') }
+    setDeleteTarget(id)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    try { await coursesAPI.delete(deleteTarget); loadData() } catch { setError('Failed to delete course') }
+    setDeleteTarget(null)
   }
 
 
@@ -87,15 +101,22 @@ export default function ManageCourses() {
     )
   })
 
-  const stats = [
+  const stats = useMemo(() => [
     { label: 'Total Courses', value: courses.length, icon: BookOpen, chip: 'bg-navy-900/10 text-navy-800 border-navy-900/10' },
     { label: 'Active', value: courses.filter((c) => c.is_active).length, icon: CheckCircle2, chip: 'bg-success/10 text-success-dark border-success/20' },
     { label: 'Semesters', value: semesters.length, icon: GraduationCap, chip: 'bg-accent-500/10 text-accent-700 border-accent-200' },
     { label: 'Teachers', value: new Set(courses.map((c) => c.teacher_id).filter(Boolean)).size, icon: UserCheck, chip: 'bg-info/10 text-info-dark border-info/20' },
-  ]
+  ], [courses, semesters])
 
   return (
     <div className="p-5 lg:p-8 max-w-5xl mx-auto w-full">
+      {error && (
+        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-danger-light text-danger-dark text-sm font-medium animate-slide-up">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="flex-1">{error}</div>
+          <button onClick={() => setError(null)} className="text-current opacity-50 hover:opacity-100">&times;</button>
+        </div>
+      )}
       {/* Header */}
       <div className="text-center mb-8">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
@@ -127,7 +148,7 @@ export default function ManageCourses() {
       {/* Toolbar: filters + search + action */}
       <div className="border border-surface-200 rounded-xl bg-white p-3 mb-8 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
         <div className="inline-flex gap-1 p-1 bg-navy-900/5 rounded-xl justify-center w-full lg:w-auto self-center">
-          {[{ value: '', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }].map((r) => (
+          {[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }].map((r) => (
             <button key={r.value} onClick={() => setFilter(r.value)}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 filter === r.value
@@ -162,6 +183,7 @@ export default function ManageCourses() {
               <tr className="border-b border-surface-200 bg-surface-50/60">
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Course</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Semester</th>
+                <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Session</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Teacher</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Created</th>
@@ -171,13 +193,13 @@ export default function ManageCourses() {
             <tbody className="divide-y divide-surface-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
+                  <td colSpan={7} className="px-6 py-16 text-center">
                     <div className="w-9 h-9 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin mx-auto" />
                   </td>
                 </tr>
               ) : filteredCourses.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
+                  <td colSpan={7} className="px-6 py-16 text-center">
                     <span className="inline-flex w-12 h-12 rounded-2xl bg-navy-900/5 text-navy-400 border border-navy-900/10 items-center justify-center mb-3">
                       <BookOpen className="w-6 h-6" />
                     </span>
@@ -201,7 +223,7 @@ export default function ManageCourses() {
                     </td>
                     <td className="px-6 py-4">
                       {course.semester ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold bg-accent-500/10 text-accent-700 border border-accent-200">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold bg-accent-500/10 text-accent-700 border border-accent-200 whitespace-nowrap">
                           <GraduationCap className="w-3 h-3" />
                           Semester {course.semester}
                         </span>
@@ -210,12 +232,17 @@ export default function ManageCourses() {
                       )}
                     </td>
                     <td className="px-6 py-4">
+                      <span className="text-2xs font-mono text-navy-500">
+                        {course.session || '—'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
                       {t ? (
                         <div className="flex items-center gap-2">
                           <span className="w-7 h-7 rounded-full bg-gradient-to-br from-info to-info-dark flex items-center justify-center shrink-0">
                             <span className="text-white text-[10px] font-bold">{t.first_name?.[0]}{t.last_name?.[0]}</span>
                           </span>
-                          <span className="text-sm text-navy-600">{t.first_name} {t.last_name}</span>
+                          <span className="text-sm text-navy-600 whitespace-nowrap">{t.first_name} {t.last_name}</span>
                         </div>
                       ) : (
                         <span className="text-xs text-navy-300">Unassigned</span>
@@ -263,7 +290,7 @@ export default function ManageCourses() {
                               link.remove()
                               window.URL.revokeObjectURL(url)
                             } catch {
-                              alert('Failed to download Excel')
+                              setError('Failed to download Excel')
                             } finally {
                               setDownloadingId(null)
                             }
@@ -314,7 +341,13 @@ export default function ManageCourses() {
             <input type="number" value={form.semester} min={1} max={8}
               onChange={(e) => setForm({ ...form, semester: e.target.value })}
               className="input-field" placeholder="1 – 8" required />
-            <p className="text-2xs text-navy-400 mt-1">Students in this semester are auto-enrolled on account verification.</p>
+            <p className="text-2xs text-navy-400 mt-1">Students with matching session and semester can access this course.</p>
+          </div>
+          <div>
+            <label className="input-label">Session year</label>
+            <input value={form.session} onChange={(e) => setForm({ ...form, session: e.target.value })}
+              className="input-field" placeholder="e.g. 23-27" required />
+            <p className="text-2xs text-navy-400 mt-1">e.g. 23-27 means enrollment 2023 to graduation 2027.</p>
           </div>
           <div>
             <label className="input-label">Assigned teacher</label>
@@ -337,6 +370,14 @@ export default function ManageCourses() {
           </div>
         </form>
       </Modal>
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Course"
+        message="Delete this course? This cannot be undone."
+        confirmLabel="Delete Course"
+      />
     </div>
   )
 }

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { coursesAPI, assignmentsAPI, resultsAPI, attendanceAPI } from '../services/api'
+import { parseDate, shortDate, MONTHS } from '../utils/format'
 import {
   BookOpen,
   CalendarClock,
@@ -18,19 +19,6 @@ import {
   X,
 } from 'lucide-react'
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-const parseDate = (value) => {
-  if (!value) return null
-  const d = new Date(value)
-  return isNaN(d.getTime()) ? null : d
-}
-
-const shortDate = (value) => {
-  const d = parseDate(value)
-  return d ? `${d.getDate()} ${MONTHS[d.getMonth()]}` : ''
-}
-
 const examTone = (type) => {
   const t = String(type || '').toLowerCase()
   if (t.includes('final')) return { label: 'Final', chip: 'bg-navy-900 text-white' }
@@ -39,26 +27,26 @@ const examTone = (type) => {
   return { label: 'Midterm', chip: 'bg-amber-100 text-amber-700' }
 }
 
-function CourseCard({ course, meta }) {
+const CourseCard = React.memo(function CourseCard({ course, meta }) {
   const m = meta || { students: 0, sessions: 0, submitted: 0, ungraded: 0 }
   return (
-    <div className="group border border-surface-200 rounded-2xl bg-white overflow-hidden transition-all hover:border-accent-300 hover:shadow-glow">
+    <div className="group border border-surface-200 bg-white hover:border-accent-300 hover:shadow-glow rounded-2xl overflow-hidden transition-all">
       <div className="flex items-center justify-between gap-3 px-5 py-3 bg-navy-950">
         <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white">
           <GraduationCap className="w-3.5 h-3.5 text-accent-400" />
           BSCS
         </span>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-white/10 border border-white/10 text-[11px] font-bold text-accent-300 font-mono tracking-wide">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold font-mono tracking-wide bg-white/10 border border-white/10 text-accent-300">
           {course.session || '—'}
         </span>
       </div>
       <div className="p-5">
         <div className="flex items-center gap-3">
-          <span className="w-11 h-11 shrink-0 rounded-xl bg-navy-800 flex items-center justify-center text-xs font-bold text-white group-hover:bg-accent-500 transition-colors">
+          <span className="w-11 h-11 shrink-0 rounded-xl bg-navy-800 text-white group-hover:bg-accent-500 transition-colors flex items-center justify-center text-xs font-bold">
             {course.course_code.slice(0, 2).toUpperCase()}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-navy-900 truncate group-hover:text-accent-600 transition-colors">{course.title}</p>
+            <p className="text-sm font-semibold truncate text-navy-900 group-hover:text-accent-600 transition-colors">{course.title}</p>
             <p className="text-xs text-navy-400 font-mono mt-0.5">
               {course.course_code}
               {course.semester ? ` · Sem ${course.semester}` : ''}
@@ -103,7 +91,7 @@ function CourseCard({ course, meta }) {
       </div>
     </div>
   )
-}
+})
 
 export default function TeacherDashboard() {
   const { user } = useAuth()
@@ -140,7 +128,7 @@ export default function TeacherDashboard() {
         Promise.all(
           c.data.map(async (course) => {
             try {
-              const s = await coursesAPI.listEnrollments(course.id)
+              const s = await coursesAPI.listCourseStudents(course.id)
               return { courseId: course.id, count: s.data.length }
             } catch {
               return { courseId: course.id, count: 0 }
@@ -240,6 +228,8 @@ export default function TeacherDashboard() {
     year: 'numeric',
   })
 
+  const displayedCourses = courses
+
   const upcoming = assignments
     .map((a) => ({ ...a, due: parseDate(a.due_date) }))
     .filter((a) => a.due && a.due >= new Date().setHours(0, 0, 0, 0))
@@ -252,7 +242,7 @@ export default function TeacherDashboard() {
   const ringTone = subTotal > 0 ? (toReview === 0 ? 'bg-emerald-500' : 'bg-accent-500') : 'bg-surface-200'
 
   const heroStats = [
-    { label: 'My courses', value: courses.length },
+    { label: 'Active courses', value: courses.length },
     { label: 'Assessments', value: assignments.length },
     { label: 'Upcoming', value: upcoming.length },
     { label: 'To review', value: toReview },
@@ -419,12 +409,12 @@ export default function TeacherDashboard() {
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {courses.slice(0, 2).map((course) => (
+                {displayedCourses.slice(0, 2).map((course) => (
                   <CourseCard key={course.id} course={course} meta={courseMeta[course.id]} />
                 ))}
               </div>
             )}
-            {courses.length > 0 && (
+            {displayedCourses.length > 0 && (
               <button
                 onClick={() => setShowCourses(true)}
                 className="mt-3.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-surface-200 py-2.5 text-xs font-semibold text-navy-500 transition-all hover:border-accent-300 hover:text-accent-600 hover:bg-accent-500/5 active:scale-[0.99]"
@@ -583,7 +573,7 @@ export default function TeacherDashboard() {
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-navy-900">All courses</h3>
                 <p className="text-xs text-navy-400 mt-0.5">
-                  {courses.length} course{courses.length === 1 ? '' : 's'} · teaching this term
+                  {displayedCourses.length} course{displayedCourses.length === 1 ? '' : 's'} · teaching this term
                 </p>
               </div>
               <button
@@ -595,9 +585,14 @@ export default function TeacherDashboard() {
               </button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4 p-5">
-              {courses.map((course) => (
+              {displayedCourses.map((course) => (
                 <CourseCard key={course.id} course={course} meta={courseMeta[course.id]} />
               ))}
+              {displayedCourses.length === 0 && (
+                <div className="col-span-full text-center py-10">
+                  <p className="text-sm text-navy-400">No courses</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

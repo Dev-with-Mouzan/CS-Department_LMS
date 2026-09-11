@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { reviewsAPI } from '../services/api'
+import ConfirmDialog from '../components/ConfirmDialog'
 import {
   Star,
   Send,
@@ -23,6 +24,7 @@ export default function MyReview() {
   const [rating, setRating] = useState(0)
   const [hoverRating, setHoverRating] = useState(0)
   const [text, setText] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   useEffect(() => {
     loadReviews()
@@ -92,11 +94,15 @@ export default function MyReview() {
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this review?')) return
+    setDeleteTarget(id)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await reviewsAPI.delete(id)
+      await reviewsAPI.delete(deleteTarget)
       setSuccess('Review deleted.')
-      if (editingId === id) {
+      if (editingId === deleteTarget) {
         setEditingId(null)
         setRating(0)
         setText('')
@@ -106,12 +112,14 @@ export default function MyReview() {
       console.error(err)
       setError('Failed to delete review.')
     }
+    setDeleteTarget(null)
   }
 
   const myReview = reviews.length > 0 ? reviews[0] : null
   const isEditing = editingId !== null
 
   return (
+    <>
     <div className="p-5 lg:p-8 max-w-3xl mx-auto w-full">
       {/* Header */}
       <div className="text-center mb-8">
@@ -190,9 +198,10 @@ export default function MyReview() {
               rows={4}
               placeholder="Tell us about your experience with the LMS..."
               className="input-field resize-none"
+              maxLength={1000}
               required
             />
-            <p className="text-[11px] text-navy-400 mt-1.5">
+            <p className={`text-[11px] mt-1.5 ${text.length > 1000 ? 'text-red-500' : 'text-navy-400'}`}>
               {text.length}/1000 characters
             </p>
           </div>
@@ -300,5 +309,14 @@ export default function MyReview() {
         </div>
       ) : null}
     </div>
+    <ConfirmDialog
+      isOpen={!!deleteTarget}
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={confirmDelete}
+      title="Delete Review"
+      message="Are you sure you want to delete this review? This cannot be undone."
+      confirmLabel="Delete"
+    />
+    </>
   )
 }

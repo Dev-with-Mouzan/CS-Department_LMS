@@ -452,7 +452,7 @@ function AssignmentList({ items, courseCode, openId, setOpenId, uploading, onFil
                     <div>
                       <p className="text-[11px] font-bold text-navy-400 uppercase tracking-wider mb-1.5">Teacher's attachment</p>
                       <a
-                        href={`/uploads/${a.attachment_url.replace(/^uploads[\\/]/, '')}`}
+                        href={`/api/files/${a.attachment_url.replace(/^uploads[\\/]/, '')}?token=${localStorage.getItem('token')}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-500/10 border border-accent-200 text-accent-700 text-xs font-semibold hover:bg-accent-500/20 transition-colors"
@@ -551,6 +551,7 @@ function QuizCard({ quiz, courseCode }) {
   const [detail, setDetail] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [answers, setAnswers] = useState({})
+  const [submissionFile, setSubmissionFile] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
@@ -582,15 +583,35 @@ function QuizCard({ quiz, courseCode }) {
     setAnswers((prev) => ({ ...prev, [questionId]: index }))
   }
 
+  const isDocumentOnly = detail && detail.questions.length === 0 && quiz.attachment_url
+
   const handleSubmit = async () => {
-    if (!detail || !detail.questions) return
-    // Check all questions answered
+    if (!detail) return
+    setError('')
+
+    if (isDocumentOnly) {
+      if (!submissionFile) {
+        setError('Please upload your submission file.')
+        return
+      }
+      setSubmitting(true)
+      try {
+        const res = await quizzesAPI.submitFile(quiz.id, submissionFile)
+        setResult(res.data)
+      } catch (err) {
+        setError(err.response?.data?.detail || 'Failed to submit')
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
+    if (!detail.questions) return
     const unanswered = detail.questions.filter((q) => answers[q.id] === undefined)
     if (unanswered.length > 0) {
       setError(`Please answer all ${detail.questions.length} questions before submitting.`)
       return
     }
-    setError('')
     setSubmitting(true)
     try {
       const payload = detail.questions.map((q) => ({
@@ -685,6 +706,18 @@ function QuizCard({ quiz, courseCode }) {
         <div className="border-t border-surface-100 p-4 sm:p-5 space-y-4">
           {quiz.description && (
             <p className="text-sm text-navy-700 leading-relaxed whitespace-pre-wrap">{quiz.description}</p>
+          )}
+
+          {quiz.attachment_url && (
+            <a
+              href={`/api/files/${quiz.attachment_url}?token=${localStorage.getItem('token')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-accent-600 hover:text-accent-700 font-medium"
+            >
+              <Paperclip className="w-4 h-4" />
+              {quiz.attachment_name || 'Download attachment'}
+            </a>
           )}
 
           {loadingDetail ? (
@@ -823,6 +856,38 @@ function QuizCard({ quiz, courseCode }) {
                 <p className="text-sm text-navy-400 text-center py-4">No questions available for this quiz.</p>
               )}
 
+              {isDocumentOnly && !result && (
+                <div className="space-y-3">
+                  <p className="text-sm text-navy-600 font-medium">Upload your submission:</p>
+                  <input
+                    type="file"
+                    onChange={(e) => setSubmissionFile(e.target.files[0])}
+                    className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent-500 file:text-white file:cursor-pointer"
+                  />
+                  {submissionFile && (
+                    <p className="text-xs text-navy-500 flex items-center gap-1.5">
+                      <Paperclip className="w-3 h-3" />
+                      {submissionFile.name}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {isDocumentOnly && result && result.submission_url && (
+                <div className="space-y-2">
+                  <p className="text-sm text-navy-600 font-medium">Your submission:</p>
+                  <a
+                    href={`/api/files/${result.submission_url}?token=${localStorage.getItem('token')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-accent-600 hover:text-accent-700 font-medium"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                    {result.submission_name || 'Download submission'}
+                  </a>
+                </div>
+              )}
+
               {isExpired && (
                 <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-xs font-semibold">
                   <Clock className="w-4 h-4 shrink-0" />
@@ -830,11 +895,14 @@ function QuizCard({ quiz, courseCode }) {
                 </div>
               )}
 
-              {detail && detail.questions.length > 0 && !isExpired && (
+              {((detail && detail.questions.length > 0) || isDocumentOnly) && !isExpired && !result && (
                 <div className="flex items-center justify-between pt-2">
-                  <p className="text-xs text-navy-400">
-                    {Object.keys(answers).length} of {detail.questions.length} answered
-                  </p>
+                  {detail && detail.questions.length > 0 && (
+                    <p className="text-xs text-navy-400">
+                      {Object.keys(answers).length} of {detail.questions.length} answered
+                    </p>
+                  )}
+                  {isDocumentOnly && <p />}
                   <button
                     onClick={handleSubmit}
                     disabled={submitting}
@@ -848,7 +916,7 @@ function QuizCard({ quiz, courseCode }) {
                     ) : (
                       <>
                         <CheckCircle2 className="w-4 h-4" />
-                        Submit Quiz
+                        {isDocumentOnly ? 'Submit File' : 'Submit Quiz'}
                       </>
                     )}
                   </button>

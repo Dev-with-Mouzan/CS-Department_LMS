@@ -1,14 +1,14 @@
 import io
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Request,  APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, func
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_teacher, require_student
 from app.models import (
-    User, Course, Enrollment, StudentProfile,
+    User, Course, StudentProfile,
     AttendanceSession, AttendanceRecord
 )
 from app.schemas.attendance import (
@@ -17,14 +17,16 @@ from app.schemas.attendance import (
     AttendancePercentageOut
 )
 from app.services.attendance_excel import generate_attendance_excel
-from app.routers.courses import _attach_sessions
+from app.routers.courses import student_has_access, get_student_courses
+from app.dependencies.ratelimit import limiter
 
 router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
 
 
 # ── Attendance Sessions ───────────────────────────────
+@limiter.limit("30/minute")
 @router.post("/sessions", response_model=AttendanceSessionOut, status_code=status.HTTP_201_CREATED)
-def create_session(
+def create_session(request: Request, 
     data: AttendanceSessionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_teacher),
@@ -35,6 +37,8 @@ def create_session(
         raise HTTPException(status_code=404, detail="Course not found")
     if course.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
+    if not course.is_active:
+        raise HTTPException(status_code=400, detail="Cannot create attendance for an archived course")
 
     existing = db.query(AttendanceSession).filter(
         AttendanceSession.course_id == data.course_id,
@@ -59,34 +63,45 @@ def create_session(
     return session
 
 
+@limiter.limit("30/minute")
 @router.get("/sessions", response_model=List[AttendanceSessionOut])
-def list_sessions(
+def list_sessions(request: Request, 
     course_id: str = None,
+    skip: int = 0,
+    limit: int = 100,
+    active: bool = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List attendance sessions."""
+    """List attendance sessions. active=true returns only active course sessions, active=false returns inactive."""
     role = current_user.role.name
     query = db.query(AttendanceSession)
 
     if role == "teacher":
-        query = query.filter(AttendanceSession.teacher_id == current_user.id)
+        from app.routers.courses import get_teacher_course_ids
+        teacher_course_ids = get_teacher_course_ids(db, current_user.id)
+        if not teacher_course_ids:
+            return []
+        query = query.filter(AttendanceSession.course_id.in_(teacher_course_ids))
     elif role == "student":
-        enrolled_ids = select(Enrollment.course_id).filter(
-            Enrollment.student_id == current_user.id,
-            Enrollment.status == "active",
-        )
-        query = query.filter(AttendanceSession.course_id.in_(enrolled_ids))
+        student_course_ids = [c.id for c in get_student_courses(db, current_user)]
+        query = query.filter(AttendanceSession.course_id.in_(student_course_ids))
 
     if course_id:
         query = query.filter(AttendanceSession.course_id == course_id)
 
-    return query.order_by(AttendanceSession.session_date.desc()).all()
+    if active is not None:
+        from app.models.models import Course
+        subq = db.query(Course.id).filter(Course.is_active == active).subquery()
+        query = query.filter(AttendanceSession.course_id.in_(subq))
+
+    return query.order_by(AttendanceSession.session_date.desc()).offset(skip).limit(limit).all()
 
 
 # ── Attendance Records ────────────────────────────────
+@limiter.limit("30/minute")
 @router.post("/sessions/{session_id}/records", response_model=List[AttendanceRecordOut])
-def mark_attendance(
+def mark_attendance(request: Request, 
     session_id: str,
     data: AttendanceRecordBulk,
     db: Session = Depends(get_db),
@@ -99,22 +114,24 @@ def mark_attendance(
     if session.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    course = db.query(Course).filter(Course.id == session.course_id).first()
     records = []
+
+    student_ids = [record_data.student_id for record_data in data.records]
+    students_map = {u.id: u for u in db.query(User).filter(User.id.in_(student_ids)).all()} if student_ids else {}
+    existing_records = {
+        r.student_id: r for r in db.query(AttendanceRecord).filter(
+            AttendanceRecord.session_id == session_id,
+            AttendanceRecord.student_id.in_(student_ids),
+        ).all()
+    } if student_ids else {}
+
     for record_data in data.records:
-        # Verify student is enrolled in the course
-        enrollment = db.query(Enrollment).filter(
-            Enrollment.student_id == record_data.student_id,
-            Enrollment.course_id == session.course_id,
-            Enrollment.status == "active",
-        ).first()
-        if not enrollment:
+        student_user = students_map.get(record_data.student_id)
+        if not student_user or not student_has_access(db, student_user, course):
             continue
 
-        # Check if record already exists
-        existing = db.query(AttendanceRecord).filter(
-            AttendanceRecord.session_id == session_id,
-            AttendanceRecord.student_id == record_data.student_id,
-        ).first()
+        existing = existing_records.get(record_data.student_id)
 
         if existing:
             existing.status = record_data.status
@@ -135,8 +152,9 @@ def mark_attendance(
     return records
 
 
+@limiter.limit("30/minute")
 @router.get("/sessions/{session_id}/records", response_model=List[AttendanceRecordOut])
-def get_session_records(
+def get_session_records(request: Request, 
     session_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -162,8 +180,9 @@ def get_session_records(
 
 
 # ── Attendance Matrix (View/Export for admin) ────────
+@limiter.limit("30/minute")
 @router.get("/course/{course_id}/matrix")
-def get_course_attendance_matrix(
+def get_course_attendance_matrix(request: Request, 
     course_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -185,10 +204,20 @@ def get_course_attendance_matrix(
         .all()
     )
 
-    enrollments = db.query(Enrollment).filter(
-        Enrollment.course_id == course_id,
-        Enrollment.status == "active",
+    # Get students who have access to this course (session+semester match)
+    all_students = db.query(StudentProfile).filter(
+        StudentProfile.semester == course.semester,
+        StudentProfile.enrollment_year.isnot(None),
     ).all()
+
+    all_user_ids = {sp.user_id for sp in all_students}
+    users_map = {u.id: u for u in db.query(User).filter(User.id.in_(all_user_ids)).all()} if all_user_ids else {}
+
+    enrolled_students = []
+    for sp in all_students:
+        student_user = users_map.get(sp.user_id)
+        if student_user and student_has_access(db, student_user, course):
+            enrolled_students.append(sp)
 
     records = db.query(AttendanceRecord).join(AttendanceSession).filter(
         AttendanceSession.course_id == course_id,
@@ -209,12 +238,11 @@ def get_course_attendance_matrix(
     ]
 
     students_out = []
-    for e in enrollments:
-        student = db.query(User).filter(User.id == e.student_id).first()
-        profile = db.query(StudentProfile).filter(StudentProfile.user_id == e.student_id).first()
+    for sp in enrolled_students:
+        student = users_map.get(sp.user_id)
         student_name = f"{student.first_name} {student.last_name}".strip() if student else "Unknown"
-        roll_number = profile.roll_number if profile else None
-        student_id = e.student_id
+        roll_number = sp.roll_number
+        student_id = sp.user_id
 
         present = late = absent = excused = 0
         for s in sessions:
@@ -244,8 +272,6 @@ def get_course_attendance_matrix(
 
     students_out.sort(key=lambda s: (s["roll_number"] or "zzz"))
 
-    _attach_sessions(db, [course])
-
     return {
         "course": {
             "id": course.id,
@@ -261,8 +287,9 @@ def get_course_attendance_matrix(
 
 
 # ── Excel Export ─────────────────────────────────────
+@limiter.limit("30/minute")
 @router.get("/export/{course_id}")
-def export_attendance_excel(
+def export_attendance_excel(request: Request, 
     course_id: str,
     year: int,
     month: int,
@@ -300,8 +327,9 @@ def export_attendance_excel(
 
 
 # ── Attendance Percentage ─────────────────────────────
+@limiter.limit("30/minute")
 @router.get("/student/{student_id}/course/{course_id}", response_model=AttendancePercentageOut)
-def get_attendance_percentage(
+def get_attendance_percentage(request: Request, 
     student_id: str,
     course_id: str,
     db: Session = Depends(get_db),
@@ -314,14 +342,11 @@ def get_attendance_percentage(
     if role == "student" and str(current_user.id) != student_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Verify enrollment
-    enrollment = db.query(Enrollment).filter(
-        Enrollment.student_id == student_id,
-        Enrollment.course_id == course_id,
-        Enrollment.status == "active",
-    ).first()
-    if not enrollment:
-        raise HTTPException(status_code=404, detail="Student not enrolled in this course")
+    # Verify access via session+semester
+    course = db.query(Course).filter(Course.id == course_id).first()
+    student_user = db.query(User).filter(User.id == student_id).first()
+    if not course or not student_user or not student_has_access(db, student_user, course):
+        raise HTTPException(status_code=404, detail="Student not found in this course")
 
     # Total sessions for this course
     total_sessions = db.query(func.count(AttendanceSession.id)).filter(
@@ -334,7 +359,7 @@ def get_attendance_percentage(
     ).filter(
         AttendanceSession.course_id == course_id,
         AttendanceRecord.student_id == student_id,
-        AttendanceRecord.status == "present",
+        AttendanceRecord.status.in_(["present", "late"]),
     ).scalar()
 
     percentage = (present_count / total_sessions * 100) if total_sessions > 0 else 0.0

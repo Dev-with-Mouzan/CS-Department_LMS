@@ -1,28 +1,21 @@
 import { useState, useEffect } from 'react'
-import { resultsAPI, coursesAPI } from '../services/api'
+import api, { resultsAPI, coursesAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
+import ConfirmDialog from '../components/ConfirmDialog'
+import { ordinal, semLabel } from '../utils/format'
 import {
   Trophy, FileText, GraduationCap, ScrollText, PlusCircle, Trash2,
-  Download, BookOpen, TrendingDown, TrendingUp, ChevronRight, ChevronLeft,
+  Download, BookOpen, TrendingDown, TrendingUp, ChevronRight, ChevronLeft, AlertTriangle,
 } from 'lucide-react'
 
 const tabs = [
   { id: 'midterm', label: 'Mid-Term', icon: FileText },
-  { id: 'final', label: 'Final Year', icon: GraduationCap },
+  { id: 'final', label: 'Final Term', icon: GraduationCap },
   { id: 'complete', label: 'Complete Result', icon: ScrollText },
 ]
 
-const examLabels = { midterm: 'Mid-Term', final: 'Final Year', complete: 'Complete Result' }
-
-const ordinal = (n) => {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
-}
-
-const semLabel = (semKey) =>
-  semKey === 'other' ? 'General' : `${ordinal(Number(semKey))} Semester`
+const examLabels = { midterm: 'Mid-Term', final: 'Final Term', complete: 'Complete Result' }
 
 export default function Results() {
   const [tab, setTab] = useState('midterm')
@@ -39,6 +32,8 @@ export default function Results() {
   const [resultFile, setResultFile] = useState(null)
   const [activeSemester, setActiveSemester] = useState(null)
   const [activeCourse, setActiveCourse] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     setLoading(true)
@@ -61,7 +56,7 @@ export default function Results() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!resultFile || !worstPaper || !bestPaper) {
-      alert('Please upload the complete result, best paper and worst paper')
+      setError('Please upload the complete result, best paper and worst paper')
       return
     }
     setSubmitting(true)
@@ -78,32 +73,39 @@ export default function Results() {
       const res = await resultsAPI.list()
       setAllResults(res.data)
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to add result')
+      setError(err.response?.data?.detail || 'Failed to add result')
     } finally { setSubmitting(false) }
   }
 
   const handleDelete = async (r) => {
-    if (!confirm(`Delete "${r.title}"?`)) return
+    setDeleteTarget(r)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await resultsAPI.delete(r.id)
-      setAllResults(allResults.filter(x => x.id !== r.id))
-    } catch { alert('Failed') }
+      await resultsAPI.delete(deleteTarget.id)
+      setAllResults(allResults.filter(x => x.id !== deleteTarget.id))
+    } catch { setError('Failed to delete result') }
+    setDeleteTarget(null)
   }
 
   const handleDownload = async (url, fileName) => {
     try {
-      const response = await fetch(`/${url}`)
-      const blob = await response.blob()
-      const downloadUrl = window.URL.createObjectURL(blob)
+      const fileUrl = url.replace(/^uploads[\\/]/, 'files/')
+      const downloadUrl = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`
+      const response = await api.get(downloadUrl, { responseType: 'blob' })
+      const blob = new Blob([response.data])
+      const blobUrl = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = downloadUrl
+      link.href = blobUrl
       link.download = fileName || url.split('/').pop()
       document.body.appendChild(link)
       link.click()
       link.remove()
-      window.URL.revokeObjectURL(downloadUrl)
-    } catch (err) {
-      window.open(`/${url}`, '_blank')
+      window.URL.revokeObjectURL(blobUrl)
+    } catch {
+      window.open(url.startsWith('/') ? url : `/${url}`, '_blank', 'noopener,noreferrer')
     }
   }
 
@@ -147,7 +149,15 @@ export default function Results() {
   })
 
   return (
+    <>
     <div className="p-5 lg:p-8 max-w-5xl mx-auto">
+      {error && (
+        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-danger-light text-danger-dark text-sm font-medium animate-slide-up">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="flex-1">{error}</div>
+          <button onClick={() => setError(null)} className="text-current opacity-50 hover:opacity-100">&times;</button>
+        </div>
+      )}
       {/* Header */}
       <div className="text-center mb-6">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
@@ -318,7 +328,7 @@ export default function Results() {
 
           <div>
             <label className="input-label">Complete result <span className="text-red-500">*</span></label>
-            <input type="file" onChange={(e) => setResultFile(e.target.files[0])}
+            <input type="file" onChange={(e) => setResultFile(e.target.files[0])} required
               className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent-500 file:text-white file:cursor-pointer" />
             <p className="text-[10px] text-navy-400 mt-1">Main result sheet for this exam.</p>
           </div>
@@ -326,13 +336,13 @@ export default function Results() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="input-label">Best paper <span className="text-red-500">*</span></label>
-              <input type="file" onChange={(e) => setBestPaper(e.target.files[0])}
+              <input type="file" onChange={(e) => setBestPaper(e.target.files[0])} required
                 className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-500 file:text-white file:cursor-pointer" />
               <p className="text-[10px] text-navy-400 mt-1">Best performing answer script.</p>
             </div>
             <div>
               <label className="input-label">Worst paper <span className="text-red-500">*</span></label>
-              <input type="file" onChange={(e) => setWorstPaper(e.target.files[0])}
+              <input type="file" onChange={(e) => setWorstPaper(e.target.files[0])} required
                 className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-red-500 file:text-white file:cursor-pointer" />
               <p className="text-[10px] text-navy-400 mt-1">Weakest performing answer script.</p>
             </div>
@@ -371,6 +381,15 @@ export default function Results() {
         </form>
       </Modal>
     </div>
+    <ConfirmDialog
+      isOpen={!!deleteTarget}
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={confirmDelete}
+      title="Delete Result"
+      message={`Delete "${deleteTarget?.title}"? This cannot be undone.`}
+      confirmLabel="Delete"
+    />
+    </>
   )
 }
 

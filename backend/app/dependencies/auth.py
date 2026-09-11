@@ -32,6 +32,7 @@ def create_access_token(user_id: str, role_name: str, is_verified: bool) -> str:
         "role": role_name,
         "is_verified": is_verified,
         "exp": expire,
+        "iat": datetime.now(timezone.utc).replace(tzinfo=None),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 

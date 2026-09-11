@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.schemas.common import UTCDateTime
 
@@ -34,6 +34,19 @@ class UserCreate(UserBase):
     semester: Optional[int] = None
     enrollment_year: Optional[int] = None
 
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain an uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain a lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain a digit")
+        return v
+
     @field_validator("phone")
     @classmethod
     def phone_must_be_pakistani(cls, v):
@@ -61,15 +74,6 @@ class UserUpdate(BaseModel):
     is_verified: Optional[bool] = None
     semester: Optional[int] = None
 
-    @field_validator("email")
-    @classmethod
-    def email_must_be_gmail(cls, v):
-        if v is not None:
-            if not v.lower().endswith("@gmail.com"):
-                raise ValueError("Email must be a valid @gmail.com address")
-            return v.lower()
-        return v
-
     @field_validator("phone")
     @classmethod
     def phone_must_be_pakistani(cls, v):
@@ -88,15 +92,6 @@ class TeacherUpdate(BaseModel):
     employee_id: Optional[str] = None
     department: Optional[str] = None
     qualification: Optional[str] = None
-
-    @field_validator("email")
-    @classmethod
-    def email_must_be_gmail(cls, v):
-        if v is not None:
-            if not v.lower().endswith("@gmail.com"):
-                raise ValueError("Email must be a valid @gmail.com address")
-            return v.lower()
-        return v
 
     @field_validator("phone")
     @classmethod
@@ -119,10 +114,6 @@ class UserOut(UserBase):
         from_attributes = True
 
 
-class UserWithRole(UserOut):
-    role: RoleOut
-
-
 # ── Student Profile ───────────────────────────────────
 class StudentProfileOut(BaseModel):
     id: str
@@ -131,10 +122,35 @@ class StudentProfileOut(BaseModel):
     department: Optional[str] = None
     semester: Optional[int] = None
     enrollment_year: Optional[int] = None
+    session: Optional[str] = None
+    roll_number: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
+class UserWithRole(UserOut):
+    role: RoleOut
+    student_profile: Optional[StudentProfileOut] = None
+
+
 class PasswordResetBody(BaseModel):
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain an uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain a lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain a digit")
+        return v
+
+
+class PromotionRequest(BaseModel):
+    student_ids: list[str]
+    to_semester: int = Field(..., ge=1, le=8)

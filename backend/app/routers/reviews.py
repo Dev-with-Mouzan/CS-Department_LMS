@@ -1,24 +1,22 @@
-import random
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Request,  APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, require_admin
 from app.models import User, Review, StudentProfile
 from app.schemas.review import ReviewCreate, ReviewOut
+from app.dependencies.ratelimit import limiter
 
 router = APIRouter(prefix="/api/reviews", tags=["Reviews"])
 
 
-def _review_out(review: Review, db: Session) -> dict:
+def _review_out(review: Review, users: dict, profiles: dict) -> dict:
     """Build review response with user info."""
-    user = db.query(User).filter(User.id == review.user_id).first()
-    profile = db.query(StudentProfile).filter(
-        StudentProfile.user_id == review.user_id
-    ).first() if user else None
+    user = users.get(review.user_id)
+    profile = profiles.get(review.user_id)
     return {
         "id": review.id,
         "user_id": review.user_id,
@@ -31,8 +29,17 @@ def _review_out(review: Review, db: Session) -> dict:
     }
 
 
+def _prefetch_reviews(db: Session, reviews: list) -> tuple:
+    """Prefetch users and profiles for a list of reviews."""
+    user_ids = list({r.user_id for r in reviews})
+    users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
+    profiles = {p.user_id: p for p in db.query(StudentProfile).filter(StudentProfile.user_id.in_(user_ids)).all()} if user_ids else {}
+    return users, profiles
+
+
+@limiter.limit("30/minute")
 @router.get("/public", response_model=List[ReviewOut])
-def list_public_reviews(
+def list_public_reviews(request: Request, 
     limit: int = 6,
     db: Session = Depends(get_db),
 ):
@@ -44,11 +51,15 @@ def list_public_reviews(
         .limit(limit)
         .all()
     )
-    return [_review_out(r, db) for r in reviews]
+    user_ids = list({r.user_id for r in reviews})
+    users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
+    profiles = {p.user_id: p for p in db.query(StudentProfile).filter(StudentProfile.user_id.in_(user_ids)).all()} if user_ids else {}
+    return [_review_out(r, users, profiles) for r in reviews]
 
 
+@limiter.limit("30/minute")
 @router.get("/", response_model=List[ReviewOut])
-def list_my_reviews(
+def list_my_reviews(request: Request, 
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -59,11 +70,13 @@ def list_my_reviews(
         .order_by(Review.created_at.desc())
         .all()
     )
-    return [_review_out(r, db) for r in reviews]
+    users, profiles = _prefetch_reviews(db, reviews)
+    return [_review_out(r, users, profiles) for r in reviews]
 
 
+@limiter.limit("30/minute")
 @router.post("/", response_model=ReviewOut, status_code=status.HTTP_201_CREATED)
-def create_review(
+def create_review(request: Request, 
     data: ReviewCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -90,16 +103,18 @@ def create_review(
         user_id=current_user.id,
         rating=data.rating,
         text=data.text,
-        is_approved=True,
+        is_approved=False,
     )
     db.add(review)
     db.commit()
     db.refresh(review)
-    return _review_out(review, db)
+    users, profiles = _prefetch_reviews(db, [review])
+    return _review_out(review, users, profiles)
 
 
+@limiter.limit("30/minute")
 @router.put("/{review_id}", response_model=ReviewOut)
-def update_review(
+def update_review(request: Request,
     review_id: str,
     data: ReviewCreate,
     db: Session = Depends(get_db),
@@ -114,14 +129,15 @@ def update_review(
 
     review.rating = data.rating
     review.text = data.text
-    review.is_approved = True
     db.commit()
     db.refresh(review)
-    return _review_out(review, db)
+    users, profiles = _prefetch_reviews(db, [review])
+    return _review_out(review, users, profiles)
 
 
+@limiter.limit("30/minute")
 @router.delete("/{review_id}")
-def delete_review(
+def delete_review(request: Request, 
     review_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -136,3 +152,47 @@ def delete_review(
     db.delete(review)
     db.commit()
     return {"message": "Review deleted successfully"}
+
+
+@limiter.limit("30/minute")
+@router.get("/all", response_model=List[ReviewOut])
+def list_all_reviews(request: Request,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """List all reviews for admin moderation."""
+    reviews = db.query(Review).order_by(Review.created_at.desc()).offset(skip).limit(limit).all()
+    users, profiles = _prefetch_reviews(db, reviews)
+    return [_review_out(r, users, profiles) for r in reviews]
+
+
+@router.put("/{review_id}/approve")
+def approve_review(request: Request,
+    review_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Approve or reject a review."""
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    review.is_approved = True
+    db.commit()
+    return {"message": "Review approved"}
+
+
+@router.put("/{review_id}/reject")
+def reject_review(request: Request,
+    review_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Reject (unapprove) a review."""
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    review.is_approved = False
+    db.commit()
+    return {"message": "Review rejected"}

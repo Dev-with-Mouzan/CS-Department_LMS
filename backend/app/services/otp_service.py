@@ -1,4 +1,4 @@
-import random
+import secrets
 import string
 from datetime import timedelta
 
@@ -12,15 +12,16 @@ from app.services.sms_service import send_otp_sms
 
 def generate_otp(length: int = 6) -> str:
     """Generate a random numeric OTP code."""
-    return "".join(random.choices(string.digits, k=length))
+    return "".join(secrets.choice(string.digits) for _ in range(length))
 
 
-def create_otp(db: Session, user: User):
-    """Create a new OTP record for a user and send it via SMS."""
-    # Invalidate any existing unused OTPs for this user
+def create_otp(db: Session, user: User, purpose: str = "registration", send_sms: bool = True):
+    """Create a new OTP record for a user and optionally send it via SMS."""
+    # Invalidate any existing unused OTPs for this user with the same purpose
     db.query(OTPVerification).filter(
         OTPVerification.user_id == user.id,
         OTPVerification.is_used == False,
+        OTPVerification.purpose == purpose,
     ).update({"is_used": True})
     db.flush()
 
@@ -31,23 +32,25 @@ def create_otp(db: Session, user: User):
         expires_at=utcnow() + timedelta(minutes=settings.OTP_EXPIRE_MINUTES),
         attempts=0,
         is_used=False,
+        purpose=purpose,
     )
     db.add(otp_record)
     db.commit()
     db.refresh(otp_record)
 
-    # Send OTP via SMS to the user's phone number
-    if user.phone:
+    # Send OTP via SMS to the user's phone number (caller can defer via BackgroundTasks)
+    if send_sms and user.phone:
         send_otp_sms(user.phone, otp_code)
 
     return otp_record, otp_code
 
 
-def verify_otp(db: Session, user: User, otp_code: str) -> bool:
+def verify_otp(db: Session, user: User, otp_code: str, purpose: str = "registration") -> bool:
     """Verify an OTP code for a user."""
     otp_record = db.query(OTPVerification).filter(
         OTPVerification.user_id == user.id,
         OTPVerification.is_used == False,
+        OTPVerification.purpose == purpose,
     ).order_by(OTPVerification.created_at.desc()).first()
 
     if not otp_record:
@@ -80,10 +83,11 @@ def verify_otp(db: Session, user: User, otp_code: str) -> bool:
     return False
 
 
-def can_resend_otp(db: Session, user: User) -> bool:
+def can_resend_otp(db: Session, user: User, purpose: str = "registration") -> bool:
     """Check if user can request a new OTP (cooldown check)."""
     recent = db.query(OTPVerification).filter(
         OTPVerification.user_id == user.id,
-        OTPVerification.created_at >= utcnow() - timedelta(minutes=1),
+        OTPVerification.created_at >= utcnow() - timedelta(minutes=2),
+        OTPVerification.purpose == purpose,
     ).first()
     return recent is None

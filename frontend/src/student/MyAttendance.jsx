@@ -190,7 +190,7 @@ function SubjectGrid({ courses, summary, onPick }) {
     return (
       <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
         <BookOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-        <p className="text-sm text-navy-400">No courses enrolled yet.</p>
+        <p className="text-sm text-navy-400">No courses available yet.</p>
       </div>
     )
   }

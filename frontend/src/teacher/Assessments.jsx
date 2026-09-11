@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { parseDate, shortDate, MONTHS } from '../utils/format'
 import {
   ClipboardList,
   HelpCircle,
@@ -18,39 +19,24 @@ import {
   Inbox,
   GraduationCap,
   BookOpen,
+  Copy,
+  Check,
+  ArrowRight,
 } from 'lucide-react'
-import { assignmentsAPI, quizzesAPI, coursesAPI } from '../services/api'
+import { assignmentsAPI, quizzesAPI, coursesAPI, materialsAPI } from '../services/api'
+import { ordinal, semLabel } from '../utils/format'
 import CreateAssignment from './CreateAssignment'
 import CreateQuiz from './CreateQuiz'
+import Modal from '../components/Modal'
+import Button from '../components/Button'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 const tabs = [
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: HelpCircle },
 ]
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-const parseDate = (value) => {
-  if (!value) return null
-  const d = new Date(value)
-  return isNaN(d.getTime()) ? null : d
-}
-
-const shortDate = (value) => {
-  const d = parseDate(value)
-  return d ? `${d.getDate()} ${MONTHS[d.getMonth()]}` : '—'
-}
-
-const ordinal = (n) => {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
-}
-
-const semLabel = (semKey) =>
-  semKey === 'other' ? 'General' : `${ordinal(Number(semKey))} Semester`
-
-function Chip({ icon: Icon, children, tone = 'default' }) {
+const Chip = React.memo(function Chip({ icon: Icon, children, tone = 'default' }) {
   const tones = {
     default: 'bg-surface-50 text-navy-500 border-surface-100',
     amber: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -64,7 +50,7 @@ function Chip({ icon: Icon, children, tone = 'default' }) {
       {children}
     </span>
   )
-}
+})
 
 export default function Assessments() {
   const [tab, setTab] = useState('assignments')
@@ -80,6 +66,16 @@ export default function Assessments() {
   const [showCreate, setShowCreate] = useState(false)
   const [activeSemester, setActiveSemester] = useState(null)
   const [activeCourse, setActiveCourse] = useState(null)
+  const [showReuseModal, setShowReuseModal] = useState(false)
+  const [reuseStep, setReuseStep] = useState(1)
+  const [reuseSources, setReuseSources] = useState([])
+  const [selectedSource, setSelectedSource] = useState(null)
+  const [sourceItems, setSourceItems] = useState({ materials: [], assignments: [], quizzes: [] })
+  const [selectedItems, setSelectedItems] = useState({ materials: [], assignments: [], quizzes: [] })
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [reuseLoading, setReuseLoading] = useState(false)
+  const [reuseSubmitting, setReuseSubmitting] = useState(false)
+  const [showAllPastCourses, setShowAllPastCourses] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -145,21 +141,25 @@ export default function Assessments() {
   }
 
   const handleDelete = async (type, id) => {
-    if (type === 'assignment') {
-      if (!window.confirm('Delete this assignment? All student submissions will be removed.')) return
-    } else {
-      if (!window.confirm('Delete this quiz? This cannot be undone.')) return
-    }
-    setDeleting(id)
+    const msg = type === 'assignment'
+      ? 'Delete this assignment? All student submissions will be removed.'
+      : 'Delete this quiz? This cannot be undone.'
+    setDeleteTarget({ type, id, message: msg })
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(deleteTarget.id)
     try {
-      if (type === 'assignment') await assignmentsAPI.delete(id)
-      else await quizzesAPI.delete(id)
+      if (deleteTarget.type === 'assignment') await assignmentsAPI.delete(deleteTarget.id)
+      else await quizzesAPI.delete(deleteTarget.id)
       setExpandedQuiz(null)
       load()
     } catch (err) {
       window.alert(err.response?.data?.detail || 'Delete failed')
     } finally {
       setDeleting(null)
+      setDeleteTarget(null)
     }
   }
 
@@ -174,6 +174,88 @@ export default function Assessments() {
     setActiveCourse(null)
     setShowCreate(false)
     setExpandedQuiz(null)
+  }
+
+  const fetchReuseSources = async (showAll = false) => {
+    if (!activeCourse) return
+    setReuseLoading(true)
+    try {
+      const res = await coursesAPI.reusable(activeCourse.id, showAll)
+      setReuseSources(res.data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setReuseLoading(false)
+    }
+  }
+
+  const openReuseModal = async () => {
+    if (!activeCourse) return
+    setShowAllPastCourses(false)
+    setReuseStep(1)
+    setSelectedSource(null)
+    setSourceItems({ materials: [], assignments: [], quizzes: [] })
+    setSelectedItems({ materials: [], assignments: [], quizzes: [] })
+    setShowReuseModal(true)
+    await fetchReuseSources(false)
+  }
+
+  const selectSourceCourse = async (source) => {
+    setSelectedSource(source)
+    setReuseStep(2)
+    setReuseLoading(true)
+    try {
+      const [mats, asgs, qzs] = await Promise.all([
+        materialsAPI.list({ course_id: source.id }),
+        assignmentsAPI.list({ course_id: source.id }),
+        quizzesAPI.list({ course_id: source.id }),
+      ])
+      setSourceItems({
+        materials: mats.data || [],
+        assignments: asgs.data || [],
+        quizzes: qzs.data || [],
+      })
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setReuseLoading(false)
+    }
+  }
+
+  const toggleItem = (type, id) => {
+    setSelectedItems(prev => {
+      const list = prev[type]
+      const next = list.includes(id) ? list.filter(x => x !== id) : [...list, id]
+      return { ...prev, [type]: next }
+    })
+  }
+
+  const toggleAll = (type, ids) => {
+    setSelectedItems(prev => {
+      const allSelected = ids.every(id => prev[type].includes(id))
+      return { ...prev, [type]: allSelected ? [] : [...ids] }
+    })
+  }
+
+  const handleReuse = async () => {
+    if (!activeCourse || !selectedSource) return
+    const total = selectedItems.materials.length + selectedItems.assignments.length + selectedItems.quizzes.length
+    if (total === 0) { alert('Please select at least one item to reuse.'); return }
+    setReuseSubmitting(true)
+    try {
+      await coursesAPI.reuse(activeCourse.id, {
+        source_course_id: selectedSource.id,
+        materials: selectedItems.materials,
+        assignments: selectedItems.assignments,
+        quizzes: selectedItems.quizzes,
+      })
+      setShowReuseModal(false)
+      load()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to reuse items')
+    } finally {
+      setReuseSubmitting(false)
+    }
   }
 
   const semesters = Object.values(
@@ -210,6 +292,7 @@ export default function Assessments() {
   const activeTab = tabs.find((t) => t.id === tab)
 
   return (
+    <>
     <div className="p-5 lg:p-8 max-w-4xl mx-auto">
       {/* Header */}
       <div className="text-center mb-6">
@@ -377,6 +460,13 @@ export default function Assessments() {
                       <Plus className="w-4 h-4" />
                       New {tab === 'assignments' ? 'Assignment' : 'Quiz'}
                     </button>
+                    <button
+                      onClick={openReuseModal}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-surface-200 bg-white text-navy-600 text-xs font-semibold px-3.5 py-2.5 hover:bg-surface-50 active:scale-[0.98] transition-all shrink-0"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Reuse
+                    </button>
                   </div>
 
                   {/* Empty state */}
@@ -466,6 +556,18 @@ export default function Assessments() {
                                 <p className="text-xs text-navy-400 font-mono mt-0.5 truncate">
                                   {q.course_code || ''} · {q.course_title || ''}
                                 </p>
+                                {q.attachment_url && (
+                                  <a
+                                    href={`/api/files/${q.attachment_url}?token=${localStorage.getItem('token')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 font-medium mt-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Paperclip className="w-3 h-3" />
+                                    {q.attachment_name || 'Attachment'}
+                                  </a>
+                                )}
                               </div>
                               <button
                                 onClick={() => toggleQuiz(q)}
@@ -545,13 +647,222 @@ export default function Assessments() {
           )}
         </>
       )}
+
+      {/* Reuse Modal */}
+      <Modal isOpen={showReuseModal} onClose={() => setShowReuseModal(false)} title="Reuse from Previous Course">
+        {reuseStep === 1 && (
+          <div className="space-y-4">
+            <p className="text-sm text-navy-500">Select a previous course to reuse content from:</p>
+            <label className="flex items-center gap-3 p-3 rounded-lg border border-surface-200 hover:border-surface-300 cursor-pointer transition-all">
+              <input type="checkbox" checked={showAllPastCourses}
+                onChange={async (e) => {
+                  const val = e.target.checked
+                  setShowAllPastCourses(val)
+                  setSelectedSource(null)
+                  await fetchReuseSources(val)
+                }}
+                className="w-4 h-4 rounded border-surface-300 text-accent-500 focus:ring-accent-500" />
+              <div>
+                <p className="text-sm font-medium text-navy-800">Show all past courses</p>
+                <p className="text-xs text-navy-400">Browse content from every course you've taught, not just {activeCourse?.course_code}</p>
+              </div>
+            </label>
+            {reuseLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="w-6 h-6 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
+              </div>
+            ) : reuseSources.length === 0 ? (
+              <div className="text-center py-8 text-sm text-navy-400">
+                No previous courses with reusable content found for {activeCourse?.course_code}.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {reuseSources.map(s => (
+                  <button key={s.id} onClick={() => selectSourceCourse(s)}
+                    className="w-full text-left p-4 rounded-xl border border-surface-200 hover:border-accent-300 hover:bg-accent-50/50 transition-all">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold text-accent-600 tracking-wider uppercase">{s.course_code}</p>
+                        <p className="text-sm font-semibold text-navy-900 mt-0.5">{s.title}</p>
+                        {s.session && <p className="text-xs text-navy-400 mt-0.5">Session {s.session}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 text-[10px] text-navy-500">
+                        {s.material_count > 0 && <span>{s.material_count} materials</span>}
+                        {s.assignment_count > 0 && <span>{s.assignment_count} assignments</span>}
+                        {s.quiz_count > 0 && <span>{s.quiz_count} quizzes</span>}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-3 justify-end pt-2">
+              <Button variant="secondary" onClick={() => setShowReuseModal(false)}>Cancel</Button>
+            </div>
+          </div>
+        )}
+
+        {reuseStep === 2 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm">
+              <button onClick={() => setReuseStep(1)} className="text-accent-600 hover:underline font-medium">
+                {selectedSource?.course_code}
+              </button>
+              <ArrowRight className="w-3.5 h-3.5 text-navy-300" />
+              <span className="font-semibold text-navy-800">{activeCourse?.course_code}</span>
+            </div>
+
+            {reuseLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="w-6 h-6 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {/* Materials */}
+                {sourceItems.materials.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold text-navy-700 uppercase tracking-wider">Materials ({sourceItems.materials.length})</h4>
+                      <button onClick={() => toggleAll('materials', sourceItems.materials.map(m => m.id))}
+                        className="text-[10px] font-semibold text-accent-600 hover:underline">
+                        {selectedItems.materials.length === sourceItems.materials.length ? 'Deselect all' : 'Select all'}
+                      </button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {sourceItems.materials.map(m => (
+                        <label key={m.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                            selectedItems.materials.includes(m.id)
+                              ? 'border-accent-400 bg-accent-50/50'
+                              : 'border-surface-200 hover:border-surface-300'
+                          }`}>
+                          <span className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border ${
+                            selectedItems.materials.includes(m.id) ? 'bg-accent-500 border-accent-500 text-white' : 'border-surface-300'
+                          }`}>
+                            {selectedItems.materials.includes(m.id) && <Check className="w-3 h-3" />}
+                          </span>
+                          <input type="checkbox" className="sr-only"
+                            checked={selectedItems.materials.includes(m.id)}
+                            onChange={() => toggleItem('materials', m.id)} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-navy-900 truncate">{m.title}</p>
+                            <p className="text-[10px] text-navy-400">{m.category}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Assignments */}
+                {sourceItems.assignments.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold text-navy-700 uppercase tracking-wider">Assignments ({sourceItems.assignments.length})</h4>
+                      <button onClick={() => toggleAll('assignments', sourceItems.assignments.map(a => a.id))}
+                        className="text-[10px] font-semibold text-accent-600 hover:underline">
+                        {selectedItems.assignments.length === sourceItems.assignments.length ? 'Deselect all' : 'Select all'}
+                      </button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {sourceItems.assignments.map(a => (
+                        <label key={a.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                            selectedItems.assignments.includes(a.id)
+                              ? 'border-accent-400 bg-accent-50/50'
+                              : 'border-surface-200 hover:border-surface-300'
+                          }`}>
+                          <span className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border ${
+                            selectedItems.assignments.includes(a.id) ? 'bg-accent-500 border-accent-500 text-white' : 'border-surface-300'
+                          }`}>
+                            {selectedItems.assignments.includes(a.id) && <Check className="w-3 h-3" />}
+                          </span>
+                          <input type="checkbox" className="sr-only"
+                            checked={selectedItems.assignments.includes(a.id)}
+                            onChange={() => toggleItem('assignments', a.id)} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-navy-900 truncate">{a.title}</p>
+                            <p className="text-[10px] text-navy-400">Max marks: {a.max_marks}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quizzes */}
+                {sourceItems.quizzes.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold text-navy-700 uppercase tracking-wider">Quizzes ({sourceItems.quizzes.length})</h4>
+                      <button onClick={() => toggleAll('quizzes', sourceItems.quizzes.map(q => q.id))}
+                        className="text-[10px] font-semibold text-accent-600 hover:underline">
+                        {selectedItems.quizzes.length === sourceItems.quizzes.length ? 'Deselect all' : 'Select all'}
+                      </button>
+                    </div>
+                    <div className="space-y-1.5">
+                      {sourceItems.quizzes.map(q => (
+                        <label key={q.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                            selectedItems.quizzes.includes(q.id)
+                              ? 'border-accent-400 bg-accent-50/50'
+                              : 'border-surface-200 hover:border-surface-300'
+                          }`}>
+                          <span className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border ${
+                            selectedItems.quizzes.includes(q.id) ? 'bg-accent-500 border-accent-500 text-white' : 'border-surface-300'
+                          }`}>
+                            {selectedItems.quizzes.includes(q.id) && <Check className="w-3 h-3" />}
+                          </span>
+                          <input type="checkbox" className="sr-only"
+                            checked={selectedItems.quizzes.includes(q.id)}
+                            onChange={() => toggleItem('quizzes', q.id)} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-navy-900 truncate">{q.title}</p>
+                            <p className="text-[10px] text-navy-400">{q.question_count} questions</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {sourceItems.materials.length === 0 && sourceItems.assignments.length === 0 && sourceItems.quizzes.length === 0 && (
+                  <div className="text-center py-8 text-sm text-navy-400">
+                    No content found in the selected course.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end pt-2 border-t border-surface-100">
+              <Button variant="secondary" onClick={() => setReuseStep(1)}>Back</Button>
+              <Button onClick={handleReuse} disabled={reuseSubmitting || (
+                selectedItems.materials.length === 0 &&
+                selectedItems.assignments.length === 0 &&
+                selectedItems.quizzes.length === 0
+              )}>
+                {reuseSubmitting ? 'Copying...' : `Copy ${selectedItems.materials.length + selectedItems.assignments.length + selectedItems.quizzes.length} items`}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
+    <ConfirmDialog
+      isOpen={!!deleteTarget}
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={confirmDelete}
+      title={`Delete ${deleteTarget?.type === 'assignment' ? 'Assignment' : 'Quiz'}`}
+      message={deleteTarget?.message || ''}
+      confirmLabel="Delete"
+    />
+    </>
   )
 }
 
 /* ── Sub-components ─────────────────────────────────── */
 
-function SemesterGrid({ semesters, tab, onPick }) {
+const SemesterGrid = React.memo(function SemesterGrid({ semesters, tab, onPick }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {semesters.map((s) => (
@@ -586,9 +897,9 @@ function SemesterGrid({ semesters, tab, onPick }) {
       ))}
     </div>
   )
-}
+})
 
-function CourseGrid({ courses, assignmentsByCourse, quizzesByCourse, onPick }) {
+const CourseGrid = React.memo(function CourseGrid({ courses, assignmentsByCourse, quizzesByCourse, onPick }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {courses.map((c) => {
@@ -627,4 +938,4 @@ function CourseGrid({ courses, assignmentsByCourse, quizzesByCourse, onPick }) {
       })}
     </div>
   )
-}
+})

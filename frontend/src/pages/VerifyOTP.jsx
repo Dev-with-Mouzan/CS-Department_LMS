@@ -1,10 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import {
   ShieldCheck,
-  Terminal,
   Lock,
   Mail,
   CheckCircle2,
@@ -20,8 +19,31 @@ export default function VerifyOTP() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [verified, setVerified] = useState(false)
+  const [resendSeconds, setResendSeconds] = useState(0)
+  const timerRef = useRef(null)
   const { user, loginAfterVerify } = useAuth()
   const navigate = useNavigate()
+
+  const startResendTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    setResendSeconds(120)
+    timerRef.current = setInterval(() => {
+      setResendSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  useEffect(() => {
+    startResendTimer()
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
 
   // Get email from pending verification or from logged-in user
   const pendingData = JSON.parse(localStorage.getItem('pendingVerification') || '{}')
@@ -55,7 +77,8 @@ export default function VerifyOTP() {
     setLoading(true)
     try {
       await authAPI.resendOTP({ email })
-      setMessage('New OTP sent — check the server terminal for the code (test mode)')
+      setMessage('New OTP sent successfully')
+      startResendTimer()
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to resend')
     } finally {
@@ -144,12 +167,6 @@ export default function VerifyOTP() {
             </p>
           </div>
 
-          {/* Test mode notice */}
-          <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-accent-200 bg-accent-50 mb-6 text-xs text-accent-800">
-            <Terminal className="w-4 h-4 shrink-0 text-accent-600" />
-            Test mode: the code is printed on the server terminal.
-          </div>
-
           {message && (
             <div className="bg-success-light text-success-dark px-4 py-3 rounded-xl mb-6 text-sm font-medium border border-success/20 animate-slide-down">
               {message}
@@ -205,10 +222,12 @@ export default function VerifyOTP() {
 
           <button
             onClick={handleResend}
-            disabled={loading}
-            className="w-full mt-4 text-sm text-navy-400 hover:text-accent-600 font-medium transition-colors"
+            disabled={loading || resendSeconds > 0}
+            className="w-full mt-4 text-sm text-navy-400 hover:text-accent-600 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Resend OTP code
+            {resendSeconds > 0
+              ? `Resend OTP in ${String(Math.floor(resendSeconds / 60)).padStart(2, '0')}:${String(resendSeconds % 60).padStart(2, '0')}`
+              : 'Resend OTP code'}
           </button>
 
           <p className="mt-8 text-center text-sm text-navy-400">

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { usersAPI, resultsAPI } from '../services/api'
+import { parseDate, shortDate, MONTHS } from '../utils/format'
 import {
   Users,
   GraduationCap,
@@ -20,26 +21,13 @@ import {
   Activity,
 } from 'lucide-react'
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-const parseDate = (value) => {
-  if (!value) return null
-  const d = new Date(value)
-  return isNaN(d.getTime()) ? null : d
-}
-
-const shortDate = (value) => {
-  const d = parseDate(value)
-  return d ? `${d.getDate()} ${MONTHS[d.getMonth()]}` : ''
-}
-
 const roleTone = (role) => ({
   student: { label: 'Student', cls: 'bg-emerald-100 text-emerald-700' },
   teacher: { label: 'Teacher', cls: 'bg-sky-100 text-sky-700' },
   admin: { label: 'Admin', cls: 'bg-navy-900 text-white' },
 })[role] || { label: role || 'User', cls: 'bg-surface-100 text-navy-500' }
 
-const examLabels = { midterm: 'Mid-Term', final: 'Final Year', complete: 'Complete Result' }
+const examLabels = { midterm: 'Mid-Term', final: 'Final Term', complete: 'Complete Result' }
 const examTone = {
   midterm: 'bg-sky-100 text-sky-700',
   final: 'bg-emerald-100 text-emerald-700',
@@ -153,10 +141,11 @@ export default function AdminDashboard() {
     { to: '/admin/courses', icon: BookOpen, label: 'Courses', desc: 'Create courses & assign teachers', color: 'bg-emerald-500' },
     { to: '/admin/attendance', icon: CalendarCheck, label: 'Attendance', desc: 'View & download attendance per subject', color: 'bg-sky-500' },
     { to: '/admin/examinations', icon: Trophy, label: 'Result', desc: 'View & delete published result sheets', color: 'bg-amber-500' },
-    { to: '/admin/enrollments', icon: UserPlus, label: 'Enrollments', desc: 'Enroll students into courses', color: 'bg-navy-800' },
+    { to: '/admin/promotion', icon: UserPlus, label: 'Promotion', desc: 'Promote students between semesters', color: 'bg-navy-800' },
   ]
 
   const activePct = totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0
+  const completionPct = results.length > 0 ? results.filter(r => r.status === 'complete').length / results.length * 100 : 0
 
   return (
     <div className="p-5 lg:p-8 max-w-6xl mx-auto w-full">

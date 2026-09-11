@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { coursesAPI, attendanceAPI } from '../services/api'
 import Button from '../components/Button'
+import { ordinal, semLabel } from '../utils/format'
 import {
   CalendarCheck, CheckCircle2, XCircle, Users, Save, Download, Lock,
   ChevronRight, ChevronLeft, GraduationCap, BookOpen,
@@ -14,15 +15,6 @@ const statusStyles = {
 
 const statusLabels = { present: 'Present', absent: 'Absent', late: 'Late' }
 
-const ordinal = (n) => {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
-}
-
-const semLabel = (semKey) =>
-  semKey === 'other' ? 'General' : `${ordinal(Number(semKey))} Semester`
-
 export default function MarkAttendance() {
   const [courses, setCourses] = useState([])
   const [sessionsByCourse, setSessionsByCourse] = useState({})
@@ -31,7 +23,13 @@ export default function MarkAttendance() {
   const [students, setStudents] = useState([])
   const [attendance, setAttendance] = useState({})
   const [topic, setTopic] = useState('')
-  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0])
+  const [attendanceDate, setAttendanceDate] = useState(() => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    const d = String(now.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  })
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
@@ -79,9 +77,9 @@ export default function MarkAttendance() {
     setSessions(sessionsByCourse[c.id] || [])
     setMessage('')
     try {
-      const r = await coursesAPI.listEnrollments(c.id)
+      const r = await coursesAPI.listCourseStudents(c.id)
       setStudents(r.data)
-      const init = {}; r.data.forEach(e => { init[e.student_id] = 'absent' }); setAttendance(init)
+      const init = {}; r.data.forEach(e => { init[e.student_id] = 'present' }); setAttendance(init)
     } catch (err) { console.error(err) }
   }
 
@@ -108,6 +106,17 @@ export default function MarkAttendance() {
     if (!activeCourse) return
     if (!attendanceDate) {
       setMessage('Please select an attendance date')
+      return
+    }
+    // Pre-check: is attendance already marked for this date?
+    const existingSession = (sessionsByCourse[activeCourse.id] || []).find(s => s.session_date === attendanceDate)
+    if (existingSession) {
+      setMessage('Attendance already marked for this date')
+      setMarkedSession(existingSession)
+      try {
+        const r = await attendanceAPI.getSessionRecords(existingSession.id)
+        setMarkedRecords(r.data)
+      } catch {}
       return
     }
     setSubmitting(true)
@@ -340,6 +349,13 @@ export default function MarkAttendance() {
                         <Users className="w-3.5 h-3.5" />
                         {students.length} students
                       </span>
+                      <button onClick={() => {
+                        const allPresent = {}
+                        students.forEach(e => { allPresent[e.student_id] = 'present' })
+                        setAttendance(allPresent)
+                      }} className="text-[11px] font-semibold text-accent-600 hover:underline">
+                        Mark all present
+                      </button>
                     </div>
                     <div className="divide-y divide-surface-200">
                       {students.map((e, i) => (

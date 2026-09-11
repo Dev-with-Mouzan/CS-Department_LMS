@@ -1,9 +1,8 @@
-import asyncio
 import httpx
 from app.config import settings
 
 
-async def _send_otp_sms(phone: str, otp_code: str) -> None:
+def _send_otp_sms(phone: str, otp_code: str) -> None:
     """Send OTP code to the given phone number via the configured SMS provider."""
     provider = settings.SMS_PROVIDER
 
@@ -11,8 +10,11 @@ async def _send_otp_sms(phone: str, otp_code: str) -> None:
         url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json"
         auth = (settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
         data = {"To": phone, "From": settings.TWILIO_FROM_NUMBER, "Body": f"Your verification code is {otp_code}"}
-        async with httpx.AsyncClient() as client:
-            await client.post(url, data=data, auth=auth, timeout=10)
+        try:
+            with httpx.Client() as client:
+                client.post(url, data=data, auth=auth, timeout=10)
+        except Exception:
+            print(f"[SMS] Failed to send OTP to {phone} via Twilio")
 
     elif provider == "fast2sms":
         url = "https://www.fast2sms.com/dev/bulkV2"
@@ -27,8 +29,11 @@ async def _send_otp_sms(phone: str, otp_code: str) -> None:
             "sender_id": settings.FAST2SMS_SENDER_ID,
             "numbers": phone,
         }
-        async with httpx.AsyncClient() as client:
-            await client.post(url, data=data, headers=headers, timeout=10)
+        try:
+            with httpx.Client() as client:
+                client.post(url, data=data, headers=headers, timeout=10)
+        except Exception:
+            print(f"[SMS] Failed to send OTP to {phone} via Fast2SMS")
 
     else:
         # Console/test provider — print the OTP to the server terminal so it can
@@ -43,6 +48,6 @@ async def _send_otp_sms(phone: str, otp_code: str) -> None:
 
 
 def send_otp_sms(phone: str, otp_code: str) -> None:
-    """Synchronous wrapper for sending OTP via SMS."""
-    asyncio.run(_send_otp_sms(phone, otp_code))
+    """Send OTP via SMS (synchronous)."""
+    _send_otp_sms(phone, otp_code)
 

@@ -127,7 +127,16 @@ export default function Register() {
       await register(payload)
       navigate('/verify-otp')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed')
+      const data = err.response?.data
+      let msg = 'Registration failed. Please try again.'
+      if (data?.detail) {
+        if (Array.isArray(data.detail)) {
+          msg = data.detail.map(e => e.msg || e.ctx?.error?.message || JSON.stringify(e)).join('\n')
+        } else {
+          msg = data.detail
+        }
+      }
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -225,7 +234,7 @@ export default function Register() {
           {/* Student-only note */}
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-accent-200 bg-accent-50 mb-6 text-xs text-accent-800">
             <GraduationCap className="w-4 h-4 shrink-0 text-accent-600" />
-            Student registration only — accounts are verified via SMS OTP and auto-enrolled in your semester courses.
+            Student registration only — accounts are verified via SMS OTP and your courses appear based on your session and semester.
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

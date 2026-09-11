@@ -31,7 +31,7 @@ export default function Login() {
       const routes = { admin: '/admin', teacher: '/teacher', student: '/student' }
       navigate(routes[result.role] || '/')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid credentials')
+      setError('Invalid email or password')
     } finally {
       setLoading(false)
     }
@@ -159,11 +159,7 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center gap-2 text-sm text-navy-500">
-                <input type="checkbox" className="w-4 h-4 rounded border-surface-300 text-accent-500 focus:ring-accent-400" />
-                Remember me
-              </label>
+            <div className="flex items-center justify-end pt-1">
               <Link to="/forgot-password" className="text-sm text-accent-600 hover:text-accent-700 font-medium">
                 Forgot password?
               </Link>
