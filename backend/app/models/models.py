@@ -270,6 +270,7 @@ class Result(Base):
     worst_paper_name = Column(String(255))
     best_paper_url = Column(String(500))
     best_paper_name = Column(String(255))
+    extra_files_json = Column(Text)  # JSON array of {url, name} for additional files
     uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=utcnow)
 

@@ -185,19 +185,4 @@ export const promotionAPI = {
   getHistory: (session) => api.get('/users/promotion/history', { params: session ? { session } : {} }),
 }
 
-// ── Backup API ─────────────────────────────────────
-export const backupAPI = {
-  create: () => api.post('/backup/create'),
-  list: () => api.get('/backup/list'),
-  download: (id) => api.get(`/backup/download/${id}`, { responseType: 'blob' }),
-  delete: (id) => api.delete(`/backup/${id}`),
-  importBackup: (file) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.post('/backup/import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  },
-}
-
 export default api

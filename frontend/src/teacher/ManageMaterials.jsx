@@ -26,6 +26,7 @@ export default function ManageMaterials() {
   const [search, setSearch] = useState('')
   const [form, setForm] = useState({ title: '', description: '', category: 'notes', course_id: '' })
   const [file, setFile] = useState(null)
+  const [files, setFiles] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [activeSemester, setActiveSemester] = useState(null)
   const [activeCourse, setActiveCourse] = useState(null)
@@ -50,13 +51,13 @@ export default function ManageMaterials() {
 
   const openCreate = () => {
     setForm({ title: '', description: '', category: 'notes', course_id: activeCourse?.id || courses[0]?.id || '' })
-    setFile(null)
+    setFiles([])
     setShowModal(true)
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!file) { setError('Please select a file'); return }
+    if (files.length === 0) { setError('Please select at least one file'); return }
     setSubmitting(true)
     try {
       const fd = new FormData()
@@ -64,7 +65,9 @@ export default function ManageMaterials() {
       fd.append('description', form.description)
       fd.append('category', form.category)
       fd.append('course_id', form.course_id)
-      fd.append('file', file)
+      for (const f of files) {
+        fd.append('files', f)
+      }
       await materialsAPI.upload(fd)
       setShowModal(false)
       const res = await materialsAPI.list()
@@ -89,8 +92,8 @@ export default function ManageMaterials() {
 
   const handleDownload = async (url, fileName) => {
     try {
-      const fileUrl = url.replace(/^uploads[\\/]/, 'files/')
-      const downloadUrl = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`
+      const filePath = url.replace(/^uploads[\\/]/, '')
+      const downloadUrl = `/files/${filePath}`
       const response = await api.get(downloadUrl, { responseType: 'blob' })
       const blob = new Blob([response.data])
       const blobUrl = window.URL.createObjectURL(blob)
@@ -102,7 +105,7 @@ export default function ManageMaterials() {
       link.remove()
       window.URL.revokeObjectURL(blobUrl)
     } catch {
-      window.open(url.startsWith('/') ? url : `/${url}`, '_blank', 'noopener,noreferrer')
+      window.open(`/api/files/${url.replace(/^uploads[\\/]/, '')}`, '_blank', 'noopener,noreferrer')
     }
   }
 
@@ -416,10 +419,24 @@ export default function ManageMaterials() {
             </div>
           </div>
           <div>
-            <label className="input-label">File</label>
-            <input type="file" onChange={(e) => setFile(e.target.files[0])} required
+            <label className="input-label">Files (max 5)</label>
+            <input type="file" multiple onChange={(e) => {
+              const selected = Array.from(e.target.files).slice(0, 5)
+              setFiles(selected)
+            }}
               className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent-500 file:text-white file:cursor-pointer" />
-            <p className="text-[10px] text-navy-400 mt-1">PDF, DOCX, PPTX, images, or any file type.</p>
+            {files.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {files.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs text-navy-600">
+                    <span className="truncate">{f.name}</span>
+                    <button type="button" onClick={() => setFiles(files.filter((_, idx) => idx !== i))}
+                      className="text-red-400 hover:text-red-600 shrink-0">&times;</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-navy-400 mt-1">PDF, DOCX, PPTX, images, or any file type. Select up to 5 files.</p>
           </div>
           <div className="flex gap-3 justify-end pt-2">
             <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>

@@ -17,7 +17,7 @@ const ManageCourses = lazy(() => import('./admin/ManageCourses'))
 const ManageAttendance = lazy(() => import('./admin/ManageAttendance'))
 const Examinations = lazy(() => import('./admin/Examinations'))
 const Promotion = lazy(() => import('./admin/Promotion'))
-const AdminBackup = lazy(() => import('./admin/AdminBackup'))
+
 
 const TeacherDashboard = lazy(() => import('./teacher/TeacherDashboard'))
 const Assessments = lazy(() => import('./teacher/Assessments'))
@@ -66,7 +66,6 @@ export default function App() {
             <Route path="/admin/attendance" element={<ManageAttendance />} />
             <Route path="/admin/examinations" element={<Examinations />} />
             <Route path="/admin/promotion" element={<Promotion />} />
-            <Route path="/admin/backup" element={<AdminBackup />} />
           </Route>
         </Route>
 

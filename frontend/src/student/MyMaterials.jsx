@@ -55,8 +55,8 @@ export default function MyMaterials() {
 
   const handleDownload = async (url, fileName) => {
     try {
-      const fileUrl = url.replace(/^uploads[\\/]/, 'files/')
-      const response = await api.get(`/${fileUrl}`, { responseType: 'blob' })
+      const filePath = url.replace(/^uploads[\\/]/, '')
+      const response = await api.get(`/files/${filePath}`, { responseType: 'blob' })
       const blob = new Blob([response.data])
       const downloadUrl = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -67,7 +67,7 @@ export default function MyMaterials() {
       link.remove()
       window.URL.revokeObjectURL(downloadUrl)
     } catch {
-      window.open(`/${url}`, '_blank', 'noopener,noreferrer')
+      window.open(`/api/files/${url.replace(/^uploads[\\/]/, '')}`, '_blank', 'noopener,noreferrer')
     }
   }
 

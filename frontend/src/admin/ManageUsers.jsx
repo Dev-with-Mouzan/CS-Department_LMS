@@ -394,10 +394,7 @@ export default function ManageUsers() {
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   className="w-full px-4 py-2.5 bg-surface-0 border border-surface-200 rounded-r-xl text-sm text-navy-900 placeholder-navy-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 hover:border-navy-300" placeholder="3XX XXXXXXX" />
               </div>
-              {form.role_name === 'student' && !editing && (
-                <p className="text-2xs text-navy-400 mt-1">An OTP will be sent to this number for account verification.</p>
-              )}
-            </div>
+              </div>
           </div>
           <div>
             <label className="input-label">Email</label>
@@ -481,67 +478,64 @@ export default function ManageUsers() {
       {/* Created User Success Screen */}
       {createdUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-slide-up">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-slide-up">
             {/* Header */}
-            <div className="bg-gradient-to-br from-accent-500 to-accent-600 px-8 pt-10 pb-8 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/20 flex items-center justify-center animate-bounce-in">
-                <CheckCircle2 className="w-8 h-8 text-white" />
+            <div className="relative px-6 pt-8 pb-6 text-center border-b border-surface-100">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-success/10 flex items-center justify-center animate-bounce-in">
+                <CheckCircle2 className="w-7 h-7 text-success" />
               </div>
-              <h2 className="text-2xl font-extrabold text-navy-950 tracking-tight">
-                {createdUser.role_name === 'student' ? 'Student' : createdUser.role_name === 'teacher' ? 'Teacher' : 'Admin'} Created!
+              <h2 className="text-lg font-extrabold text-navy-900 tracking-tight">
+                {createdUser.role_name === 'student' ? 'Student' : createdUser.role_name === 'teacher' ? 'Teacher' : 'Admin'} Created
               </h2>
-              <p className="text-navy-800/70 mt-1.5 text-sm">
-                Share these credentials with {createdUser.first_name}
+              <p className="text-navy-400 mt-1 text-xs">
+                Share these credentials with <span className="font-semibold text-navy-600">{createdUser.first_name}</span>
               </p>
             </div>
 
             {/* Credentials */}
-            <div className="px-8 py-6 space-y-4">
-              <div className="bg-surface-50 rounded-xl border border-surface-200 p-5 space-y-3">
-                <div>
-                  <p className="text-[10px] font-bold text-navy-400 uppercase tracking-wider mb-1">Name</p>
-                  <p className="text-sm font-semibold text-navy-900">{createdUser.first_name} {createdUser.last_name}</p>
+            <div className="px-6 py-5 space-y-3">
+              {/* Email */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-surface-50 border border-surface-100">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-bold text-navy-400 uppercase tracking-wider mb-0.5">Email</p>
+                  <p className="text-sm font-mono font-semibold text-navy-900 truncate">{createdUser.email}</p>
                 </div>
-                <div className="border-t border-surface-200" />
-                <div>
-                  <p className="text-[10px] font-bold text-navy-400 uppercase tracking-wider mb-1">Email</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-mono font-semibold text-navy-900 flex-1 truncate">{createdUser.email}</p>
-                    <button onClick={() => navigator.clipboard.writeText(createdUser.email)}
-                      className="p-1.5 rounded-lg hover:bg-surface-200 text-navy-400 hover:text-navy-700 transition-colors" title="Copy email">
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="border-t border-surface-200" />
-                <div>
-                  <p className="text-[10px] font-bold text-navy-400 uppercase tracking-wider mb-1">Password</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-mono font-semibold text-navy-900 flex-1">{createdUser.password}</p>
-                    <button onClick={() => navigator.clipboard.writeText(createdUser.password)}
-                      className="p-1.5 rounded-lg hover:bg-surface-200 text-navy-400 hover:text-navy-700 transition-colors" title="Copy password">
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+                <button onClick={() => navigator.clipboard.writeText(createdUser.email)}
+                  className="shrink-0 ml-2 p-2 rounded-lg hover:bg-surface-200 text-navy-400 hover:text-accent-600 transition-colors">
+                  <Copy className="w-4 h-4" />
+                </button>
               </div>
 
-              <p className="text-[11px] text-navy-400 text-center leading-relaxed">
-                The user can log in immediately using these credentials.
-                {createdUser.role_name === 'student' && ' OTP verification is auto-completed.'}
-              </p>
+              {/* Password */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-surface-50 border border-surface-100">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-bold text-navy-400 uppercase tracking-wider mb-0.5">Password</p>
+                  <p className="text-sm font-mono font-semibold text-navy-900">{createdUser.password}</p>
+                </div>
+                <button onClick={() => navigator.clipboard.writeText(createdUser.password)}
+                  className="shrink-0 ml-2 p-2 rounded-lg hover:bg-surface-200 text-navy-400 hover:text-accent-600 transition-colors">
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+
+              {createdUser.role_name === 'student' && (
+                <p className="text-[10px] text-center text-navy-400">OTP verification is auto-completed.</p>
+              )}
             </div>
 
             {/* Actions */}
-            <div className="px-8 pb-6 flex gap-3">
+            <div className="px-6 pb-5 flex gap-2">
               <button onClick={() => { setCreatedUser(null); setShowModal(false) }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-surface-100 text-navy-700 hover:bg-surface-200 transition-colors">
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-surface-100 text-navy-600 hover:bg-surface-200 transition-colors">
                 Close
               </button>
-              <button onClick={() => { navigator.clipboard.writeText(`${createdUser.email}\n${createdUser.password}`) }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-accent-500 text-navy-950 hover:bg-accent-400 transition-colors inline-flex items-center justify-center gap-2">
-                Copy All
-                <Copy className="w-3.5 h-3.5" />
+              <button onClick={() => {
+                  navigator.clipboard.writeText(`${createdUser.email}\n${createdUser.password}`)
+                  setCreatedUser(null)
+                  setShowModal(false)
+                }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-accent-500 text-navy-950 hover:bg-accent-400 transition-colors inline-flex items-center justify-center gap-1.5">
+                <Copy className="w-3.5 h-3.5" /> Copy & Close
               </button>
             </div>
           </div>

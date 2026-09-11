@@ -1,4 +1,5 @@
 import os
+import json
 import mimetypes
 from typing import List, Optional
 
@@ -18,17 +19,17 @@ from app.dependencies.ratelimit import limiter
 router = APIRouter(prefix="/api/results", tags=["Results"])
 
 VALID_EXAM_TYPES = {"midterm", "final", "complete"}
-VALID_ENTRY_TYPES = {"file", "manual"}
-_FILE_KINDS = {
-    "result": ["file_url", "file_name"],
-    "best": ["best_paper_url", "best_paper_name"],
-    "worst": ["worst_paper_url", "worst_paper_name"],
-}
 
 
 def _result_out(r: Result, courses: dict, users: dict) -> dict:
     course = courses.get(r.course_id)
     uploader = users.get(r.uploaded_by)
+    extra_files = []
+    if r.extra_files_json:
+        try:
+            extra_files = json.loads(r.extra_files_json)
+        except (json.JSONDecodeError, TypeError):
+            pass
     return {
         "id": r.id,
         "title": r.title,
@@ -41,17 +42,18 @@ def _result_out(r: Result, courses: dict, users: dict) -> dict:
         "worst_paper_name": r.worst_paper_name,
         "best_paper_url": r.best_paper_url,
         "best_paper_name": r.best_paper_name,
+        "extra_files": extra_files if extra_files else None,
         "course_id": r.course_id,
         "course_name": course.title if course else None,
         "uploaded_by": r.uploaded_by,
         "uploader_name": f"{uploader.first_name} {uploader.last_name}" if uploader else None,
-        "created_at": r.created_at,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
     }
 
 
 @limiter.limit("30/minute")
 @router.get("/", response_model=List[ResultOut])
-def list_results(request: Request, 
+def list_results(request: Request,
     course_id: str = None,
     exam_type: str = None,
     active: bool = None,
@@ -96,64 +98,150 @@ def list_results(request: Request,
 
 @limiter.limit("30/minute")
 @router.get("/{result_id}/view")
-def view_result_file(request: Request, 
-    result_id: str,
-    kind: str = Query("result"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Serve a result file inline (view online, no download button).
+def view_result_file(result_id: str, request: Request, kind: str = "full_sheet", token: str = None):
+    """Serve a result file by kind (full_sheet, best, worst)."""
+    from app.dependencies.auth import decode_token
+    from app.database.database import SessionLocal
 
-    Teachers see files for their own courses, students for courses they are
-    actively enrolled in, admins for everything.
-    """
-    result = db.query(Result).filter(Result.id == result_id).first()
-    if not result:
-        raise HTTPException(status_code=404, detail="Result not found")
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        raw_token = auth_header[7:]
+    elif token:
+        raw_token = token
+    else:
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
-    role = current_user.role.name
-    if role == "teacher":
-        course = db.query(Course).filter(Course.id == result.course_id).first()
-        if not course or course.teacher_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
-    elif role == "student":
-        course = db.query(Course).filter(Course.id == result.course_id).first()
-        if not course or not student_has_access(db, current_user, course):
-            raise HTTPException(status_code=403, detail="Access denied")
+    payload = decode_token(raw_token)
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
-    if kind not in _FILE_KINDS:
-        raise HTTPException(status_code=422, detail="Invalid file kind")
-    url_attr, _ = _FILE_KINDS[kind]
-    path = getattr(result, url_attr)
-    if not path or not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="File not found")
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.is_active:
+            raise HTTPException(status_code=401, detail="Not authenticated")
 
-    media_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
-    return FileResponse(
-        path,
-        media_type=media_type,
-        headers={"Content-Disposition": f'inline; filename="{os.path.basename(path)}"'},
-    )
+        result = db.query(Result).filter(Result.id == result_id).first()
+        if not result:
+            raise HTTPException(status_code=404, detail="Result not found")
+
+        kind_map = {
+            "full_sheet": (result.file_url, result.file_name),
+            "best": (result.best_paper_url, result.best_paper_name),
+            "worst": (result.worst_paper_url, result.worst_paper_name),
+        }
+
+        # Fallback to files_json for old results
+        if kind not in kind_map or not kind_map[kind][0]:
+            extra_files = []
+            if result.extra_files_json:
+                try:
+                    extra_files = json.loads(result.extra_files_json)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            if extra_files:
+                idx = {"full_sheet": 0, "best": 1, "worst": 2}.get(kind, 0)
+                if idx < len(extra_files):
+                    kind_map[kind] = (extra_files[idx].get("url"), extra_files[idx].get("name"))
+
+        if kind not in kind_map:
+            raise HTTPException(status_code=400, detail=f"Invalid kind '{kind}'. Must be full_sheet, best, or worst")
+
+        file_url, file_name = kind_map[kind]
+        if not file_url:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        rel_path = file_url.replace("uploads/", "").replace("uploads\\", "")
+        uploads_dir = os.path.join(os.getcwd(), settings.UPLOAD_DIR)
+        path = os.path.join(uploads_dir, rel_path)
+
+        if not os.path.exists(path):
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        media_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
+        return FileResponse(
+            path,
+            media_type=media_type,
+            headers={"Content-Disposition": f'inline; filename="{file_name or os.path.basename(path)}"'},
+        )
+    finally:
+        db.close()
+
+
+@limiter.limit("30/minute")
+@router.get("/{result_id}/file/{file_index}")
+def serve_result_file(result_id: str, file_index: int, request: Request, token: str = None):
+    """Serve a specific file from a result entry. 0=full_sheet, 1=best_paper, 2=worst_paper."""
+    from app.dependencies.auth import decode_token
+    from app.database.database import SessionLocal
+
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        raw_token = auth_header[7:]
+    elif token:
+        raw_token = token
+    else:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    payload = decode_token(raw_token)
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.is_active:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        result = db.query(Result).filter(Result.id == result_id).first()
+        if not result:
+            raise HTTPException(status_code=404, detail="Result not found")
+
+        files = [
+            {"url": result.file_url, "name": result.file_name},
+            {"url": result.best_paper_url, "name": result.best_paper_name},
+            {"url": result.worst_paper_url, "name": result.worst_paper_name},
+        ]
+
+        if file_index < 0 or file_index >= len(files):
+            raise HTTPException(status_code=404, detail="File not found")
+
+        file_url = files[file_index]["url"]
+        if not file_url:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        rel_path = file_url.replace("uploads/", "").replace("uploads\\", "")
+        uploads_dir = os.path.join(os.getcwd(), settings.UPLOAD_DIR)
+        path = os.path.join(uploads_dir, rel_path)
+
+        if not os.path.exists(path):
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        media_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
+        return FileResponse(
+            path,
+            media_type=media_type,
+            headers={"Content-Disposition": f'inline; filename="{files[file_index].get("name", os.path.basename(path))}"'},
+        )
+    finally:
+        db.close()
 
 
 @limiter.limit("30/minute")
 @router.post("/", response_model=ResultOut, status_code=status.HTTP_201_CREATED)
-def create_result(request: Request, 
+def create_result(request: Request,
     title: str = Form(...),
     exam_type: str = Form(...),
     course_id: str = Form(...),
-    file: Optional[UploadFile] = File(None),  # complete result sheet
-    worst_paper: Optional[UploadFile] = File(None),
-    best_paper: Optional[UploadFile] = File(None),
+    full_sheet: UploadFile = File(...),
+    best_paper: UploadFile = File(...),
+    worst_paper: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_teacher),
 ):
-    """Add a result entry for a course (teacher only, must own the course).
-
-    Three uploads are mandatory for every exam type (mid-term, final and
-    complete result): the complete result sheet, the best paper and the
-    worst paper.
-    """
+    """Add a result entry with full sheet, best paper, and worst paper."""
     if exam_type not in VALID_EXAM_TYPES:
         raise HTTPException(
             status_code=422,
@@ -166,29 +254,20 @@ def create_result(request: Request,
     if course.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only add results for your courses")
 
-    if not file or not worst_paper or not best_paper:
-        raise HTTPException(
-            status_code=422,
-            detail="Please upload the complete result, best paper and worst paper — all three are mandatory",
-        )
-
-    file_url = save_file(file, subdirectory="results")
-    file_name = file.filename
-    worst_paper_url = save_file(worst_paper, subdirectory="results")
-    worst_paper_name = worst_paper.filename
+    full_sheet_url = save_file(full_sheet, subdirectory="results")
     best_paper_url = save_file(best_paper, subdirectory="results")
-    best_paper_name = best_paper.filename
+    worst_paper_url = save_file(worst_paper, subdirectory="results")
 
     result = Result(
         title=title,
         exam_type=exam_type,
         entry_type="file",
-        file_url=file_url,
-        file_name=file_name,
-        worst_paper_url=worst_paper_url,
-        worst_paper_name=worst_paper_name,
+        file_url=full_sheet_url,
+        file_name=full_sheet.filename,
         best_paper_url=best_paper_url,
-        best_paper_name=best_paper_name,
+        best_paper_name=best_paper.filename,
+        worst_paper_url=worst_paper_url,
+        worst_paper_name=worst_paper.filename,
         course_id=course_id,
         uploaded_by=current_user.id,
     )
@@ -204,32 +283,25 @@ def create_result(request: Request,
 
 @limiter.limit("30/minute")
 @router.delete("/{result_id}")
-def delete_result(request: Request, 
+def delete_result(request: Request,
     result_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_teacher),
 ):
-    """Delete a result entry.
-
-    - Teacher: own course only
-    - Admin: any result
-    """
-    role = current_user.role.name
-    if role not in ("teacher", "admin"):
-        raise HTTPException(status_code=403, detail="Access denied")
-
+    """Delete a result entry (teacher only, must own the course)."""
     result = db.query(Result).filter(Result.id == result_id).first()
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
 
-    if role == "teacher":
-        course = db.query(Course).filter(Course.id == result.course_id).first()
-        if not course or course.teacher_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
+    course = db.query(Course).filter(Course.id == result.course_id).first()
+    if not course or course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
-    for path in (result.file_url, result.worst_paper_url, result.best_paper_url):
-        if path:
-            delete_file(path)
+    # Delete all associated files
+    for url in [result.file_url, result.best_paper_url, result.worst_paper_url]:
+        if url:
+            delete_file(url)
+
     db.delete(result)
     db.commit()
     return {"message": "Result deleted successfully"}

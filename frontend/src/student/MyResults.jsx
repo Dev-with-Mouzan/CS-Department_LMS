@@ -39,17 +39,50 @@ export default function MyResults() {
     result: r.file_name, best: r.best_paper_name, worst: r.worst_paper_name,
   })[kind] || ''
 
+  const getFileUrl = (r, kind) => {
+    if (kind === 'best' && r.best_paper_url) return r.best_paper_url
+    if (kind === 'worst' && r.worst_paper_url) return r.worst_paper_url
+    if (kind === 'result' && r.file_url) return r.file_url
+    // Fallback to extra_files for old results
+    if (r.extra_files && r.extra_files.length > 0) {
+      const idx = kind === 'best' ? 1 : kind === 'worst' ? 2 : 0
+      if (idx < r.extra_files.length) return r.extra_files[idx].url
+    }
+    return r.file_url
+  }
+
   const openPreview = async (r, kind, label) => {
     const fileName = fileNameFor(r, kind)
     const ext = fileName.split('.').pop().toLowerCase()
 
     if (!PREVIEWABLE.has(ext)) {
-      setPreview({ type: 'unsupported', label, title: r.title, fileName })
+      // Auto-download non-previewable files
+      const url = getFileUrl(r, kind)
+      if (!url) { setError('File not found'); return }
+      try {
+        const filePath = url.replace(/^uploads[\\/]/, '')
+        const res = await api.get(`/files/${filePath}`, { responseType: 'blob' })
+        const blob = new Blob([res.data])
+        const blobUrl = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = blobUrl
+        link.download = fileName || 'download'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(blobUrl)
+      } catch { setError('Failed to download file') }
       return
     }
 
     try {
-      const res = await api.get(`/results/${r.id}/view?kind=${kind}`, { responseType: 'blob' })
+      const url = getFileUrl(r, kind)
+      if (!url) {
+        setError('File not found')
+        return
+      }
+      const filePath = url.replace(/^uploads[\\/]/, '')
+      const res = await api.get(`/files/${filePath}`, { responseType: 'blob' })
       const blob = new Blob([res.data])
 
       if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
@@ -98,9 +131,9 @@ export default function MyResults() {
   const activeResults = activeCourse ? activeCourse.items : []
 
   const files = (r) => [
-    { kind: 'result', label: 'Complete result', name: r.file_name, url: r.file_url, icon: ScrollText, cls: 'text-accent-600 bg-accent-50 border-accent-200 hover:bg-accent-100' },
-    { kind: 'best', label: 'Best paper', name: r.best_paper_name, url: r.best_paper_url, icon: TrendingUp, cls: 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100' },
-    { kind: 'worst', label: 'Worst paper', name: r.worst_paper_name, url: r.worst_paper_url, icon: TrendingDown, cls: 'text-red-600 bg-red-50 border-red-200 hover:bg-red-100' },
+    { kind: 'result', label: 'Full Sheet', name: r.file_name, url: r.file_url, icon: ScrollText, cls: 'text-accent-600 bg-accent-50 border-accent-200 hover:bg-accent-100' },
+    { kind: 'best', label: 'Best Paper', name: r.best_paper_name, url: r.best_paper_url, icon: TrendingUp, cls: 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100' },
+    { kind: 'worst', label: 'Worst Paper', name: r.worst_paper_name, url: r.worst_paper_url, icon: TrendingDown, cls: 'text-red-600 bg-red-50 border-red-200 hover:bg-red-100' },
   ].filter(f => f.url)
 
   const sheetRows = (sheet) => sheet.rows.filter(row => row.some(c => String(c || '').trim() !== ''))

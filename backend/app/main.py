@@ -18,8 +18,7 @@ from app.dependencies.auth import get_current_user
 from app.dependencies.ratelimit import limiter
 from app.models import User
 from app.services.auth_service import create_default_roles, create_default_admin
-from app.routers import auth, users, courses, assignments, attendance, materials, results, reviews, quizzes, backup
-from app.routers.backup import auto_backup_if_needed
+from app.routers import auth, users, courses, assignments, attendance, materials, results, reviews, quizzes
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +35,7 @@ _ALLOWLISTED_MIGRATIONS = {
         ("worst_paper_name", "VARCHAR(255)"),
         ("best_paper_url", "VARCHAR(500)"),
         ("best_paper_name", "VARCHAR(255)"),
+        ("extra_files_json", "TEXT"),
     ],
 }
 
@@ -111,9 +111,6 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
-    # Auto-backup: create backup if last one is older than 7 days
-    auto_backup_if_needed()
-
     yield
 
 
@@ -171,7 +168,6 @@ app.include_router(materials.router)
 app.include_router(results.router)
 app.include_router(reviews.router)
 app.include_router(quizzes.router)
-app.include_router(backup.router)
 
 # Ensure uploads directory exists (files served through authenticated API endpoints only)
 uploads_dir = os.path.join(os.getcwd(), settings.UPLOAD_DIR)

@@ -27,9 +27,9 @@ export default function Results() {
   const [form, setForm] = useState({
     title: '', exam_type: 'midterm', course_id: '',
   })
-  const [worstPaper, setWorstPaper] = useState(null)
+  const [fullSheet, setFullSheet] = useState(null)
   const [bestPaper, setBestPaper] = useState(null)
-  const [resultFile, setResultFile] = useState(null)
+  const [worstPaper, setWorstPaper] = useState(null)
   const [activeSemester, setActiveSemester] = useState(null)
   const [activeCourse, setActiveCourse] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -47,16 +47,16 @@ export default function Results() {
     setForm({
       title: '', exam_type: tab, course_id: activeCourse?.id || '',
     })
-    setWorstPaper(null)
+    setFullSheet(null)
     setBestPaper(null)
-    setResultFile(null)
+    setWorstPaper(null)
     setShowModal(true)
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!resultFile || !worstPaper || !bestPaper) {
-      setError('Please upload the complete result, best paper and worst paper')
+    if (!fullSheet || !bestPaper || !worstPaper) {
+      setError('Please upload full sheet, best paper, and worst paper')
       return
     }
     setSubmitting(true)
@@ -65,7 +65,7 @@ export default function Results() {
       fd.append('title', form.title)
       fd.append('exam_type', form.exam_type)
       fd.append('course_id', form.course_id)
-      fd.append('file', resultFile)
+      fd.append('full_sheet', fullSheet)
       fd.append('best_paper', bestPaper)
       fd.append('worst_paper', worstPaper)
       await resultsAPI.create(fd)
@@ -92,9 +92,8 @@ export default function Results() {
 
   const handleDownload = async (url, fileName) => {
     try {
-      const fileUrl = url.replace(/^uploads[\\/]/, 'files/')
-      const downloadUrl = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`
-      const response = await api.get(downloadUrl, { responseType: 'blob' })
+      const filePath = url.replace(/^uploads[\\/]/, '')
+      const response = await api.get(`/files/${filePath}`, { responseType: 'blob' })
       const blob = new Blob([response.data])
       const blobUrl = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -105,7 +104,7 @@ export default function Results() {
       link.remove()
       window.URL.revokeObjectURL(blobUrl)
     } catch {
-      window.open(url.startsWith('/') ? url : `/${url}`, '_blank', 'noopener,noreferrer')
+      window.open(`/api/files/${url.replace(/^uploads[\\/]/, '')}`, '_blank', 'noopener,noreferrer')
     }
   }
 
@@ -293,11 +292,11 @@ export default function Results() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0 flex-wrap">
                         {[
-                          { url: r.file_url, name: r.file_name, label: 'Complete', job: 'bg-accent-50 text-accent-600 border-accent-200 hover:bg-accent-100' },
-                          { url: r.best_paper_url, name: r.best_paper_name, label: 'Best', job: 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' },
-                          { url: r.worst_paper_url, name: r.worst_paper_name, label: 'Worst', job: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
+                          { url: r.file_url, name: r.file_name, label: 'Full Sheet', job: 'bg-accent-50 text-accent-600 border-accent-200 hover:bg-accent-100' },
+                          { url: r.best_paper_url, name: r.best_paper_name, label: 'Best Paper', job: 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' },
+                          { url: r.worst_paper_url, name: r.worst_paper_name, label: 'Worst Paper', job: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
                         ].filter(x => x.url).map(x => (
-                          <button key={x.label} onClick={() => handleDownload(x.url, x.name)} title={`Download ${x.label.toLowerCase()} paper`}
+                          <button key={x.label} onClick={() => handleDownload(x.url, x.name)} title={`Download ${x.label.toLowerCase()}`}
                             className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold border transition-colors ${x.job}`}>
                             <Download className="w-3.5 h-3.5" />
                             {x.label}
@@ -327,21 +326,21 @@ export default function Results() {
           </div>
 
           <div>
-            <label className="input-label">Complete result <span className="text-red-500">*</span></label>
-            <input type="file" onChange={(e) => setResultFile(e.target.files[0])} required
+            <label className="input-label">Full Sheet <span className="text-red-500">*</span></label>
+            <input type="file" onChange={(e) => setFullSheet(e.target.files[0])} required
               className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent-500 file:text-white file:cursor-pointer" />
             <p className="text-[10px] text-navy-400 mt-1">Main result sheet for this exam.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="input-label">Best paper <span className="text-red-500">*</span></label>
+              <label className="input-label">Best Paper <span className="text-red-500">*</span></label>
               <input type="file" onChange={(e) => setBestPaper(e.target.files[0])} required
                 className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-500 file:text-white file:cursor-pointer" />
               <p className="text-[10px] text-navy-400 mt-1">Best performing answer script.</p>
             </div>
             <div>
-              <label className="input-label">Worst paper <span className="text-red-500">*</span></label>
+              <label className="input-label">Worst Paper <span className="text-red-500">*</span></label>
               <input type="file" onChange={(e) => setWorstPaper(e.target.files[0])} required
                 className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-red-500 file:text-white file:cursor-pointer" />
               <p className="text-[10px] text-navy-400 mt-1">Weakest performing answer script.</p>
@@ -367,7 +366,7 @@ export default function Results() {
           </div>
 
           <p className="text-[11px] text-navy-400 bg-accent-50 border border-accent-100 rounded-lg px-3 py-2">
-            Upload in order — <span className="font-semibold text-accent-600">complete result</span> first, then the{' '}
+            Upload in order — <span className="font-semibold text-accent-600">full sheet</span> first, then the{' '}
             <span className="font-semibold text-emerald-600">best</span> and{' '}
             <span className="font-semibold text-red-600">worst</span> paper. All three are mandatory.
           </p>

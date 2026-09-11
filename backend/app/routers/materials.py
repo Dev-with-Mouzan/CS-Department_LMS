@@ -37,7 +37,7 @@ def _material_out(m: StudyMaterial, courses: dict, users: dict) -> dict:
 
 @limiter.limit("30/minute")
 @router.get("/", response_model=List[StudyMaterialOut])
-def list_materials(request: Request, 
+def list_materials(request: Request,
     course_id: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -72,17 +72,20 @@ def list_materials(request: Request,
 
 
 @limiter.limit("30/minute")
-@router.post("/", response_model=StudyMaterialOut, status_code=status.HTTP_201_CREATED)
-def upload_material(request: Request, 
+@router.post("/", response_model=List[StudyMaterialOut], status_code=status.HTTP_201_CREATED)
+def upload_material(request: Request,
     title: str = Form(...),
     description: str = Form(None),
     category: str = Form("notes"),
     course_id: str = Form(...),
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_teacher),
 ):
-    """Upload study material for a course (teacher only, must own the course)."""
+    """Upload study materials for a course (teacher only, must own the course). Max 5 files."""
+    if len(files) > 5:
+        raise HTTPException(status_code=400, detail="Maximum 5 files allowed per upload")
+
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -97,30 +100,35 @@ def upload_material(request: Request,
             detail=f"Invalid category '{category}'. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}",
         )
 
-    file_path = save_file(file, subdirectory="materials")
+    created = []
+    for f in files:
+        file_path = save_file(f, subdirectory="materials")
+        material = StudyMaterial(
+            title=title,
+            description=description,
+            category=category,
+            file_url=file_path,
+            file_name=f.filename,
+            course_id=course_id,
+            uploaded_by=current_user.id,
+        )
+        db.add(material)
+        db.flush()
+        db.refresh(material)
+        created.append(material)
 
-    material = StudyMaterial(
-        title=title,
-        description=description,
-        category=category,
-        file_url=file_path,
-        file_name=file.filename,
-        course_id=course_id,
-        uploaded_by=current_user.id,
-    )
-    db.add(material)
     db.commit()
-    db.refresh(material)
-    course = db.query(Course).filter(Course.id == material.course_id).first()
-    uploader = db.query(User).filter(User.id == material.uploaded_by).first() if material.uploaded_by else None
+
+    course = db.query(Course).filter(Course.id == course_id).first()
+    uploader = db.query(User).filter(User.id == current_user.id).first()
     courses = {course.id: course} if course else {}
     users = {uploader.id: uploader} if uploader else {}
-    return _material_out(material, courses, users)
+    return [_material_out(m, courses, users) for m in created]
 
 
 @limiter.limit("30/minute")
 @router.delete("/{material_id}")
-def delete_material(request: Request, 
+def delete_material(request: Request,
     material_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_teacher),

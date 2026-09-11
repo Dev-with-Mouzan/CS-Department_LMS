@@ -52,8 +52,8 @@ export default function Examinations() {
 
   const handleDownload = async (url, fileName) => {
     try {
-      const fileUrl = url.replace(/^uploads[\\/]/, 'files/')
-      const response = await api.get(`/${fileUrl}`, { responseType: 'blob' })
+      const filePath = url.replace(/^uploads[\\/]/, '')
+      const response = await api.get(`/files/${filePath}`, { responseType: 'blob' })
       const blob = new Blob([response.data])
       const downloadUrl = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -64,7 +64,7 @@ export default function Examinations() {
       link.remove()
       window.URL.revokeObjectURL(downloadUrl)
     } catch {
-      window.open(`/${url}`, '_blank', 'noopener,noreferrer')
+      window.open(`/api/files/${url.replace(/^uploads[\\/]/, '')}`, '_blank', 'noopener,noreferrer')
     }
   }
 
@@ -273,11 +273,11 @@ export default function Examinations() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0 flex-wrap">
                         {[
-                          { url: r.file_url, name: r.file_name, label: 'Complete', job: 'bg-accent-50 text-accent-600 border-accent-200 hover:bg-accent-100' },
-                          { url: r.best_paper_url, name: r.best_paper_name, label: 'Best', job: 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' },
-                          { url: r.worst_paper_url, name: r.worst_paper_name, label: 'Worst', job: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
+                          { url: r.file_url, name: r.file_name, label: 'Full Sheet', job: 'bg-accent-50 text-accent-600 border-accent-200 hover:bg-accent-100' },
+                          { url: r.best_paper_url, name: r.best_paper_name, label: 'Best Paper', job: 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' },
+                          { url: r.worst_paper_url, name: r.worst_paper_name, label: 'Worst Paper', job: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
                         ].filter(x => x.url).map(x => (
-                          <button key={x.label} onClick={() => handleDownload(x.url, x.name)} title={`Download ${x.label.toLowerCase()} paper`}
+                          <button key={x.label} onClick={() => handleDownload(x.url, x.name)} title={`Download ${x.label.toLowerCase()}`}
                             className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold border transition-colors ${x.job}`}>
                             <Download className="w-3.5 h-3.5" />
                             {x.label}

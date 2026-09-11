@@ -27,7 +27,6 @@ import {
   MapPin,
   Phone,
   Mail,
-  Download,
 } from 'lucide-react'
 
 const navConfig = {
@@ -38,7 +37,6 @@ const navConfig = {
     { to: '/admin/attendance', label: 'Attendance', icon: CalendarCheck },
     { to: '/admin/examinations', label: 'Result', icon: Trophy },
     { to: '/admin/promotion', label: 'Promotion', icon: UserPlus },
-    { to: '/admin/backup', label: 'Backup', icon: Download },
   ],
   teacher: [
     { to: '/teacher', label: 'Dashboard', icon: LayoutDashboard },
