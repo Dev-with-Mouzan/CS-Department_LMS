@@ -1,0 +1,39 @@
+To connect your local development environment to a Supabase database, you only need to change a few configuration details. Since I checked your backend/requirements.txt, I can see you already have psycopg2-binary installed, which means your project is perfectly ready to talk to a PostgreSQL database like Supabase!
+
+Here are the exact steps to connect your project:
+
+1. Get the Connection String from Supabase
+Create a free account and a new project on Supabase.
+Once the project is created, go to Project Settings (the gear icon) -> Database.
+Scroll down to the Connection String section and select the URI tab.
+Uncheck "Use connection pooling" for now (direct connection is better for local development and running initial migrations).
+Copy the connection string. It will look something like this: postgresql://postgres.your_project_id:your_password@aws-0-region.pooler.supabase.com:5432/postgres
+(Make sure you replace [YOUR-PASSWORD] with the actual database password you created).
+
+2. Update your .env File
+In your code editor, open the backend/.env file. You need to change the DATABASE_URL variable to use the Supabase connection string instead of your local SQLite database.
+
+Change it from something like sqlite:///./sql_app.db to your copied string:
+
+env
+# In backend/.env
+DATABASE_URL="postgresql://postgres.your_project_id:your_password@aws-0-region.pooler.supabase.com:5432/postgres"
+3. Run Database Migrations
+Since Supabase gives you a completely empty database, you need to tell your project to create all the LMS tables (Users, Courses, Assignments, etc.) inside Supabase.
+
+Open your terminal, navigate to your backend folder, and run Alembic (your project's database migration tool):
+
+bash
+cd backend
+# Make sure your virtual environment is activated
+alembic upgrade head
+If it succeeds, you will see Alembic create all the tables in your Supabase dashboard (under the "Table Editor" tab).
+
+4. Run the Backend
+Now, simply start your FastAPI server as usual:
+
+bash
+uvicorn app.main:app --reload
+Your local backend is now fully connected to your live Supabase database! Any new users you register or assignments you create on localhost:5173 will be permanently saved in the Supabase cloud.
+
+Let me know if you'd like to proceed with this or if you want to start working on the performance optimizations!

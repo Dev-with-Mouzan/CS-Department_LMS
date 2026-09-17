@@ -92,7 +92,7 @@ function Navbar({ links, role, user, onLogout }) {
               <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 lg:w-9 lg:h-9 rounded-lg object-cover shrink-0" loading="eager" />
               <div className="leading-tight min-w-0">
                 <p className="text-sm lg:text-base font-bold text-white tracking-tight truncate">CS Department LMS</p>
-                <p className="text-2xs font-medium text-white/40 truncate">
+                <p className="text-xs font-medium text-white/40 truncate">
                   Govt. Graduate College Burewala
                 </p>
               </div>
@@ -210,7 +210,7 @@ function Footer({ links, role }) {
               <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 rounded-lg object-cover" loading="lazy" />
               <div>
                 <p className="text-sm font-bold text-white">CS Department LMS</p>
-                <p className="text-2xs text-white/40">Govt. Graduate College Burewala</p>
+                <p className="text-xs text-white/40">Govt. Graduate College Burewala</p>
               </div>
             </div>
             <p className="text-sm text-white/40 leading-relaxed">

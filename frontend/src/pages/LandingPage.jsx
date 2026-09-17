@@ -100,7 +100,7 @@ function Navbar() {
               <p className={`text-xs sm:text-sm lg:text-base font-bold leading-tight tracking-tight truncate transition-colors duration-300 ${s ? 'text-navy-900' : 'text-white'}`}>
                 CS Department LMS
               </p>
-              <p className={`text-2xs font-medium truncate transition-colors duration-300 ${s ? 'text-navy-400' : 'text-white/50'}`}>
+              <p className={`text-xs font-medium truncate transition-colors duration-300 ${s ? 'text-navy-600' : 'text-white/50'}`}>
                 Govt. Graduate College Burewala
               </p>
             </div>
@@ -117,7 +117,7 @@ function Navbar() {
                       ? 'text-navy-900 font-semibold border-b-2 border-accent-500 rounded-none'
                       : 'text-white font-semibold border-b-2 border-accent-400 rounded-none'
                     : s
-                      ? 'text-navy-500 hover:text-navy-900 hover:bg-surface-100'
+                      ? 'text-navy-400 hover:text-navy-900 hover:bg-surface-100'
                       : 'text-white/60 hover:text-white'
                 }`}
               >
@@ -135,8 +135,9 @@ function Navbar() {
             >
               Sign In
             </Link>
-            <Link to="/register"className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-accent-500 text-black hover:bg-accent-400 transition-colors shadow-md"
-            >
+            <Link to="/register" className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border transition-colors duration-300 ${
+              s ? 'border-surface-200 text-navy-600 hover:bg-surface-100 hover:text-navy-900' : 'border-white/20 text-white hover:bg-white/10'
+            }`}>
               Get Started
               <ArrowRight className="w-4 h-4" />
             </Link>
@@ -150,9 +151,9 @@ function Navbar() {
             aria-label="Toggle menu"
           >
             {mobileOpen ? (
-              <X className={`w-5 h-5 transition-colors ${s ? 'text-navy-700' : 'text-white'}`} />
+              <X className={`w-5 h-5 transition-colors ${s ? 'text-navy-600' : 'text-white'}`} />
             ) : (
-              <Menu className={`w-5 h-5 transition-colors ${s ? 'text-navy-700' : 'text-white'}`} />
+              <Menu className={`w-5 h-5 transition-colors ${s ? 'text-navy-600' : 'text-white'}`} />
             )}
           </button>
         </div>
@@ -166,7 +167,7 @@ function Navbar() {
                 key={l.href}
                 href={l.href}
                 onClick={() => setMobileOpen(false)}
-                className="block px-4 py-2.5 text-sm font-medium text-navy-700 hover:text-navy-900 hover:bg-surface-100 rounded-lg transition-colors"
+                className="block px-4 py-2.5 text-sm font-medium text-navy-600 hover:text-navy-900 hover:bg-surface-100 rounded-lg transition-colors"
               >
                 {l.label}
               </a>
@@ -175,7 +176,7 @@ function Navbar() {
               <Link to="/login" onClick={() => setMobileOpen(false)} className="text-sm font-medium text-navy-600 hover:text-navy-900 px-4 py-2.5 rounded-lg border border-surface-200 text-center transition-colors">
                 Sign In
               </Link>
-              <Link to="/register" onClick={() => setMobileOpen(false)}className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-accent-500 text-black hover:bg-accent-400 transition-colors"
+              <Link to="/register" onClick={() => setMobileOpen(false)} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border border-surface-200 text-navy-600 hover:bg-surface-100 hover:text-navy-900 transition-colors"
             >
                 Get Started
                 <ArrowRight className="w-4 h-4" />
@@ -255,7 +256,7 @@ function Hero() {
   return (
     <section
       id="hero"
-      className="relative min-h-screen flex items-center overflow-hidden"
+      className="relative h-[100dvh] min-h-[600px] flex items-center overflow-hidden"
     >
       {/* Background image */}
       <div className="absolute inset-0">
@@ -273,7 +274,7 @@ function Hero() {
         <div className="max-w-3xl mx-auto lg:mx-0 text-center lg:text-left">
           <div className="hero-animate inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 mb-8">
             <Star className="w-3.5 h-3.5 text-accent-400" />
-            <span className="text-xs font-semibold text-white/60 tracking-wide uppercase">
+            <span className="text-xs font-semibold text-white/60 tracking-wide">
               Dept. of Computer Science · Govt. Graduate College Burewala
             </span>
           </div>
@@ -299,7 +300,7 @@ function Hero() {
             </Link>
             <a
               href="#how-it-works"
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-semibold text-white border border-white/15 hover:bg-white/5 transition-all duration-200"
+              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-semibold text-white border-2 border-white/25 hover:bg-white/10 transition-all duration-200"
             >
               See How It Works
             </a>
@@ -313,8 +314,8 @@ function Hero() {
             ].map((s, i) => (
               <div key={s.label} className="relative flex flex-col items-center text-center">
                 {i > 0 && <div className="absolute -left-4 lg:-left-6 top-1/2 -translate-y-1/2 w-px h-8 bg-white/10 hidden lg:block" />}
-                <p className="text-2xl font-bold text-white">{s.value}</p>
-                <p className="text-xs text-white/40 font-medium mt-0.5 uppercase tracking-wider">{s.label}</p>
+                <p className="text-3xl font-extrabold text-white">{s.value}</p>
+                <p className="text-sm text-white/50 font-semibold mt-0.5 uppercase tracking-wider">{s.label}</p>
               </div>
             ))}
           </div>
@@ -358,7 +359,7 @@ function Hero() {
                     } ${fading ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}
                   >
                     <p className={`text-lg font-bold ${s.accent ? 'text-accent-400' : 'text-white'} transition-all duration-300`}>{s.value}</p>
-                    <p className="text-2xs text-white/30 mt-0.5">{s.label}</p>
+                    <p className="text-xs text-white/30 mt-0.5">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -368,8 +369,6 @@ function Hero() {
                 <div className="flex items-end gap-2 h-28">
                   {p.bars.map((h, i) => (
                     <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                      {/* Percentage label */}
-                      <span className="text-2xs font-bold text-white/50 transition-all duration-500">{h}%</span>
                       {/* Bar */}
                       <div className="w-full rounded-t-md overflow-hidden" style={{ height: '60px' }}>
                         <div
@@ -385,9 +384,6 @@ function Hero() {
                           }}
                         />
                       </div>
-                      <span className="text-2xs text-white/25 font-medium">
-                        {['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}
-                      </span>
                     </div>
                   ))}
                 </div>
@@ -400,7 +396,7 @@ function Hero() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-white/80 truncate">{p.assignment}</p>
-                  <p className="text-2xs text-accent-400/80">{p.due}</p>
+                  <p className="text-xs text-accent-400/80">{p.due}</p>
                 </div>
                 <CheckCircle2 className="w-4 h-4 text-white/15 shrink-0" />
               </div>
@@ -429,7 +425,7 @@ function SocialProof() {
     <section className="py-20 lg:py-28 bg-surface-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatedSection className="text-center mb-16">
-          <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent-200 bg-accent-50 text-accent-600 text-xs font-bold uppercase tracking-widest mb-3">Trusted by CS Students & Faculty</p>
+          <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent-200 bg-accent-50 text-accent-600 text-xs font-bold tracking-widest mb-3">Trusted by CS Students & Faculty</p>
           <h2 className="text-display-sm lg:text-display-md text-navy-900">Powering Computer Science at GGCB</h2>
           <p className="mt-3 text-navy-400 max-w-2xl mx-auto">
             Real numbers, real impact — see how the LMS is transforming daily academic operations for the CS Department at Govt. Graduate College Burewala.
@@ -443,7 +439,7 @@ function SocialProof() {
                 <s.icon className="w-8 h-8 text-accent-600" />
               </div>
               <p className="text-4xl font-extrabold text-navy-900 tracking-tight">{s.value}</p>
-              <p className="text-sm font-bold text-navy-700 mt-2">{s.label}</p>
+              <p className="text-sm font-bold text-navy-600 mt-2">{s.label}</p>
               <p className="text-xs text-navy-400 mt-3 leading-relaxed">{s.description}</p>
             </div>
           ))}
@@ -466,9 +462,9 @@ function ProblemStatement() {
     <section id="problem" className="py-20 lg:py-28 bg-surface-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatedSection className="max-w-3xl mx-auto text-center mb-16">
-          <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-danger/25 bg-danger/5 text-danger text-xs font-bold uppercase tracking-widest mb-3">The Challenge</p>
+          <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent-200 bg-accent-50 text-accent-600 text-xs font-bold uppercase tracking-widest mb-3">The Challenge</p>
           <h2 className="text-display-sm lg:text-display-md text-navy-900">
-            Education Shouldn't Feel <span className="text-danger">This Hard</span>
+            Education Shouldn't Feel <span className="text-accent-500">This Hard</span>
           </h2>
           <p className="mt-4 text-navy-400 text-lg leading-relaxed">
             Traditional classroom management in the CS Department at Govt. Graduate College Burewala relies on outdated, paper-based systems. The result? Wasted time, lost records, and disconnected students, teachers, and parents.
@@ -478,12 +474,12 @@ function ProblemStatement() {
         <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           {problems.map((p) => (
             <div key={p.title} className="stagger-child flex flex-col sm:flex-row sm:gap-5 gap-4 p-6 sm:p-7 rounded-2xl bg-white border border-surface-200 shadow-card hover:shadow-elevated hover:-translate-y-1 transition-all duration-300">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-danger-light border border-danger/10 flex items-center justify-center shrink-0 self-center sm:self-auto">
-                <p.icon className="w-6 h-6 sm:w-7 sm:h-7 text-danger" />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-accent-50 border border-accent-200 flex items-center justify-center shrink-0 self-center sm:self-auto">
+                <p.icon className="w-6 h-6 sm:w-7 sm:h-7 text-accent-600" />
               </div>
               <div className="text-center sm:text-left">
                 <h3 className="text-base sm:text-lg font-bold text-navy-900">{p.title}</h3>
-                <p className="text-sm text-navy-500 mt-2 leading-relaxed">{p.description}</p>
+                <p className="text-sm text-navy-400 mt-2 leading-relaxed">{p.description}</p>
               </div>
             </div>
           ))}
@@ -529,7 +525,7 @@ function Solution() {
           </p>
         </AnimatedSection>
 
-        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
           {features.map((f) => {
             const c = colorMap[f.color]
             return (
@@ -570,7 +566,6 @@ function HowItWorks() {
       title: 'Create Your Account',
       description: 'Sign up with your college email and phone number. Verify your account with a one-time SMS code.',
       detail: 'Takes less than 30 seconds',
-      color: 'accent',
     },
     {
       step: 2,
@@ -578,7 +573,6 @@ function HowItWorks() {
       title: 'Access Your Courses',
       description: 'Courses appear automatically based on your session and semester — Data Structures, OS, DB, and more.',
       detail: 'All courses ready on day one',
-      color: 'info',
     },
     {
       step: 3,
@@ -586,21 +580,14 @@ function HowItWorks() {
       title: 'Track Your Progress',
       description: 'Monitor attendance, grades, assignment deadlines, and performance trends — all in real time.',
       detail: 'Always up to date',
-      color: 'success',
     },
   ]
-
-  const colorMap = {
-    accent: { bg: 'bg-accent-50', border: 'border-accent-200', icon: 'text-accent-600', number: 'bg-accent-500', connector: 'bg-accent-200' },
-    info: { bg: 'bg-info-light', border: 'border-info/30', icon: 'text-info', number: 'bg-info', connector: 'bg-info/30' },
-    success: { bg: 'bg-success-light', border: 'border-success/30', icon: 'text-success', number: 'bg-success', connector: 'bg-success/30' },
-  }
 
   return (
     <section id="how-it-works" className="py-20 lg:py-28 bg-surface-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatedSection className="text-center mb-16">
-          <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent-200 bg-accent-50 text-accent-600 text-xs font-bold uppercase tracking-widest mb-3">Simple & Intuitive</p>
+          <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent-200 bg-accent-50 text-accent-600 text-xs font-bold tracking-widest mb-3">Simple & Intuitive</p>
           <h2 className="text-display-sm lg:text-display-md text-navy-900">How It Works</h2>
           <p className="mt-3 text-navy-400 max-w-2xl mx-auto">
             Getting started takes less than 2 minutes. Here's the journey from registration to full CS department integration.
@@ -611,9 +598,9 @@ function HowItWorks() {
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-6 relative">
             {/* Connector line with animated particle (desktop only) */}
-            <div className="hidden md:block absolute left-[20%] right-[20%] h-0.5" style={{ top: '32px' }}>
+            <div className="hidden md:block absolute left-[20%] right-[20%] h-1 z-0" style={{ top: '32px' }}>
               {/* Background line */}
-              <div className="h-full bg-surface-200" />
+              <div className="h-full bg-surface-300" />
               {/* Animated fill */}
               <div className={`absolute inset-0 h-full bg-accent-400 transition-all duration-1000 ease-out ${inView ? 'w-full' : 'w-0'}`} />
               {/* Glowing particle */}
@@ -624,9 +611,7 @@ function HowItWorks() {
               )}
             </div>
 
-            {steps.map((step, i) => {
-              const c = colorMap[step.color]
-              return (
+            {steps.map((step, i) => (
                 <div
                   key={step.step}
                   className={`relative transition-all duration-700 ease-out ${
@@ -637,17 +622,17 @@ function HowItWorks() {
                   <div className="text-center">
                     {/* Step number circle */}
                     <div className="relative inline-flex items-center justify-center mb-6">
-                      <div className={`w-16 h-16 rounded-2xl ${c.bg} border ${c.border} flex items-center justify-center relative z-10 transition-transform duration-500 hover:scale-110`}>
-                        <step.icon className={`w-7 h-7 ${c.icon}`} />
+                      <div className="w-16 h-16 rounded-2xl bg-accent-50 border border-accent-200 flex items-center justify-center relative z-10 transition-transform duration-500 hover:scale-110">
+                        <step.icon className="w-7 h-7 text-accent-600" />
                       </div>
-                      <span className={`absolute -top-2 -right-2 w-7 h-7 rounded-full ${c.number} text-white text-xs font-bold flex items-center justify-center z-20 shadow-md`}>
+                      <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-accent-500 text-white text-xs font-bold flex items-center justify-center z-20 shadow-md">
                         {step.step}
                       </span>
                     </div>
 
                     {/* Content */}
                     <h3 className="text-lg font-bold text-navy-900 mb-2">{step.title}</h3>
-                    <p className="text-sm text-navy-500 leading-relaxed max-w-xs mx-auto mb-3">
+                    <p className="text-sm text-navy-400 leading-relaxed max-w-xs mx-auto mb-3">
                       {step.description}
                     </p>
                     <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-surface-200">
@@ -656,8 +641,7 @@ function HowItWorks() {
                     </div>
                   </div>
                 </div>
-              )
-            })}
+              ))}
           </div>
         </div>
       </div>
@@ -711,11 +695,11 @@ function FacultyCarousel({ faculty }) {
             <div key={f.name} className="shrink-0 flex flex-col bg-white rounded-2xl border border-surface-200 overflow-hidden group hover:-translate-y-1 hover:shadow-lg transition-all duration-300" style={{ width: `${CARD_W}px`, height: '400px' }}>
               {/* Photo */}
               <div className="relative h-72 overflow-hidden">
-                <img src={f.image} alt={f.name} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                <img src={f.image} alt={f.name} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" loading="lazy" onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.classList.add('bg-gradient-to-br', 'from-accent-100', 'to-accent-200'); }} />
                 <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
                 <div className="absolute bottom-3 left-4 right-4">
                   <p className="text-base font-bold text-white">{f.name}</p>
-                  <p className="text-xs font-semibold text-accent-400">{f.title}</p>
+                  <p className="text-sm font-semibold text-accent-500">{f.title}</p>
                 </div>
               </div>
               {/* Details */}
@@ -724,15 +708,15 @@ function FacultyCarousel({ faculty }) {
                   <div className="flex items-start gap-1.5 mb-1.5">
                     <GraduationCap className="w-3.5 h-3.5 text-accent-500 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-semibold text-navy-800">{f.qualification}</p>
-                      <p className="text-[10px] text-navy-400">{f.university}</p>
+                      <p className="text-xs font-semibold text-navy-600">{f.qualification}</p>
+                      <p className="text-xs text-navy-400">{f.university}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-1.5">
                     <BookOpen className="w-3.5 h-3.5 text-accent-500 mt-0.5 shrink-0" />
                     <div className="flex flex-wrap gap-1">
                       {f.research.map((r) => (
-                        <span key={r} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent-50 text-accent-700 border border-accent-100">{r}</span>
+                        <span key={r} className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent-50 text-accent-700 border border-accent-100">{r}</span>
                       ))}
                     </div>
                   </div>
@@ -740,7 +724,7 @@ function FacultyCarousel({ faculty }) {
                 {f.email && (
                   <div className="flex items-center gap-1.5 pt-1.5 border-t border-surface-100">
                     <Mail className="w-3 h-3 text-accent-500 shrink-0" />
-                    <a href={`mailto:${f.email}`} className="text-[10px] text-navy-600 hover:text-accent-600 transition-colors truncate">{f.email}</a>
+                    <a href={`mailto:${f.email}`} className="text-xs text-navy-600 hover:text-accent-600 transition-colors truncate">{f.email}</a>
                   </div>
                 )}
               </div>
@@ -750,12 +734,12 @@ function FacultyCarousel({ faculty }) {
       </div>
 
       {/* Left Arrow */}
-      <button onClick={() => go(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+      <button onClick={() => go(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
         <ChevronLeft className="w-5 h-5 text-navy-600" />
       </button>
 
       {/* Right Arrow */}
-      <button onClick={() => go(1)} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+      <button onClick={() => go(1)} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
         <ChevronRight className="w-5 h-5 text-navy-600" />
       </button>
     </div>
@@ -913,7 +897,7 @@ function StudentReviewsCarousel({ reviews }) {
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-navy-900 truncate">{r.name}</p>
-                  <p className="text-2xs text-navy-400">{r.semester}</p>
+                  <p className="text-xs text-navy-400">{r.semester}</p>
                 </div>
               </div>
             </div>
@@ -922,12 +906,12 @@ function StudentReviewsCarousel({ reviews }) {
       </div>
 
       {/* Left Arrow */}
-      <button onClick={() => go(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+      <button onClick={() => go(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
         <ChevronLeft className="w-5 h-5 text-navy-600" />
       </button>
 
       {/* Right Arrow */}
-      <button onClick={() => go(1)} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+      <button onClick={() => go(1)} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
         <ChevronRight className="w-5 h-5 text-navy-600" />
       </button>
     </div>
@@ -1006,13 +990,13 @@ function FAQ() {
         <StaggerContainer className="space-y-3">
           {faqs.map((faq, i) => (
             <div key={i} className="stagger-child card overflow-hidden transition-all duration-200">
-              <button onClick={() => setOpenIndex(openIndex === i ? null : i)} className="w-full flex items-center justify-between p-5 text-left group">
-                <span className="text-sm font-semibold text-navy-800 pr-4 group-hover:text-navy-900">{faq.question}</span>
-                {openIndex === i ? <ChevronUp className="w-5 h-5 text-accent-500 shrink-0" /> : <ChevronDown className="w-5 h-5 text-navy-300 shrink-0 group-hover:text-navy-400" />}
+              <button onClick={() => setOpenIndex(openIndex === i ? null : i)} className="w-full flex items-center justify-between p-5 text-left group hover:bg-surface-50 transition-colors rounded-2xl">
+                <span className="text-sm font-semibold text-navy-900 pr-4 group-hover:text-navy-900">{faq.question}</span>
+                {openIndex === i ? <ChevronUp className="w-5 h-5 text-accent-500 shrink-0" /> : <ChevronDown className="w-5 h-5 text-navy-400 shrink-0 group-hover:text-navy-600" />}
               </button>
               {openIndex === i && (
                 <div className="px-5 pb-5 border-t border-surface-100">
-                  <p className="text-sm text-navy-500 leading-relaxed pt-4">{faq.answer}</p>
+                  <p className="text-sm text-navy-400 leading-relaxed pt-4">{faq.answer}</p>
                 </div>
               )}
             </div>
@@ -1057,7 +1041,7 @@ function CTA() {
             Sign In
           </Link>
         </div>
-        <p className="mt-6 text-xs text-white/30 font-medium">No credit card required · Free forever for CS Dept. students & staff</p>
+        {/* <p className="mt-6 text-xs text-white/30 font-medium">No credit card required · Free forever for CS Dept. students & staff</p> */}
       </AnimatedSection>
     </section>
   )
@@ -1074,13 +1058,13 @@ function Footer() {
               <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 rounded-lg object-cover" />
               <div>
                 <p className="text-sm font-bold text-white">CS Dept. LMS</p>
-                <p className="text-2xs text-white/40">Govt. Graduate College Burewala</p>
+                <p className="text-xs text-white/40">Govt. Graduate College Burewala</p>
               </div>
             </div>
             <p className="text-sm text-white/40 leading-relaxed">
               CS Department's official Learning Management System at Govt. Graduate College Burewala. Digitizing education for a connected campus.
             </p>
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3 mt-3">
               {[{ icon: Facebook, label: 'Facebook' }, { icon: Instagram, label: 'Instagram' }, { icon: Twitter, label: 'Twitter' }, { icon: Youtube, label: 'YouTube' }].map((s) => (
                 <a key={s.label} href="#" aria-label={s.label} className="w-9 h-9 rounded-lg bg-white/5 hover:bg-accent-500/20 flex items-center justify-center text-white/30 hover:text-accent-400 transition-colors">
                   <s.icon className="w-4 h-4" />
@@ -1090,7 +1074,7 @@ function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">Quick Links</h4>
+            <h3 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">Quick Links</h3>
             <ul className="space-y-3">
               {['Home', 'About CS Dept.', 'Programs', 'Admissions', 'Results'].map((link) => (
                 <li key={link}><a href="#" className="text-sm text-white/40 hover:text-accent-400 transition-colors">{link}</a></li>
@@ -1099,7 +1083,7 @@ function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">LMS</h4>
+            <h3 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">LMS</h3>
             <ul className="space-y-3">
               {['Student Portal', 'Teacher Portal', 'Admin Dashboard', 'CS Courses', 'Attendance'].map((link) => (
                 <li key={link}><a href="#" className="text-sm text-white/40 hover:text-accent-400 transition-colors">{link}</a></li>
@@ -1108,7 +1092,7 @@ function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">Contact Us</h4>
+            <h3 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">Contact Us</h3>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-accent-500 mt-0.5 shrink-0" />
