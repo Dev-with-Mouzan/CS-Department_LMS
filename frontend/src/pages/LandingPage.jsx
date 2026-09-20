@@ -135,8 +135,8 @@ function Navbar() {
             >
               Sign In
             </Link>
-            <Link to="/register" className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border transition-colors duration-300 ${
-              s ? 'border-surface-200 text-navy-600 hover:bg-surface-100 hover:text-navy-900' : 'border-white/20 text-white hover:bg-white/10'
+            <Link to="/register" className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-300 ${
+              s ? 'bg-accent-500 text-black hover:bg-accent-400' : 'bg-accent-500 text-black hover:bg-accent-400'
             }`}>
               Get Started
               <ArrowRight className="w-4 h-4" />
@@ -266,7 +266,7 @@ function Hero() {
           className="w-full h-full object-cover object-center"
           loading="eager"
         />
-        <div className="absolute inset-0 bg-navy-950/85" />
+        <div className="absolute inset-0 bg-navy-950/90" />
 
       </div>
 
