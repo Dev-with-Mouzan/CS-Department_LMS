@@ -26,6 +26,7 @@ export default function Examinations() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('active')
+  const [sessionTab, setSessionTab] = useState('morning')
 
   useEffect(() => {
     setLoading(true)
@@ -76,8 +77,10 @@ export default function Examinations() {
 
   const goCourses = () => setActiveCourse(null)
 
+  const filteredCourses = courses.filter((c) => (c.session_type || 'morning') === sessionTab)
+
   const semesters = Object.values(
-    courses.reduce((acc, c) => {
+    filteredCourses.reduce((acc, c) => {
       const key = c.semester != null ? String(c.semester) : 'other'
       if (!acc[key]) acc[key] = []
       acc[key].push(c)
@@ -99,7 +102,7 @@ export default function Examinations() {
     .sort((a, b) => (a.key === 'other' ? 1 : b.key === 'other' ? -1 : Number(a.key) - Number(b.key)))
 
   const activeCourses = activeSemester != null
-    ? courses.filter((c) => (c.semester != null ? String(c.semester) : 'other') === activeSemester)
+    ? filteredCourses.filter((c) => (c.semester != null ? String(c.semester) : 'other') === activeSemester)
     : []
 
   const filtered = allResults.filter(r => {
@@ -128,29 +131,40 @@ export default function Examinations() {
         <p className="text-navy-400 mt-1.5">Pick a semester and book to view or delete result sheets</p>
       </div>
 
-      {/* Active / Inactive Tab Switcher */}
+      {/* Tabs Row */}
       {activeSemester == null && (
-        <div className="flex items-center justify-center gap-1 mb-5 p-1 bg-surface-100 rounded-xl w-fit mx-auto">
-          <button
-            onClick={() => { setActiveTab('active'); setActiveSemester(null); setActiveCourse(null) }}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'active'
-                ? 'bg-white text-navy-900 shadow-sm'
-                : 'text-navy-400 hover:text-navy-600'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5" /> Active
-          </button>
-          <button
-            onClick={() => { setActiveTab('inactive'); setActiveSemester(null); setActiveCourse(null) }}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === 'inactive'
-                ? 'bg-white text-navy-900 shadow-sm'
-                : 'text-navy-400 hover:text-navy-600'
-            }`}
-          >
-            <Archive className="w-3.5 h-3.5" /> Inactive
-          </button>
+        <div className="flex justify-center mb-5">
+          <div className="flex gap-1 p-1 bg-surface-100 rounded-lg flex-wrap justify-center">
+            {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+              <button key={r.value} onClick={() => setSessionTab(r.value)}
+                className={`px-3 sm:px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                  sessionTab === r.value
+                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                    : 'text-navy-400 hover:text-navy-600'
+                }`}>
+                {r.label}
+              </button>
+            ))}
+            <div className="w-px bg-surface-300 my-1 hidden sm:block" />
+            <button
+              onClick={() => { setActiveTab('active'); setActiveSemester(null); setActiveCourse(null) }}
+              className={`flex items-center gap-1.5 px-3 sm:px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                activeTab === 'active'
+                  ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                  : 'text-navy-400 hover:text-navy-600'
+              }`}>
+              <Activity className="w-3.5 h-3.5" /> Active
+            </button>
+            <button
+              onClick={() => { setActiveTab('inactive'); setActiveSemester(null); setActiveCourse(null) }}
+              className={`flex items-center gap-1.5 px-3 sm:px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                activeTab === 'inactive'
+                  ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                  : 'text-navy-400 hover:text-navy-600'
+              }`}>
+              <Archive className="w-3.5 h-3.5" /> Inactive
+            </button>
+          </div>
         </div>
       )}
 

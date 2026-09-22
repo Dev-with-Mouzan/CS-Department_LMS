@@ -19,6 +19,7 @@ export default function MarkAttendance() {
   const [courses, setCourses] = useState([])
   const [sessionsByCourse, setSessionsByCourse] = useState({})
   const [activeSemester, setActiveSemester] = useState(null)
+  const [sessionTab, setSessionTab] = useState('morning')
   const [activeCourse, setActiveCourse] = useState(null)
   const [students, setStudents] = useState([])
   const [attendance, setAttendance] = useState({})
@@ -154,7 +155,7 @@ export default function MarkAttendance() {
   const absentCount = students.length - presentCount - lateCount
 
   const semesters = Object.values(
-    courses.reduce((acc, c) => {
+    courses.filter((c) => (c.session_type || 'morning') === sessionTab).reduce((acc, c) => {
       const key = c.semester != null ? String(c.semester) : 'other'
       if (!acc[key]) acc[key] = []
       acc[key].push(c)
@@ -174,7 +175,7 @@ export default function MarkAttendance() {
     .sort((a, b) => (a.key === 'other' ? 1 : b.key === 'other' ? -1 : Number(a.key) - Number(b.key)))
 
   const activeCourses = activeSemester != null
-    ? courses.filter((c) => (c.semester != null ? String(c.semester) : 'other') === activeSemester)
+    ? courses.filter((c) => (c.session_type || 'morning') === sessionTab && (c.semester != null ? String(c.semester) : 'other') === activeSemester)
     : []
 
   return (
@@ -239,16 +240,32 @@ export default function MarkAttendance() {
           </div>
 
           {activeSemester == null ? (
-            semesters.length === 0 ? (
-              <div className="border border-dashed border-surface-200 rounded-xl p-16 text-center">
-                <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-                  <BookOpen className="w-7 h-7" />
-                </span>
-                <p className="text-navy-500 text-sm font-medium">No courses yet. Ask the admin to assign you some.</p>
+            <>
+              <div className="flex justify-center mb-5">
+                <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
+                  {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                    <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null) }}
+                      className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                        sessionTab === r.value
+                          ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                          : 'text-navy-400 hover:text-navy-600'
+                      }`}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ) : (
-              <SemesterGrid semesters={semesters} onPick={setActiveSemester} />
-            )
+              {semesters.length === 0 ? (
+                <div className="border border-dashed border-surface-200 rounded-xl p-16 text-center">
+                  <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
+                    <BookOpen className="w-7 h-7" />
+                  </span>
+                  <p className="text-navy-500 text-sm font-medium">No courses yet. Ask the admin to assign you some.</p>
+                </div>
+              ) : (
+                <SemesterGrid semesters={semesters} onPick={setActiveSemester} />
+              )}
+            </>
           ) : activeCourse == null ? (
             <CourseGrid
               courses={activeCourses}

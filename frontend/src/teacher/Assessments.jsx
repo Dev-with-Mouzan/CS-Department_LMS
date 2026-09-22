@@ -76,6 +76,7 @@ export default function Assessments() {
   const [reuseLoading, setReuseLoading] = useState(false)
   const [reuseSubmitting, setReuseSubmitting] = useState(false)
   const [showAllPastCourses, setShowAllPastCourses] = useState(false)
+  const [sessionTab, setSessionTab] = useState('morning')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -259,7 +260,7 @@ export default function Assessments() {
   }
 
   const semesters = Object.values(
-    courses.reduce((acc, c) => {
+    courses.filter((c) => (c.session_type || 'morning') === sessionTab).reduce((acc, c) => {
       const key = c.semester != null ? String(c.semester) : 'other'
       if (!acc[key]) acc[key] = []
       acc[key].push(c)
@@ -279,8 +280,12 @@ export default function Assessments() {
     })
     .sort((a, b) => (a.key === 'other' ? 1 : b.key === 'other' ? -1 : Number(a.key) - Number(b.key)))
 
+  const filteredCourseIds = new Set(courses.filter((c) => (c.session_type || 'morning') === sessionTab).map((c) => c.id))
+  const filteredAssignmentCount = assignments.filter((a) => filteredCourseIds.has(a.course_id)).length
+  const filteredQuizCount = quizzes.filter((q) => filteredCourseIds.has(q.course_id)).length
+
   const activeCourses = activeSemester != null
-    ? courses.filter((c) => (c.semester != null ? String(c.semester) : 'other') === activeSemester)
+    ? courses.filter((c) => (c.session_type || 'morning') === sessionTab && (c.semester != null ? String(c.semester) : 'other') === activeSemester)
     : []
 
   const activeItems = activeCourse
@@ -324,7 +329,7 @@ export default function Assessments() {
                   tab === t.id ? 'bg-white/20' : 'bg-surface-100 text-navy-400'
                 }`}
               >
-                {tab === 'assignments' ? assignments.length || 0 : quizzes.length || 0}
+                {t.id === 'assignments' ? filteredAssignmentCount : filteredQuizCount}
               </span>
             </button>
           ))}
@@ -393,19 +398,34 @@ export default function Assessments() {
           </div>
 
           {activeSemester == null ? (
-            semesters.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-surface-200 bg-white px-6 py-12 text-center">
-                <span className="inline-flex w-12 h-12 rounded-xl bg-navy-900 text-white items-center justify-center mb-3">
-                  <BookOpen className="w-6 h-6" />
-                </span>
-                <p className="text-sm font-semibold text-navy-900">No courses yet</p>
-                <p className="text-xs text-navy-400 mt-1">
-                  Ask the admin to assign you some courses to get started.
-                </p>
+            <>
+              {/* Session tabs */}
+              <div className="flex justify-center mb-5">
+                <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
+                  {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                    <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null) }}
+                      className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                        sessionTab === r.value
+                          ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                          : 'text-navy-400 hover:text-navy-600'
+                      }`}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ) : (
-              <SemesterGrid semesters={semesters} tab={tab} onPick={setActiveSemester} />
-            )
+              {semesters.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-surface-200 bg-white px-6 py-12 text-center">
+                  <span className="inline-flex w-12 h-12 rounded-xl bg-navy-900 text-white items-center justify-center mb-3">
+                    <BookOpen className="w-6 h-6" />
+                  </span>
+                  <p className="text-sm font-semibold text-navy-900">No courses for {sessionTab} session</p>
+                  <p className="text-xs text-navy-400 mt-1">No courses assigned to the {sessionTab} session yet.</p>
+                </div>
+              ) : (
+                <SemesterGrid semesters={semesters} tab={tab} onPick={setActiveSemester} />
+              )}
+            </>
           ) : activeCourse == null ? (
             <CourseGrid
               courses={activeCourses}

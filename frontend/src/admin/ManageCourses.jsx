@@ -15,8 +15,9 @@ export default function ManageCourses() {
   const [editing, setEditing] = useState(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('active')
+  const [sessionTab, setSessionTab] = useState('morning')
   const [search, setSearch] = useState('')
-  const [form, setForm] = useState({ course_code: '', title: '', description: '', teacher_id: '', semester: '', session: '' })
+  const [form, setForm] = useState({ course_code: '', title: '', description: '', teacher_id: '', semester: '', session: '', session_type: 'morning' })
   const [downloadingId, setDownloadingId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [error, setError] = useState(null)
@@ -39,7 +40,7 @@ export default function ManageCourses() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ course_code: '', title: '', description: '', teacher_id: '', semester: '', session: '' })
+    setForm({ course_code: '', title: '', description: '', teacher_id: '', semester: '', session: '', session_type: sessionTab })
     setShowModal(true)
   }
 
@@ -52,6 +53,7 @@ export default function ManageCourses() {
       teacher_id: course.teacher_id || '',
       semester: course.semester || '',
       session: course.session || '',
+      session_type: course.session_type || 'morning',
       is_active: course.is_active,
     })
     setShowModal(true)
@@ -61,8 +63,8 @@ export default function ManageCourses() {
     e.preventDefault()
     try {
       if (editing) {
-        const { title, description, teacher_id, semester, session, is_active } = form
-        const payload = { title, description, teacher_id, session, is_active }
+        const { title, description, teacher_id, semester, session, session_type, is_active } = form
+        const payload = { title, description, teacher_id, session, session_type, is_active }
         if (semester) payload.semester = parseInt(semester, 10)
         await coursesAPI.update(editing.id, payload)
       } else {
@@ -94,6 +96,8 @@ export default function ManageCourses() {
     const q = search.trim().toLowerCase()
     const statusMatch = filter === '' || (filter === 'active' && c.is_active) || (filter === 'inactive' && !c.is_active)
     if (!statusMatch) return false
+    const sessionMatch = (c.session_type || 'morning') === sessionTab
+    if (!sessionMatch) return false
     if (!q) return true
     return (
       `${c.course_code} ${c.title}`.toLowerCase().includes(q) ||
@@ -147,13 +151,24 @@ export default function ManageCourses() {
 
       {/* Toolbar: filters + search + action */}
       <div className="border border-surface-200 rounded-xl bg-white p-3 mb-8 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-        <div className="inline-flex gap-1 p-1 bg-navy-900/5 rounded-xl justify-center w-full lg:w-auto self-center">
+        <div className="flex gap-1 p-1 bg-surface-100 rounded-lg flex-wrap justify-center">
+          {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+            <button key={r.value} onClick={() => setSessionTab(r.value)}
+              className={`px-3 sm:px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                sessionTab === r.value
+                  ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                  : 'text-navy-400 hover:text-navy-600'
+              }`}>
+              {r.label}
+            </button>
+          ))}
+          <div className="w-px bg-surface-300 my-1 hidden sm:block" />
           {[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }].map((r) => (
             <button key={r.value} onClick={() => setFilter(r.value)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`px-3 sm:px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                 filter === r.value
-                  ? 'bg-navy-900 text-white shadow-md shadow-navy-900/10'
-                  : 'text-navy-500 hover:bg-white hover:text-navy-800'
+                  ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                  : 'text-navy-400 hover:text-navy-600'
               }`}>
               {r.label}
             </button>
@@ -184,6 +199,7 @@ export default function ManageCourses() {
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Course</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Semester</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Session</th>
+                <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Type</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Teacher</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-left text-2xs font-bold text-navy-400 uppercase tracking-wider">Created</th>
@@ -199,7 +215,7 @@ export default function ManageCourses() {
                 </tr>
               ) : filteredCourses.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-16 text-center">
+                  <td colSpan={8} className="px-6 py-16 text-center">
                     <span className="inline-flex w-12 h-12 rounded-2xl bg-navy-900/5 text-navy-400 border border-navy-900/10 items-center justify-center mb-3">
                       <BookOpen className="w-6 h-6" />
                     </span>
@@ -237,8 +253,18 @@ export default function ManageCourses() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold border ${
+                        (course.session_type || 'morning') === 'morning'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                      }`}>
+                        <span className="leading-none">{(course.session_type || 'morning') === 'morning' ? '☀️' : '🌙'}</span>
+                        <span>{(course.session_type || 'morning') === 'morning' ? 'Morning' : 'Evening'}</span>
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
                       {t ? (
-                        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
                           <span className="w-7 h-7 rounded-full bg-gradient-to-br from-info to-info-dark flex items-center justify-center shrink-0">
                             <span className="text-white text-[10px] font-bold">{t.first_name?.[0]}{t.last_name?.[0]}</span>
                           </span>
@@ -320,39 +346,58 @@ export default function ManageCourses() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="input-label">Course code</label>
+              <label className="input-label">Course code <span className="text-danger">*</span></label>
               <input value={form.course_code} onChange={(e) => setForm({ ...form, course_code: e.target.value })}
                 className={`input-field ${editing ? 'bg-surface-50' : ''}`} placeholder="CS101"
                 required disabled={editing} />
             </div>
             <div>
-              <label className="input-label">Title</label>
+              <label className="input-label">Title <span className="text-danger">*</span></label>
               <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
                 className="input-field" required />
             </div>
           </div>
           <div>
-            <label className="input-label">Description</label>
+            <label className="input-label">Description <span className="text-danger">*</span></label>
             <textarea value={form.description} rows={3} onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="input-field resize-none" />
+              className="input-field resize-none" required placeholder="Enter course description" />
           </div>
           <div>
-            <label className="input-label">Semester</label>
+            <label className="input-label">Semester <span className="text-danger">*</span></label>
             <input type="number" value={form.semester} min={1} max={8}
               onChange={(e) => setForm({ ...form, semester: e.target.value })}
               className="input-field" placeholder="1 – 8" required />
             <p className="text-2xs text-navy-400 mt-1">Students with matching session and semester can access this course.</p>
           </div>
           <div>
-            <label className="input-label">Session year</label>
+            <label className="input-label">Session year <span className="text-danger">*</span></label>
             <input value={form.session} onChange={(e) => setForm({ ...form, session: e.target.value })}
               className="input-field" placeholder="e.g. 23-27" required />
             <p className="text-2xs text-navy-400 mt-1">e.g. 23-27 means enrollment 2023 to graduation 2027.</p>
           </div>
           <div>
-            <label className="input-label">Assigned teacher</label>
+            <label className="input-label">Session type <span className="text-danger">*</span></label>
+            <div className="flex gap-3">
+              {['morning', 'evening'].map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setForm({ ...form, session_type: opt })}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all duration-200 ${
+                    form.session_type === opt
+                      ? 'border-accent-500 bg-accent-50 text-accent-700'
+                      : 'border-surface-200 bg-surface-0 text-navy-400 hover:border-navy-300'
+                  }`}
+                >
+                  {opt === 'morning' ? '☀️ Morning' : '🌙 Evening'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="input-label">Assigned teacher <span className="text-danger">*</span></label>
             <select value={form.teacher_id} onChange={(e) => setForm({ ...form, teacher_id: e.target.value })}
-              className="input-field">
+              className="input-field" required>
               <option value="">Select teacher</option>
               {teachers.map((t) => <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>)}
             </select>

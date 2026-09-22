@@ -20,9 +20,9 @@ import {
 const EMPTY_ATT = { total_sessions: 0, present_count: 0, percentage: 0 }
 
 const toneOf = (pct) => {
-  if (pct >= 75) return { text: 'text-emerald-600', bar: 'bg-emerald-500' }
-  if (pct >= 50) return { text: 'text-amber-600', bar: 'bg-amber-500' }
-  return { text: 'text-red-500', bar: 'bg-red-500' }
+  if (pct >= 75) return { text: 'text-emerald-600', bar: 'bg-emerald-500', stroke: 'stroke-emerald-500' }
+  if (pct >= 50) return { text: 'text-amber-600', bar: 'bg-amber-500', stroke: 'stroke-amber-500' }
+  return { text: 'text-red-500', bar: 'bg-red-500', stroke: 'stroke-red-500' }
 }
 
 const examTone = (type) => {
@@ -445,7 +445,7 @@ export default function StudentDashboard() {
                     fill="none"
                     strokeWidth="10"
                     strokeLinecap="round"
-                    className={attTone.bar}
+                    className={attTone.stroke}
                     strokeDasharray="326.73"
                     strokeDashoffset={326.73 * (1 - Math.min(overallPct, 100) / 100)}
                   />

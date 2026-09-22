@@ -103,6 +103,7 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showCourses, setShowCourses] = useState(false)
+  const [sessionTab, setSessionTab] = useState('morning')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -228,7 +229,7 @@ export default function TeacherDashboard() {
     year: 'numeric',
   })
 
-  const displayedCourses = courses
+  const displayedCourses = courses.filter((c) => (c.session_type || 'morning') === sessionTab)
 
   const upcoming = assignments
     .map((a) => ({ ...a, due: parseDate(a.due_date) }))
@@ -239,7 +240,7 @@ export default function TeacherDashboard() {
   const subTotal = subStats?.total || 0
   const graded = subTotal - toReview
   const reviewedPct = subTotal > 0 ? (graded / subTotal) * 100 : 0
-  const ringTone = subTotal > 0 ? (toReview === 0 ? 'bg-emerald-500' : 'bg-accent-500') : 'bg-surface-200'
+  const ringTone = subTotal > 0 ? (toReview === 0 ? 'stroke-emerald-500' : 'stroke-accent-500') : 'stroke-surface-200'
 
   const heroStats = [
     { label: 'Active courses', value: courses.length },
@@ -395,17 +396,33 @@ export default function TeacherDashboard() {
                   My courses
                 </h2>
                 <p className="text-xs text-navy-400 mt-1">
-                  {courses.length > 2 ? `Showing 2 of ${courses.length} courses you teach.` : 'Courses you are teaching.'}
+                  {displayedCourses.length > 2 ? `Showing 2 of ${displayedCourses.length} ${sessionTab} courses.` : `${sessionTab.charAt(0).toUpperCase() + sessionTab.slice(1)} courses you teach.`}
                 </p>
               </div>
-              <span className="text-xs font-medium text-navy-400 tabular-nums">{courses.length} courses</span>
+              <span className="text-xs font-medium text-navy-400 tabular-nums">{displayedCourses.length} courses</span>
             </div>
 
-            {courses.length === 0 ? (
+            {/* Session tabs */}
+            <div className="mt-4 flex justify-center">
+              <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
+                {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                  <button key={r.value} onClick={() => setSessionTab(r.value)}
+                    className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                      sessionTab === r.value
+                        ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                        : 'text-navy-400 hover:text-navy-600'
+                    }`}>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {displayedCourses.length === 0 ? (
               <div className="mt-5 rounded-xl border border-dashed border-surface-200 py-10 text-center">
                 <BookOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-navy-900">No courses assigned yet</p>
-                <p className="text-xs text-navy-400 mt-1">Your assigned courses will show up here.</p>
+                <p className="text-sm font-medium text-navy-900">No courses for {sessionTab} session</p>
+                <p className="text-xs text-navy-400 mt-1">No courses assigned to the {sessionTab} session yet.</p>
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">

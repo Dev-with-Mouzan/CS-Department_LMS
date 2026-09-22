@@ -22,12 +22,19 @@ export default function Promotion() {
   const [confirmModal, setConfirmModal] = useState({ open: false, data: null })
   const [profileModal, setProfileModal] = useState({ open: false, data: null, loading: false })
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [sessionTab, setSessionTab] = useState('morning')
 
-  useEffect(() => { loadSessions() }, [])
+  useEffect(() => { loadSessions() }, [sessionTab])
+
+  useEffect(() => {
+    if (selectedSession) {
+      loadSemesters(selectedSession)
+    }
+  }, [sessionTab])
 
   const loadSessions = async () => {
     setLoading(true)
-    try { setSessions((await promotionAPI.getSessions()).data) }
+    try { setSessions((await promotionAPI.getSessions(sessionTab)).data) }
     catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
@@ -40,7 +47,7 @@ export default function Promotion() {
     setLoading(true)
     try {
       const [semRes, histRes] = await Promise.all([
-        promotionAPI.getSessionSemesters(session),
+        promotionAPI.getSessionSemesters(session, sessionTab),
         promotionAPI.getHistory(session),
       ])
       setSemesters(semRes.data)
@@ -53,7 +60,7 @@ export default function Promotion() {
   const refreshSemesters = async () => {
     if (!selectedSession) return
     try {
-      const semRes = await promotionAPI.getSessionSemesters(selectedSession)
+      const semRes = await promotionAPI.getSessionSemesters(selectedSession, sessionTab)
       setSemesters(semRes.data)
     } catch (err) { console.error(err) }
   }
@@ -62,7 +69,7 @@ export default function Promotion() {
     setSelectedSemester(semester)
     setSelectedStudents([])
     setLoading(true)
-    try { setStudents((await promotionAPI.getSemesterStudents(selectedSession, semester)).data) }
+    try { setStudents((await promotionAPI.getSemesterStudents(selectedSession, semester, sessionTab)).data) }
     catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
@@ -91,7 +98,7 @@ export default function Promotion() {
   }
 
   const toggleAll = () => {
-    setSelectedStudents(selectedStudents.length === students.length ? [] : students.map((s) => s.id))
+    setSelectedStudents(selectedStudents.length === filteredStudents.length ? [] : filteredStudents.map((s) => s.id))
   }
 
   const promote = async (toSemester, studentIds) => {
@@ -166,6 +173,7 @@ export default function Promotion() {
   const totalStudents = semesters.reduce((sum, s) => sum + s.student_count, 0)
   const currentSem = semesters.find((s) => s.semester === semesters.reduce((min, s) => s.student_count > 0 ? Math.max(min, s.semester) : min, 0))
   const studentsToPromote = students.filter((s) => !s.promoted && !s.is_graduated).length
+  const filteredStudents = students.filter((s) => (s.session_type || 'morning') === sessionTab)
 
   return (
     <div className="p-5 lg:p-8 max-w-7xl mx-auto w-full">
@@ -178,22 +186,34 @@ export default function Promotion() {
             ? <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             : <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />}
           {message}
-          <button onClick={() => setMessage('')} className="ml-2 opacity-60 hover:opacity-100"><X className="w-4 h-4" /></button>
-        </div>
-      )}
+           <button onClick={() => setMessage('')} className="ml-2 opacity-60 hover:opacity-100"><X className="w-4 h-4" /></button>
+            </div>
+          )}
 
       {/* ── Session Selector ──────────────────────────── */}
       {!selectedSession && (
         <>
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500 to-accent-600 flex items-center justify-center">
-                <GraduationCap className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-extrabold text-navy-900 tracking-tight">Semester Promotion</h1>
-                <p className="text-sm text-navy-400">Select a session to manage student progression</p>
-              </div>
+          <div className="mb-8 text-center">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 border border-accent-500/20 text-accent-600 text-[11px] font-semibold mb-3">
+              <GraduationCap className="w-3 h-3" />
+              Semester Promotion
+            </span>
+            <h1 className="text-3xl font-bold text-navy-900 tracking-tight">Promotion</h1>
+            <p className="text-sm text-navy-400 mt-1">Select a session to manage student progression</p>
+          </div>
+
+          <div className="flex justify-center gap-2 mb-6">
+            <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
+              {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                <button key={r.value} onClick={() => setSessionTab(r.value)}
+                  className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                    sessionTab === r.value
+                      ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                      : 'text-navy-400 hover:text-navy-600'
+                  }`}>
+                  {r.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -357,8 +377,8 @@ export default function Promotion() {
                                 <div className={`h-full rounded-full transition-all duration-500 ${
                                   sem === 8 ? 'bg-success' : 'bg-accent-400'
                                 }`} style={{ width: `${sem === 8 ? 100 : (sem / 8) * 100}%` }} />
+                                </div>
                               </div>
-                            </div>
                           )}
                         </button>
                       )}
@@ -425,7 +445,7 @@ export default function Promotion() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-extrabold text-navy-900 tracking-tight">Semester {selectedSemester}</h1>
-                <p className="text-sm text-navy-400 mt-0.5">{students.length} students in this semester</p>
+                <p className="text-sm text-navy-400 mt-0.5">{filteredStudents.length} students in this semester</p>
               </div>
               {selectedSemester < 8 && studentsToPromote > 0 && (
                 <div className="flex items-center gap-2">
@@ -452,93 +472,95 @@ export default function Promotion() {
           {loading && <div className="text-center py-16 text-navy-400 text-sm">Loading students...</div>}
 
           {!loading && (
-            <div className="border border-surface-200 rounded-2xl bg-white overflow-hidden">
-              {/* Bulk actions bar */}
-              {selectedStudents.length > 0 && (
-                <div className="px-5 py-3 bg-accent-50 border-b border-accent-200 flex items-center justify-between animate-slide-up">
-                  <span className="text-sm font-medium text-accent-700">{selectedStudents.length} selected</span>
-                  <button onClick={() => setSelectedStudents([])} className="text-xs text-accent-600 hover:text-accent-800 font-medium">Clear</button>
-                </div>
-              )}
+            <>
+              <div className="border border-surface-200 rounded-2xl bg-white overflow-hidden">
+                {/* Bulk actions bar */}
+                {selectedStudents.length > 0 && (
+                  <div className="px-5 py-3 bg-accent-50 border-b border-accent-200 flex items-center justify-between animate-slide-up">
+                    <span className="text-sm font-medium text-accent-700">{selectedStudents.length} selected</span>
+                    <button onClick={() => setSelectedStudents([])} className="text-xs text-accent-600 hover:text-accent-800 font-medium">Clear</button>
+                  </div>
+                )}
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[700px]">
-                  <thead>
-                    <tr className="border-b border-surface-100 bg-surface-50/60">
-                      <th className="px-5 py-3 text-left">
-                        <input type="checkbox" checked={selectedStudents.length === students.length && students.length > 0}
-                          onChange={toggleAll} className="rounded" />
-                      </th>
-                      <th className="px-5 py-3 text-left font-semibold text-navy-500 text-xs">Student</th>
-                      <th className="px-5 py-3 text-left font-semibold text-navy-500 text-xs">Roll No</th>
-                      <th className="px-5 py-3 text-left font-semibold text-navy-500 text-xs">Status</th>
-                      <th className="px-5 py-3 text-right font-semibold text-navy-500 text-xs">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {students.map((s) => (
-                      <tr key={s.id}
-                        onClick={() => !s.promoted && !s.is_graduated && toggleStudent(s.id)}
-                        className={`border-b border-surface-50 transition-colors ${
-                          s.promoted || s.is_graduated ? 'bg-surface-50/30 cursor-default' :
-                          selectedStudents.includes(s.id) ? 'bg-accent-50/50 cursor-pointer' : 'hover:bg-surface-50/50 cursor-pointer'
-                        }`}>
-                        <td className="px-5 py-3">
-                          {!s.promoted && !s.is_graduated && (
-                            <input type="checkbox" checked={selectedStudents.includes(s.id)}
-                              onChange={() => toggleStudent(s.id)}
-                              onClick={(e) => e.stopPropagation()} className="rounded" />
-                          )}
-                        </td>
-                        <td className="px-5 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 ${
-                              s.promoted ? 'bg-gradient-to-br from-navy-300 to-navy-400' : 'bg-gradient-to-br from-accent-400 to-accent-600'
-                            }`}>
-                              {s.first_name?.[0]}{s.last_name?.[0]}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-navy-900">{s.first_name} {s.last_name}</p>
-                              <p className="text-xs text-navy-400">{s.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 text-navy-500 font-mono text-xs">{s.roll_number || '-'}</td>
-                        <td className="px-5 py-3">
-                          {s.is_graduated ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-success-light text-success-dark">
-                              <CheckCircle2 className="w-3 h-3" /> Graduated
-                            </span>
-                          ) : s.promoted ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-accent-50 text-accent-700">
-                              <ArrowRight className="w-3 h-3" /> Promoted to Sem {s.promoted_to}
-                            </span>
-                          ) : (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              s.is_active ? 'bg-success-light text-success-dark' : 'bg-surface-100 text-navy-400'
-                            }`}>{s.is_active ? 'Active' : 'Inactive'}</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3 text-right">
-                          {!s.promoted && !s.is_graduated && (
-                            <button onClick={(e) => { e.stopPropagation(); loadProfile(s.id) }}
-                              className="text-accent-600 hover:text-accent-700 text-xs font-semibold underline underline-offset-2">
-                              View Profile
-                            </button>
-                          )}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[700px]">
+                    <thead>
+                      <tr className="border-b border-surface-100 bg-surface-50/60">
+                        <th className="px-5 py-3 text-left">
+                          <input type="checkbox" checked={selectedStudents.length === filteredStudents.length && filteredStudents.length > 0}
+                            onChange={toggleAll} className="rounded" />
+                        </th>
+                        <th className="px-5 py-3 text-left font-semibold text-navy-500 text-xs">Student</th>
+                        <th className="px-5 py-3 text-left font-semibold text-navy-500 text-xs">Roll No</th>
+                        <th className="px-5 py-3 text-left font-semibold text-navy-500 text-xs">Status</th>
+                        <th className="px-5 py-3 text-right font-semibold text-navy-500 text-xs">Action</th>
                       </tr>
-                    ))}
-                    {students.length === 0 && (
-                      <tr><td colSpan="5" className="text-center py-16 text-navy-400 text-sm">No students in this semester</td></tr>
-                    )}
-                    {students.length > 0 && students.every(s => s.promoted) && (
-                      <tr><td colSpan="5" className="text-center py-8 text-navy-400 text-xs">All students in this semester have been promoted</td></tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {filteredStudents.map((s) => (
+                        <tr key={s.id}
+                          onClick={() => !s.promoted && !s.is_graduated && toggleStudent(s.id)}
+                          className={`border-b border-surface-50 transition-colors ${
+                            s.promoted || s.is_graduated ? 'bg-surface-50/30 cursor-default' :
+                            selectedStudents.includes(s.id) ? 'bg-accent-50/50 cursor-pointer' : 'hover:bg-surface-50/50 cursor-pointer'
+                          }`}>
+                          <td className="px-5 py-3">
+                            {!s.promoted && !s.is_graduated && (
+                              <input type="checkbox" checked={selectedStudents.includes(s.id)}
+                                onChange={() => toggleStudent(s.id)}
+                                onClick={(e) => e.stopPropagation()} className="rounded" />
+                            )}
+                          </td>
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 ${
+                                s.promoted ? 'bg-gradient-to-br from-navy-300 to-navy-400' : 'bg-gradient-to-br from-accent-400 to-accent-600'
+                              }`}>
+                                {s.first_name?.[0]}{s.last_name?.[0]}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-navy-900">{s.first_name} {s.last_name}</p>
+                                <p className="text-xs text-navy-400">{s.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 text-navy-500 font-mono text-xs">{s.roll_number || '-'}</td>
+                          <td className="px-5 py-3">
+                            {s.is_graduated ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-success-light text-success-dark">
+                                <CheckCircle2 className="w-3 h-3" /> Graduated
+                              </span>
+                            ) : s.promoted ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-accent-50 text-accent-700">
+                                <ArrowRight className="w-3 h-3" /> Promoted to Sem {s.promoted_to}
+                              </span>
+                            ) : (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                s.is_active ? 'bg-success-light text-success-dark' : 'bg-surface-100 text-navy-400'
+                              }`}>{s.is_active ? 'Active' : 'Inactive'}</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            {!s.promoted && !s.is_graduated && (
+                              <button onClick={(e) => { e.stopPropagation(); loadProfile(s.id) }}
+                                className="text-accent-600 hover:text-accent-700 text-xs font-semibold underline underline-offset-2">
+                                View Profile
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredStudents.length === 0 && (
+                        <tr><td colSpan="5" className="text-center py-16 text-navy-400 text-sm">No students in this semester</td></tr>
+                      )}
+                      {filteredStudents.length > 0 && filteredStudents.every(s => s.promoted) && (
+                        <tr><td colSpan="5" className="text-center py-8 text-navy-400 text-xs">All students in this semester have been promoted</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </>
       )}
@@ -577,9 +599,9 @@ export default function Promotion() {
                   ? <><GraduationCap className="w-4 h-4" /> Confirm Graduation</>
                   : <><ArrowRight className="w-4 h-4" /> Confirm Promotion</>}
               </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </Modal>
 
       {/* ── Student Profile Modal ─────────────────────── */}

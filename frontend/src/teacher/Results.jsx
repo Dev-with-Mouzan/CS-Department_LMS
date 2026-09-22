@@ -32,6 +32,7 @@ export default function Results() {
   const [worstPaper, setWorstPaper] = useState(null)
   const [activeSemester, setActiveSemester] = useState(null)
   const [activeCourse, setActiveCourse] = useState(null)
+  const [sessionTab, setSessionTab] = useState('morning')
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [error, setError] = useState(null)
 
@@ -116,7 +117,7 @@ export default function Results() {
   const goCourses = () => setActiveCourse(null)
 
   const semesters = Object.values(
-    courses.reduce((acc, c) => {
+    courses.filter((c) => (c.session_type || 'morning') === sessionTab).reduce((acc, c) => {
       const key = c.semester != null ? String(c.semester) : 'other'
       if (!acc[key]) acc[key] = []
       acc[key].push(c)
@@ -138,7 +139,7 @@ export default function Results() {
     .sort((a, b) => (a.key === 'other' ? 1 : b.key === 'other' ? -1 : Number(a.key) - Number(b.key)))
 
   const activeCourses = activeSemester != null
-    ? courses.filter((c) => (c.semester != null ? String(c.semester) : 'other') === activeSemester)
+    ? courses.filter((c) => (c.session_type || 'morning') === sessionTab && (c.semester != null ? String(c.semester) : 'other') === activeSemester)
     : []
 
   const filtered = allResults.filter(r => {
@@ -227,14 +228,31 @@ export default function Results() {
           </div>
 
           {activeSemester == null ? (
-            semesters.length === 0 ? (
-              <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center bg-white">
-                <Trophy className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                <p className="text-sm text-navy-400">No courses yet. Ask the admin to assign you some.</p>
+            <>
+              {/* Session tabs */}
+              <div className="flex justify-center mb-5">
+                <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
+                  {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                    <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null) }}
+                      className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                        sessionTab === r.value
+                          ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                          : 'text-navy-400 hover:text-navy-600'
+                      }`}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ) : (
-              <SemesterGrid semesters={semesters} tabLabel={examLabels[tab]} onPick={setActiveSemester} />
-            )
+              {semesters.length === 0 ? (
+                <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center bg-white">
+                  <Trophy className="w-8 h-8 text-navy-300 mx-auto mb-2" />
+                  <p className="text-sm text-navy-400">No courses yet. Ask the admin to assign you some.</p>
+                </div>
+              ) : (
+                <SemesterGrid semesters={semesters} tabLabel={examLabels[tab]} onPick={setActiveSemester} />
+              )}
+            </>
           ) : activeCourse == null ? (
             <CourseGrid
               courses={activeCourses}

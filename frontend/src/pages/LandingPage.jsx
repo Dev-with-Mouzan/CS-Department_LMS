@@ -1052,69 +1052,69 @@ function Footer() {
   return (
     <footer className="bg-navy-950 border-t border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <AnimatedSection className="py-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
+        <AnimatedSection className="py-8 sm:py-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-10 lg:gap-8">
           <div className="lg:col-span-1">
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
               <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 rounded-lg object-cover" />
               <div>
                 <p className="text-sm font-bold text-white">CS Dept. LMS</p>
                 <p className="text-xs text-white/40">Govt. Graduate College Burewala</p>
               </div>
             </div>
-            <p className="text-sm text-white/40 leading-relaxed">
+            <p className="text-xs sm:text-sm text-white/40 leading-relaxed">
               CS Department's official Learning Management System at Govt. Graduate College Burewala. Digitizing education for a connected campus.
             </p>
-            <div className="flex gap-3 mt-3">
+            <div className="flex gap-2 sm:gap-3 mt-3">
               {[{ icon: Facebook, label: 'Facebook' }, { icon: Instagram, label: 'Instagram' }, { icon: Twitter, label: 'Twitter' }, { icon: Youtube, label: 'YouTube' }].map((s) => (
-                <a key={s.label} href="#" aria-label={s.label} className="w-9 h-9 rounded-lg bg-white/5 hover:bg-accent-500/20 flex items-center justify-center text-white/30 hover:text-accent-400 transition-colors">
-                  <s.icon className="w-4 h-4" />
+                <a key={s.label} href="#" aria-label={s.label} className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/5 hover:bg-accent-500/20 flex items-center justify-center text-white/30 hover:text-accent-400 transition-colors">
+                  <s.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </a>
               ))}
             </div>
           </div>
 
           <div>
-            <h3 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">Quick Links</h3>
-            <ul className="space-y-3">
+            <h3 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-3 sm:mb-5">Quick Links</h3>
+            <ul className="space-y-2 sm:space-y-3">
               {['Home', 'About CS Dept.', 'Programs', 'Admissions', 'Results'].map((link) => (
-                <li key={link}><a href="#" className="text-sm text-white/40 hover:text-accent-400 transition-colors">{link}</a></li>
+                <li key={link}><a href="#" className="text-xs sm:text-sm text-white/40 hover:text-accent-400 transition-colors">{link}</a></li>
               ))}
             </ul>
           </div>
 
           <div>
-            <h3 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">LMS</h3>
-            <ul className="space-y-3">
+            <h3 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-3 sm:mb-5">LMS</h3>
+            <ul className="space-y-2 sm:space-y-3">
               {['Student Portal', 'Teacher Portal', 'Admin Dashboard', 'CS Courses', 'Attendance'].map((link) => (
-                <li key={link}><a href="#" className="text-sm text-white/40 hover:text-accent-400 transition-colors">{link}</a></li>
+                <li key={link}><a href="#" className="text-xs sm:text-sm text-white/40 hover:text-accent-400 transition-colors">{link}</a></li>
               ))}
             </ul>
           </div>
 
           <div>
-            <h3 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">Contact Us</h3>
-            <ul className="space-y-4">
-              <li className="flex items-start gap-3">
-                <MapPin className="w-4 h-4 text-accent-500 mt-0.5 shrink-0" />
-                <span className="text-sm text-white/40 leading-relaxed">CS Dept., Govt. Graduate College Burewala,<br />Vehari District, Punjab, Pakistan</span>
+            <h3 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-3 sm:mb-5">Contact Us</h3>
+            <ul className="space-y-3 sm:space-y-4">
+              <li className="flex items-start gap-2.5 sm:gap-3">
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-500 mt-0.5 shrink-0" />
+                <span className="text-xs sm:text-sm text-white/40 leading-relaxed">CS Dept., Govt. Graduate College Burewala,<br />Vehari District, Punjab, Pakistan</span>
               </li>
-              <li className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-accent-500 shrink-0" />
-                <span className="text-sm text-white/40">+92 67 334 5678</span>
+              <li className="flex items-center gap-2.5 sm:gap-3">
+                <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-500 shrink-0" />
+                <span className="text-xs sm:text-sm text-white/40">+92 67 334 5678</span>
               </li>
-              <li className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-accent-500 shrink-0" />
-                <span className="text-sm text-white/40">cs@ggcb.edu.pk</span>
+              <li className="flex items-center gap-2.5 sm:gap-3">
+                <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-500 shrink-0" />
+                <span className="text-xs sm:text-sm text-white/40">cs@ggcb.edu.pk</span>
               </li>
             </ul>
           </div>
         </AnimatedSection>
 
-        <div className="py-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-white/25">© {new Date().getFullYear()} Govt. Graduate College Burewala. All rights reserved.</p>
-          <div className="flex gap-6">
-            <a href="#" className="text-xs text-white/25 hover:text-white/50 transition-colors">Privacy Policy</a>
-            <a href="#" className="text-xs text-white/25 hover:text-white/50 transition-colors">Terms of Service</a>
+        <div className="py-4 sm:py-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          <p className="text-[10px] sm:text-xs text-white/25">© {new Date().getFullYear()} Govt. Graduate College Burewala. All rights reserved.</p>
+          <div className="flex gap-4 sm:gap-6">
+            <a href="#" className="text-[10px] sm:text-xs text-white/25 hover:text-white/50 transition-colors">Privacy Policy</a>
+            <a href="#" className="text-[10px] sm:text-xs text-white/25 hover:text-white/50 transition-colors">Terms of Service</a>
           </div>
         </div>
       </div>

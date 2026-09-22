@@ -74,7 +74,7 @@ function PasswordStrengthMeter({ password }) {
 export default function Register() {
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '', password: '',
-    semester: '', roll_number: '', enrollment_year: '',
+    semester: '', roll_number: '', enrollment_year: '', session_type: 'morning',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -123,6 +123,7 @@ export default function Register() {
         phone: `+92${form.phone}`,
         semester: parseInt(form.semester, 10),
         enrollment_year: parseInt(form.enrollment_year, 10),
+        session_type: form.session_type,
       }
       await register(payload)
       navigate('/verify-otp')
@@ -338,6 +339,26 @@ export default function Register() {
                 <CalendarDays className="w-4 h-4 text-navy-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input type="number" name="enrollment_year" value={form.enrollment_year} onChange={handleChange}
                   className={inputBase} min={2020} max={2030} placeholder="2026" required />
+              </div>
+            </div>
+
+            <div>
+              <label className="input-label">Session <span className="text-danger">*</span></label>
+              <div className="flex gap-3">
+                {['morning', 'evening'].map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setForm({ ...form, session_type: opt })}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all duration-200 ${
+                      form.session_type === opt
+                        ? 'border-accent-500 bg-accent-50 text-accent-700'
+                        : 'border-surface-200 bg-surface-0 text-navy-400 hover:border-navy-300 hover:text-navy-600'
+                    }`}
+                  >
+                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
 

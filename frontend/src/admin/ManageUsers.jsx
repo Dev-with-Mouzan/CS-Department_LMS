@@ -25,6 +25,7 @@ export default function ManageUsers() {
   const [users, setUsers] = useState([])
   const [filter, setFilter] = useState('')
   const [subFilter, setSubFilter] = useState('active')
+  const [sessionTab, setSessionTab] = useState('morning')
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -32,7 +33,7 @@ export default function ManageUsers() {
   const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '', password: '',
-    role_name: 'student', semester: '',
+    role_name: 'teacher', semester: '', session_type: 'morning',
   })
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [error, setError] = useState(null)
@@ -53,7 +54,7 @@ export default function ManageUsers() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ first_name: '', last_name: '', email: '', phone: '', password: '', role_name: 'student', semester: '' })
+    setForm({ first_name: '', last_name: '', email: '', phone: '', password: '', role_name: 'teacher', semester: '', session_type: 'morning' })
     setShowPassword(false)
     setModalError(null)
     setShowModal(true)
@@ -69,6 +70,7 @@ export default function ManageUsers() {
       password: '',
       role_name: user.role?.name || 'student',
       semester: user.student_profile?.semester || '',
+      session_type: user.student_profile?.session_type || 'morning',
       is_active: user.is_active,
       is_verified: user.is_verified,
     })
@@ -87,8 +89,8 @@ export default function ManageUsers() {
         if (editing.role?.name === 'student' && semester) payload.semester = parseInt(semester, 10)
         await usersAPI.update(editing.id, payload)
       } else {
-        const { first_name, last_name, email, phone, password, role_name, semester } = form
-        const payload = { first_name, last_name, email, phone: normalizePhone(phone), password, role_name }
+        const { first_name, last_name, email, phone, password, role_name, semester, session_type } = form
+        const payload = { first_name, last_name, email, phone: normalizePhone(phone), password, role_name, session_type }
         if (role_name === 'student' && semester) {
           payload.semester = parseInt(semester, 10)
         }
@@ -137,6 +139,8 @@ export default function ManageUsers() {
     }
     if (filter === 'student') {
       if (role !== 'student') return false
+      const userSessionType = user.student_profile?.session_type || 'morning'
+      if (userSessionType !== sessionTab) return false
       if (subFilter && subFilter !== 'active' && subFilter !== 'inactive') {
         const sem = parseInt(subFilter, 10)
         if (user.student_profile?.semester !== sem) return false
@@ -248,7 +252,19 @@ export default function ManageUsers() {
         </div>
       )}
       {filter === 'student' && (
-        <div className="flex items-center justify-center gap-3 mb-6">
+        <div className="flex flex-col items-center gap-3 mb-6">
+          <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
+            {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((s) => (
+              <button key={s.value} onClick={() => setSessionTab(s.value)}
+                className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  sessionTab === s.value
+                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                    : 'text-navy-400 hover:text-navy-600'
+                }`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
           <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg flex-wrap">
             {[{ value: '', label: 'All' }, ...Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: `Sem ${i + 1}` }))].map((s) => (
               <button key={s.value} onClick={() => setSubFilter(s.value)}
@@ -322,6 +338,37 @@ export default function ManageUsers() {
                         {role}
                       </span>
                     </td>
+                    {filter === 'student' && (
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold border ${
+                            (user.student_profile?.session_type || 'morning') === 'morning'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                          }`}>
+                            <span className="leading-none">{(user.student_profile?.session_type || 'morning') === 'morning' ? '☀️' : '🌙'}</span>
+                            <span>{(user.student_profile?.session_type || 'morning') === 'morning' ? 'Morning' : 'Evening'}</span>
+                          </span>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold border ${
+                            user.is_active
+                              ? 'bg-success-light text-success-dark border-success/20'
+                              : 'bg-surface-100 text-navy-400 border-surface-200'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-success' : 'bg-navy-300'}`} />
+                            {user.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-2xs font-semibold border ${
+                            user.is_verified
+                              ? 'bg-accent-500/10 text-accent-700 border-accent-200'
+                              : 'bg-warning/10 text-warning-dark border-warning/20'
+                          }`}>
+                            {user.is_verified ? <ShieldCheck className="w-3 h-3" /> : <ShieldOff className="w-3 h-3" />}
+                            {user.is_verified ? 'Verified' : 'Pending'}
+                          </span>
+                        </div>
+                      </td>
+                    )}
+                    {filter !== 'student' && (
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold border ${
@@ -342,6 +389,7 @@ export default function ManageUsers() {
                         </span>
                       </div>
                     </td>
+                    )}
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-1.5">
                         <button onClick={() => openEdit(user)} title="Edit"
@@ -374,12 +422,12 @@ export default function ManageUsers() {
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="input-label">First name</label>
+              <label className="input-label">First name <span className="text-danger">*</span></label>
               <input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })}
                 className="input-field" required />
             </div>
             <div>
-              <label className="input-label">Last name</label>
+              <label className="input-label">Last name <span className="text-danger">*</span></label>
               <input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })}
                 className="input-field" required />
             </div>
@@ -387,17 +435,17 @@ export default function ManageUsers() {
           <div className="grid grid-cols-2 gap-3">
 
             <div>
-              <label className="input-label">Phone</label>
+              <label className="input-label">Phone <span className="text-danger">*</span></label>
               <div className="relative flex">
                 <span className="flex items-center pl-3.5 pr-2 bg-surface-100 border border-r-0 border-surface-200 rounded-l-xl text-sm font-semibold text-navy-600 select-none">+92</span>
                 <input type="tel" value={form.phone.replace(/^\+92/, '')}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-surface-0 border border-surface-200 rounded-r-xl text-sm text-navy-900 placeholder-navy-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 hover:border-navy-300" placeholder="3XX XXXXXXX" />
+                  className="w-full px-4 py-2.5 bg-surface-0 border border-surface-200 rounded-r-xl text-sm text-navy-900 placeholder-navy-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 hover:border-navy-300" placeholder="3XX XXXXXXX" required />
               </div>
               </div>
           </div>
           <div>
-            <label className="input-label">Email</label>
+            <label className="input-label">Email <span className="text-danger">*</span></label>
             <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="input-field" required />
           </div>
@@ -418,7 +466,7 @@ export default function ManageUsers() {
               </div>
               {editing.role?.name === 'student' && (
                 <div>
-                  <label className="input-label">Semester</label>
+                  <label className="input-label">Semester <span className="text-danger">*</span></label>
                   <input type="number" value={form.semester} min={1} max={8}
                     onChange={(e) => setForm({ ...form, semester: e.target.value })}
                     className="input-field" placeholder="1 – 8" required />
@@ -429,7 +477,7 @@ export default function ManageUsers() {
           ) : (
             <>
               <div>
-                <label className="input-label">Password</label>
+                <label className="input-label">Password <span className="text-danger">*</span></label>
                 <div className="relative">
                   <input type={showPassword ? 'text' : 'password'} value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -441,22 +489,13 @@ export default function ManageUsers() {
                 </div>
               </div>
               <div>
-                <label className="input-label">Role</label>
+                <label className="input-label">Role <span className="text-danger">*</span></label>
                 <select value={form.role_name} onChange={(e) => setForm({ ...form, role_name: e.target.value })}
-                  className="input-field">
-                  <option value="student">Student</option>
+                  className="input-field" required>
                   <option value="teacher">Teacher</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
-              {form.role_name === 'student' && (
-                <div>
-                  <label className="input-label">Semester</label>
-                  <input type="number" value={form.semester} min={1} max={8}
-                    onChange={(e) => setForm({ ...form, semester: e.target.value })}
-                    className="input-field" placeholder="1 – 8" required />
-                </div>
-              )}
             </>
           )}
 

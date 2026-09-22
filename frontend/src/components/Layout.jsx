@@ -135,7 +135,7 @@ function Navbar({ links, role, user, onLogout }) {
                   <span className="text-xs font-semibold text-white">{getName(user)?.[0]?.toUpperCase() || '?'}</span>
                 </span>
                 <span className="hidden sm:block text-xs font-medium text-white">{getName(user)}</span>
-                <ChevronDown className={`w-3.5 h-3.5 text-white/40 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`hidden sm:block w-3.5 h-3.5 text-white/40 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {menuOpen && (
@@ -203,23 +203,23 @@ function Footer({ links, role }) {
         style={{ background: 'radial-gradient(circle, #fbbf24 0%, transparent 65%)' }}
       />
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="py-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
+        <div className="py-8 sm:py-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-10 lg:gap-8">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
               <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 rounded-lg object-cover" loading="lazy" />
               <div>
                 <p className="text-sm font-bold text-white">CS Department LMS</p>
                 <p className="text-xs text-white/40">Govt. Graduate College Burewala</p>
               </div>
             </div>
-            <p className="text-sm text-white/40 leading-relaxed">
+            <p className="text-xs sm:text-sm text-white/40 leading-relaxed">
               CS Department's official Learning Management System at Govt. Graduate College Burewala. Digitizing education for a connected campus.
             </p>
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-2 sm:gap-3 mt-4">
               {[{ icon: Facebook, label: 'Facebook' }, { icon: Instagram, label: 'Instagram' }, { icon: Twitter, label: 'Twitter' }, { icon: Youtube, label: 'YouTube' }].map((s) => (
-                <a key={s.label} href="#" aria-label={s.label} className="w-9 h-9 rounded-lg bg-white/5 hover:bg-accent-500/20 flex items-center justify-center text-white/30 hover:text-accent-400 transition-colors">
-                  <s.icon className="w-4 h-4" />
+                <a key={s.label} href="#" aria-label={s.label} className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/5 hover:bg-accent-500/20 flex items-center justify-center text-white/30 hover:text-accent-400 transition-colors">
+                  <s.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </a>
               ))}
             </div>
@@ -227,11 +227,11 @@ function Footer({ links, role }) {
 
           {/* Tabs */}
           <div>
-            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">Menu</h4>
-            <ul className="space-y-3">
+            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-3 sm:mb-5">Menu</h4>
+            <ul className="space-y-2 sm:space-y-3">
               {portalLinks.map((link) => (
                 <li key={link.to}>
-                  <NavLink to={link.to} end={link.to === `/${role}`} className="text-sm text-white/40 hover:text-accent-400 transition-colors">
+                  <NavLink to={link.to} end={link.to === `/${role}`} className="text-xs sm:text-sm text-white/40 hover:text-accent-400 transition-colors">
                     {link.label}
                   </NavLink>
                 </li>
@@ -241,40 +241,40 @@ function Footer({ links, role }) {
 
           {/* Platform */}
           <div>
-            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">Platform</h4>
-            <ul className="space-y-3">
-              <li><Link to="/" className="text-sm text-white/40 hover:text-accent-400 transition-colors">Website Home</Link></li>
-              <li><Link to="/login" className="text-sm text-white/40 hover:text-accent-400 transition-colors">Sign In</Link></li>
-              <li><Link to="/register" className="text-sm text-white/40 hover:text-accent-400 transition-colors">Create Account</Link></li>
-              <li><span className="text-sm text-white/30">{roleLabels[role]} Portal</span></li>
+            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-3 sm:mb-5">Platform</h4>
+            <ul className="space-y-2 sm:space-y-3">
+              <li><Link to="/" className="text-xs sm:text-sm text-white/40 hover:text-accent-400 transition-colors">Website Home</Link></li>
+              <li><Link to="/login" className="text-xs sm:text-sm text-white/40 hover:text-accent-400 transition-colors">Sign In</Link></li>
+              <li><Link to="/register" className="text-xs sm:text-sm text-white/40 hover:text-accent-400 transition-colors">Create Account</Link></li>
+              <li><span className="text-xs sm:text-sm text-white/30">{roleLabels[role]} Portal</span></li>
             </ul>
           </div>
 
           {/* Contact */}
           <div>
-            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-5">Contact Us</h4>
-            <ul className="space-y-4">
-              <li className="flex items-start gap-3">
-                <MapPin className="w-4 h-4 text-accent-500 mt-0.5 shrink-0" />
-                <span className="text-sm text-white/40 leading-relaxed">CS Dept., Govt. Graduate College Burewala,<br />Vehari District, Punjab, Pakistan</span>
+            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-3 sm:mb-5">Contact Us</h4>
+            <ul className="space-y-3 sm:space-y-4">
+              <li className="flex items-start gap-2.5 sm:gap-3">
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-500 mt-0.5 shrink-0" />
+                <span className="text-xs sm:text-sm text-white/40 leading-relaxed">CS Dept., Govt. Graduate College Burewala,<br />Vehari District, Punjab, Pakistan</span>
               </li>
-              <li className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-accent-500 shrink-0" />
-                <span className="text-sm text-white/40">+92 67 334 5678</span>
+              <li className="flex items-center gap-2.5 sm:gap-3">
+                <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-500 shrink-0" />
+                <span className="text-xs sm:text-sm text-white/40">+92 67 334 5678</span>
               </li>
-              <li className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-accent-500 shrink-0" />
-                <span className="text-sm text-white/40">cs@ggcb.edu.pk</span>
+              <li className="flex items-center gap-2.5 sm:gap-3">
+                <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-500 shrink-0" />
+                <span className="text-xs sm:text-sm text-white/40">cs@ggcb.edu.pk</span>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="py-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-white/25">© {new Date().getFullYear()} CS Department, Govt. Graduate College Burewala. All rights reserved.</p>
-          <div className="flex gap-6">
-            <a href="#" className="text-xs text-white/25 hover:text-white/50 transition-colors">Privacy Policy</a>
-            <a href="#" className="text-xs text-white/25 hover:text-white/50 transition-colors">Terms of Service</a>
+        <div className="py-4 sm:py-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          <p className="text-[10px] sm:text-xs text-white/25">© {new Date().getFullYear()} CS Department, Govt. Graduate College Burewala. All rights reserved.</p>
+          <div className="flex gap-4 sm:gap-6">
+            <a href="#" className="text-[10px] sm:text-xs text-white/25 hover:text-white/50 transition-colors">Privacy Policy</a>
+            <a href="#" className="text-[10px] sm:text-xs text-white/25 hover:text-white/50 transition-colors">Terms of Service</a>
           </div>
         </div>
       </div>

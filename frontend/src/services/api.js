@@ -58,12 +58,10 @@ export const authAPI = {
 // ── Users API ────────────────────────────────────────
 export const usersAPI = {
   list: (params) => api.get('/users/', { params }),
-  get: (id) => api.get(`/users/${id}`),
   create: (data) => api.post('/users/', data),
   update: (id, data) => api.put(`/users/${id}`, data),
   delete: (id) => api.delete(`/users/${id}`),
   hardDelete: (id) => api.delete(`/users/${id}/hard`),
-  setPassword: (id, data) => api.put(`/users/${id}/password`, data),
   getProfile: (id) => api.get(`/users/${id}/profile`),
   getSemesterProgress: (id) => api.get(`/users/${id}/semester-progress`),
   getStats: () => api.get('/users/stats/dashboard'),
@@ -72,7 +70,6 @@ export const usersAPI = {
 // ── Courses API ──────────────────────────────────────
 export const coursesAPI = {
   list: (params) => api.get('/courses/', { params }),
-  get: (id) => api.get(`/courses/${id}`),
   create: (data) => api.post('/courses/', data),
   update: (id, data) => api.put(`/courses/${id}`, data),
   delete: (id) => api.delete(`/courses/${id}`),
@@ -84,7 +81,6 @@ export const coursesAPI = {
 // ── Assignments API ──────────────────────────────────
 export const assignmentsAPI = {
   list: (params) => api.get('/assignments', { params }),
-  get: (id) => api.get(`/assignments/${id}`),
   create: (data) => {
     if (data instanceof FormData) {
       return api.post('/assignments', data, {
@@ -93,7 +89,6 @@ export const assignmentsAPI = {
     }
     return api.post('/assignments', data)
   },
-  update: (id, data) => api.put(`/assignments/${id}`, data),
   delete: (id) => api.delete(`/assignments/${id}`),
   submit: (assignmentId, file) => {
     const formData = new FormData()
@@ -152,7 +147,6 @@ export const quizzesAPI = {
     }
     return api.post('/quizzes', data)
   },
-  update: (id, data) => api.put(`/quizzes/${id}`, data),
   delete: (id) => api.delete(`/quizzes/${id}`),
   submit: (quizId, answers) => api.post(`/quizzes/${quizId}/submit`, { answers }),
   submitFile: (quizId, file) => {
@@ -177,9 +171,9 @@ export const reviewsAPI = {
 
 // ── Promotion API ─────────────────────────────────
 export const promotionAPI = {
-  getSessions: () => api.get('/users/promotion/sessions'),
-  getSessionSemesters: (session) => api.get(`/users/promotion/sessions/${session}/semesters`),
-  getSemesterStudents: (session, semester) => api.get(`/users/promotion/sessions/${session}/semesters/${semester}`),
+  getSessions: (sessionType) => api.get('/users/promotion/sessions', { params: sessionType ? { session_type: sessionType } : {} }),
+  getSessionSemesters: (session, sessionType) => api.get(`/users/promotion/sessions/${session}/semesters`, { params: sessionType ? { session_type: sessionType } : {} }),
+  getSemesterStudents: (session, semester, sessionType) => api.get(`/users/promotion/sessions/${session}/semesters/${semester}`, { params: sessionType ? { session_type: sessionType } : {} }),
   promote: (data) => api.post('/users/promotion/promote', data),
   graduate: (data) => api.post('/users/promotion/graduate', data),
   getHistory: (session) => api.get('/users/promotion/history', { params: session ? { session } : {} }),

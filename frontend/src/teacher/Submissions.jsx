@@ -18,6 +18,7 @@ export default function Submissions() {
   const [quizAttempts, setQuizAttempts] = useState({})
   const [submissionCounts, setSubmissionCounts] = useState({})
   const [activeSemester, setActiveSemester] = useState(null) // semester key
+  const [sessionTab, setSessionTab] = useState('morning')
   const [activeCourse, setActiveCourse] = useState(null) // course object
   const [selected, setSelected] = useState(null) // assignment or quiz
   const [submissions, setSubmissions] = useState([])
@@ -76,7 +77,7 @@ export default function Submissions() {
 
   const semesters = useMemo(() => {
     const bySem = {}
-    for (const c of courses) {
+    for (const c of courses.filter((c) => (c.session_type || 'morning') === sessionTab)) {
       const key = c.semester != null ? String(c.semester) : 'other'
       if (!bySem[key]) bySem[key] = []
       bySem[key].push(c)
@@ -98,10 +99,10 @@ export default function Submissions() {
           toReview,
         }
       })
-  }, [courses, assignments, submissionCounts])
+  }, [courses, assignments, submissionCounts, sessionTab])
 
   const activeCourses = activeSemester != null
-    ? (semesters.find((s) => s.key === activeSemester) && courses.filter((c) => (c.semester != null ? String(c.semester) : 'other') === activeSemester)) || []
+    ? (semesters.find((s) => s.key === activeSemester) && courses.filter((c) => (c.session_type || 'morning') === sessionTab && (c.semester != null ? String(c.semester) : 'other') === activeSemester)) || []
     : []
 
   const activeCourseAssignments = activeCourse
@@ -331,11 +332,28 @@ export default function Submissions() {
           </div>
 
           {activeSemester == null ? (
-            semesters.length === 0 ? (
-              <EmptyState icon={Inbox} message="You have no courses yet. Ask the admin to assign you some." />
-            ) : (
-              <SemesterGrid semesters={semesters} onPick={setActiveSemester} />
-            )
+            <>
+              {/* Session tabs */}
+              <div className="flex justify-center mb-5">
+                <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
+                  {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                    <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null) }}
+                      className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                        sessionTab === r.value
+                          ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                          : 'text-navy-400 hover:text-navy-600'
+                      }`}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {semesters.length === 0 ? (
+                <EmptyState icon={Inbox} message="You have no courses yet. Ask the admin to assign you some." />
+              ) : (
+                <SemesterGrid semesters={semesters} onPick={setActiveSemester} />
+              )}
+            </>
           ) : activeCourse == null ? (
             <CourseGrid
               courses={activeCourses}
