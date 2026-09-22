@@ -5,21 +5,6 @@ from pydantic import BaseModel
 from app.schemas.common import UTCDateTime
 
 
-class AssignmentCreate(BaseModel):
-    course_id: str
-    title: str
-    description: Optional[str] = None
-    due_date: datetime
-    max_marks: int = 100
-
-
-class AssignmentUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    due_date: Optional[datetime] = None
-    max_marks: Optional[int] = None
-
-
 class AssignmentOut(BaseModel):
     id: str
     course_id: str
@@ -40,10 +25,6 @@ class AssignmentOut(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class SubmissionCreate(BaseModel):
-    assignment_id: str
 
 
 class SubmissionGrade(BaseModel):

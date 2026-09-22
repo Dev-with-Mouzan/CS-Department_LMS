@@ -33,6 +33,7 @@ class RegisterRequest(BaseModel):
     student_id: Optional[str] = None
     roll_number: str  # required — student roll number
     enrollment_year: int  # required — enrollment year
+    session_type: str = "morning"  # morning or evening
 
     @field_validator("email")
     @classmethod

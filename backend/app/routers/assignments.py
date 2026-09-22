@@ -7,7 +7,7 @@ from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_teacher, require_student
 from app.models import User, Assignment, Submission, Course
 from app.schemas.assignment import (
-    AssignmentCreate, AssignmentUpdate, AssignmentOut,
+    AssignmentOut,
     SubmissionOut, SubmissionGrade
 )
 from app.models import StudentProfile
@@ -113,53 +113,6 @@ def create_assignment(request: Request,
         attachment_url=attachment_url,
     )
     db.add(assignment)
-    db.commit()
-    db.refresh(assignment)
-    return assignment
-
-
-@limiter.limit("30/minute")
-@router.get("/assignments/{assignment_id}", response_model=AssignmentOut)
-def get_assignment(request: Request, 
-    assignment_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Get assignment details."""
-    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
-    if not assignment:
-        raise HTTPException(status_code=404, detail="Assignment not found")
-
-    role = current_user.role.name
-    if role == "teacher" and assignment.teacher_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
-    if role == "student":
-        course = db.query(Course).filter(Course.id == assignment.course_id).first()
-        if not course or not course.is_active or not student_has_access(db, current_user, course):
-            raise HTTPException(status_code=403, detail="Access denied")
-
-    return assignment
-
-
-@limiter.limit("30/minute")
-@router.put("/assignments/{assignment_id}", response_model=AssignmentOut)
-def update_assignment(request: Request, 
-    assignment_id: str,
-    data: AssignmentUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_teacher),
-):
-    """Update assignment (teacher only, must own)."""
-    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
-    if not assignment:
-        raise HTTPException(status_code=404, detail="Assignment not found")
-    if assignment.teacher_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    update_data = data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(assignment, field, value)
-
     db.commit()
     db.refresh(assignment)
     return assignment

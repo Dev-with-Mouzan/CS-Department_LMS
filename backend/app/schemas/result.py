@@ -8,8 +8,6 @@ class ResultOut(BaseModel):
     id: str
     title: str
     exam_type: str
-    entry_type: str
-    content: Optional[str] = None
     file_url: Optional[str] = None
     file_name: Optional[str] = None
     worst_paper_url: Optional[str] = None

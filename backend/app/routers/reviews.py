@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.dependencies.auth import get_current_user, require_admin
+from app.dependencies.auth import get_current_user
 from app.models import User, Review, StudentProfile
 from app.schemas.review import ReviewCreate, ReviewOut
 from app.dependencies.ratelimit import limiter
@@ -152,47 +152,3 @@ def delete_review(request: Request,
     db.delete(review)
     db.commit()
     return {"message": "Review deleted successfully"}
-
-
-@limiter.limit("30/minute")
-@router.get("/all", response_model=List[ReviewOut])
-def list_all_reviews(request: Request,
-    skip: int = 0,
-    limit: int = 50,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """List all reviews for admin moderation."""
-    reviews = db.query(Review).order_by(Review.created_at.desc()).offset(skip).limit(limit).all()
-    users, profiles = _prefetch_reviews(db, reviews)
-    return [_review_out(r, users, profiles) for r in reviews]
-
-
-@router.put("/{review_id}/approve")
-def approve_review(request: Request,
-    review_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Approve or reject a review."""
-    review = db.query(Review).filter(Review.id == review_id).first()
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
-    review.is_approved = True
-    db.commit()
-    return {"message": "Review approved"}
-
-
-@router.put("/{review_id}/reject")
-def reject_review(request: Request,
-    review_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Reject (unapprove) a review."""
-    review = db.query(Review).filter(Review.id == review_id).first()
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
-    review.is_approved = False
-    db.commit()
-    return {"message": "Review rejected"}

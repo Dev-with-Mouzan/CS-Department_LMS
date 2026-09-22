@@ -25,10 +25,9 @@ logger = logging.getLogger(__name__)
 # Whitelist of tables and columns allowed for startup migration
 _ALLOWLISTED_MIGRATIONS = {
     "users": [("phone", "VARCHAR(20)")],
-    "courses": [("semester", "INTEGER"), ("source_course_id", "VARCHAR(36)"), ("session", "VARCHAR(20)"), ("is_active", "BOOLEAN DEFAULT 1")],
-    "student_profiles": [("roll_number", "VARCHAR(50)"), ("is_graduated", "BOOLEAN DEFAULT 0")],
+    "courses": [("semester", "INTEGER"), ("source_course_id", "VARCHAR(36)"), ("session", "VARCHAR(20)"), ("session_type", "VARCHAR(10)"), ("is_active", "BOOLEAN DEFAULT 1")],
+    "student_profiles": [("roll_number", "VARCHAR(50)"), ("is_graduated", "BOOLEAN DEFAULT 0"), ("session_type", "VARCHAR(10)")],
     "quizzes": [("deadline", "DATETIME"), ("attachment_url", "VARCHAR(500)"), ("attachment_name", "VARCHAR(255)")],
-    "quiz_questions": [("is_mandatory", "BOOLEAN DEFAULT 1")],
     "quiz_attempts": [("submission_url", "VARCHAR(500)"), ("submission_name", "VARCHAR(255)")],
     "results": [
         ("worst_paper_url", "VARCHAR(500)"),
@@ -93,6 +92,22 @@ def _backfill_student_sessions(db):
         logger.info("Backfilled session for %d student profiles", len(profiles))
 
 
+def _backfill_session_types(db):
+    """Set default session_type='morning' for existing records missing it."""
+    from app.models.models import StudentProfile, Course
+    # Backfill student profiles
+    profiles = db.query(StudentProfile).filter(StudentProfile.session_type.is_(None)).all()
+    for p in profiles:
+        p.session_type = "morning"
+    # Backfill courses
+    courses = db.query(Course).filter(Course.session_type.is_(None)).all()
+    for c in courses:
+        c.session_type = "morning"
+    if profiles or courses:
+        db.commit()
+        logger.info("Backfilled session_type for %d students and %d courses", len(profiles), len(courses))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle."""
@@ -108,6 +123,7 @@ async def lifespan(app: FastAPI):
         create_default_admin(db)
         _add_missing_columns(db)
         _backfill_student_sessions(db)
+        _backfill_session_types(db)
     finally:
         db.close()
 

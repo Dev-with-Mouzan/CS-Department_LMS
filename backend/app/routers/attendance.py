@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.dependencies.auth import get_current_user, require_teacher, require_student
+from app.dependencies.auth import get_current_user, require_teacher
 from app.models import (
     User, Course, StudentProfile,
     AttendanceSession, AttendanceRecord

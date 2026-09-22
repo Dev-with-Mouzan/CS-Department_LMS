@@ -20,7 +20,11 @@ def validate_file(file: UploadFile) -> None:
     if raw == "*" or not raw.strip():
         allowed = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".txt", ".zip", ".jpg", ".jpeg", ".png"]
     else:
-        allowed = [a.strip().lower() for a in raw.split(",") if a.strip()]
+        allowed = []
+        for a in raw.split(","):
+            a = a.strip().lower().lstrip(".")
+            if a:
+                allowed.append(f".{a}")
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
     ext_with_dot = f".{ext}" if ext else ""
     if allowed and "*" not in allowed and ext_with_dot not in allowed:

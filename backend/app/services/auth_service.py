@@ -56,6 +56,9 @@ def create_user(db: Session, user_data: dict) -> User:
         session_label = None
         if enrollment_year:
             session_label = f"{enrollment_year % 100:02d}-{(enrollment_year + 4) % 100:02d}"
+        session_type = user_data.get("session_type", "morning")
+        if session_type not in ("morning", "evening"):
+            session_type = "morning"
         profile = StudentProfile(
             user_id=user.id,
             student_id=user_data.get("student_id"),
@@ -64,6 +67,7 @@ def create_user(db: Session, user_data: dict) -> User:
             semester=user_data.get("semester"),
             enrollment_year=enrollment_year,
             session=session_label,
+            session_type=session_type,
         )
         db.add(profile)
 

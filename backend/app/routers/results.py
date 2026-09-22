@@ -1,13 +1,9 @@
-import os
 import json
-import mimetypes
-from typing import List, Optional
+from typing import List
 
-from fastapi import Request,  APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
-from fastapi.responses import FileResponse
+from fastapi import Request,  APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_teacher
 from app.models import User, Result, Course
@@ -34,8 +30,6 @@ def _result_out(r: Result, courses: dict, users: dict) -> dict:
         "id": r.id,
         "title": r.title,
         "exam_type": r.exam_type,
-        "entry_type": r.entry_type,
-        "content": r.content,
         "file_url": r.file_url,
         "file_name": r.file_name,
         "worst_paper_url": r.worst_paper_url,
@@ -97,139 +91,6 @@ def list_results(request: Request,
 
 
 @limiter.limit("30/minute")
-@router.get("/{result_id}/view")
-def view_result_file(result_id: str, request: Request, kind: str = "full_sheet", token: str = None):
-    """Serve a result file by kind (full_sheet, best, worst)."""
-    from app.dependencies.auth import decode_token
-    from app.database.database import SessionLocal
-
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        raw_token = auth_header[7:]
-    elif token:
-        raw_token = token
-    else:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    payload = decode_token(raw_token)
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user or not user.is_active:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-
-        result = db.query(Result).filter(Result.id == result_id).first()
-        if not result:
-            raise HTTPException(status_code=404, detail="Result not found")
-
-        kind_map = {
-            "full_sheet": (result.file_url, result.file_name),
-            "best": (result.best_paper_url, result.best_paper_name),
-            "worst": (result.worst_paper_url, result.worst_paper_name),
-        }
-
-        # Fallback to files_json for old results
-        if kind not in kind_map or not kind_map[kind][0]:
-            extra_files = []
-            if result.extra_files_json:
-                try:
-                    extra_files = json.loads(result.extra_files_json)
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            if extra_files:
-                idx = {"full_sheet": 0, "best": 1, "worst": 2}.get(kind, 0)
-                if idx < len(extra_files):
-                    kind_map[kind] = (extra_files[idx].get("url"), extra_files[idx].get("name"))
-
-        if kind not in kind_map:
-            raise HTTPException(status_code=400, detail=f"Invalid kind '{kind}'. Must be full_sheet, best, or worst")
-
-        file_url, file_name = kind_map[kind]
-        if not file_url:
-            raise HTTPException(status_code=404, detail="File not found")
-
-        rel_path = file_url.replace("uploads/", "").replace("uploads\\", "")
-        uploads_dir = os.path.join(os.getcwd(), settings.UPLOAD_DIR)
-        path = os.path.join(uploads_dir, rel_path)
-
-        if not os.path.exists(path):
-            raise HTTPException(status_code=404, detail="File not found on disk")
-
-        media_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
-        return FileResponse(
-            path,
-            media_type=media_type,
-            headers={"Content-Disposition": f'inline; filename="{file_name or os.path.basename(path)}"'},
-        )
-    finally:
-        db.close()
-
-
-@limiter.limit("30/minute")
-@router.get("/{result_id}/file/{file_index}")
-def serve_result_file(result_id: str, file_index: int, request: Request, token: str = None):
-    """Serve a specific file from a result entry. 0=full_sheet, 1=best_paper, 2=worst_paper."""
-    from app.dependencies.auth import decode_token
-    from app.database.database import SessionLocal
-
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        raw_token = auth_header[7:]
-    elif token:
-        raw_token = token
-    else:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    payload = decode_token(raw_token)
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user or not user.is_active:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-
-        result = db.query(Result).filter(Result.id == result_id).first()
-        if not result:
-            raise HTTPException(status_code=404, detail="Result not found")
-
-        files = [
-            {"url": result.file_url, "name": result.file_name},
-            {"url": result.best_paper_url, "name": result.best_paper_name},
-            {"url": result.worst_paper_url, "name": result.worst_paper_name},
-        ]
-
-        if file_index < 0 or file_index >= len(files):
-            raise HTTPException(status_code=404, detail="File not found")
-
-        file_url = files[file_index]["url"]
-        if not file_url:
-            raise HTTPException(status_code=404, detail="File not found")
-
-        rel_path = file_url.replace("uploads/", "").replace("uploads\\", "")
-        uploads_dir = os.path.join(os.getcwd(), settings.UPLOAD_DIR)
-        path = os.path.join(uploads_dir, rel_path)
-
-        if not os.path.exists(path):
-            raise HTTPException(status_code=404, detail="File not found on disk")
-
-        media_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
-        return FileResponse(
-            path,
-            media_type=media_type,
-            headers={"Content-Disposition": f'inline; filename="{files[file_index].get("name", os.path.basename(path))}"'},
-        )
-    finally:
-        db.close()
-
-
-@limiter.limit("30/minute")
 @router.post("/", response_model=ResultOut, status_code=status.HTTP_201_CREATED)
 def create_result(request: Request,
     title: str = Form(...),
@@ -261,7 +122,6 @@ def create_result(request: Request,
     result = Result(
         title=title,
         exam_type=exam_type,
-        entry_type="file",
         file_url=full_sheet_url,
         file_name=full_sheet.filename,
         best_paper_url=best_paper_url,

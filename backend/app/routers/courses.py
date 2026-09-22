@@ -19,14 +19,17 @@ def _student_session_label(enrollment_year: int) -> str:
 
 
 def student_has_access(db: Session, user: User, course: Course) -> bool:
-    """Check if a student can access a course — same session, semester <= current, active."""
+    """Check if a student can access a course — same session, same session_type, semester <= current, active."""
     profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.id).first()
     if not profile or not profile.enrollment_year or not profile.semester:
         return False
     if not course.session or not course.semester:
         return False
     student_session = _student_session_label(profile.enrollment_year)
-    return course.session == student_session and course.semester <= profile.semester and course.is_active
+    # Check session_type match (morning/evening)
+    student_st = profile.session_type or "morning"
+    course_st = course.session_type or "morning"
+    return course.session == student_session and student_st == course_st and course.semester <= profile.semester and course.is_active
 
 
 def get_teacher_course_ids(db: Session, teacher_id: str) -> List[str]:
@@ -38,13 +41,15 @@ def get_teacher_course_ids(db: Session, teacher_id: str) -> List[str]:
 
 
 def get_student_courses(db: Session, user: User) -> List[Course]:
-    """Get all courses a student has access to — same session, semester <= current, active only."""
+    """Get all courses a student has access to — same session, same session_type, semester <= current, active only."""
     profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.id).first()
     if not profile or not profile.enrollment_year or not profile.semester:
         return []
     student_session = _student_session_label(profile.enrollment_year)
+    student_st = profile.session_type or "morning"
     return db.query(Course).filter(
         Course.session == student_session,
+        Course.session_type == student_st,
         Course.semester <= profile.semester,
         Course.is_active == True,
     ).all()
@@ -56,22 +61,28 @@ def list_courses(request: Request,
     skip: int = 0,
     limit: int = 100,
     is_active: bool = None,
+    session_type: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List courses based on role. Optional is_active filter."""
+    """List courses based on role. Optional is_active and session_type filter."""
     role = current_user.role.name
 
     if role == "admin":
         q = db.query(Course)
         if is_active is not None:
             q = q.filter(Course.is_active == is_active)
+        if session_type:
+            q = q.filter(Course.session_type == session_type)
         courses = q.offset(skip).limit(limit).all()
     elif role == "teacher":
-        courses = db.query(Course).filter(
+        q = db.query(Course).filter(
             Course.teacher_id == current_user.id,
             Course.is_active == True,
-        ).offset(skip).limit(limit).all()
+        )
+        if session_type:
+            q = q.filter(Course.session_type == session_type)
+        courses = q.offset(skip).limit(limit).all()
     else:  # student
         courses = get_student_courses(db, current_user)
 
@@ -296,30 +307,6 @@ def reuse_materials(request: Request,
 
 
 @limiter.limit("30/minute")
-@router.get("/{course_id}", response_model=CourseOut)
-def get_course(request: Request, 
-    course_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Get course details."""
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-
-    role = current_user.role.name
-    if role == "teacher" and course.teacher_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
-    if role == "student" and not student_has_access(db, current_user, course):
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    if role == "student" and not course.is_active:
-        raise HTTPException(status_code=404, detail="Course not found")
-
-    return course
-
-
-@limiter.limit("30/minute")
 @router.get("/{course_id}/students")
 def list_course_students(request: Request, 
     course_id: str,
@@ -348,13 +335,15 @@ def list_course_students(request: Request,
         .all()
     )
 
-    # Filter by session — use stored session or compute from enrollment_year
+    # Filter by session and session_type — use stored session or compute from enrollment_year
     result = []
     for u, sp in students:
         student_session = sp.session
         if not student_session and sp.enrollment_year:
             student_session = _student_session_label(sp.enrollment_year)
-        if student_session == course.session:
+        student_st = sp.session_type or "morning"
+        course_st = course.session_type or "morning"
+        if student_session == course.session and student_st == course_st:
             result.append({
                 "student_id": u.id,
                 "user_id": u.id,

@@ -1,5 +1,4 @@
 import re
-from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -33,6 +32,7 @@ class UserCreate(UserBase):
     student_id: Optional[str] = None
     semester: Optional[int] = None
     enrollment_year: Optional[int] = None
+    session_type: Optional[str] = "morning"  # morning or evening
 
     @field_validator("password")
     @classmethod
@@ -83,25 +83,6 @@ class UserUpdate(BaseModel):
         return v
 
 
-class TeacherUpdate(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
-    is_active: Optional[bool] = None
-    employee_id: Optional[str] = None
-    department: Optional[str] = None
-    qualification: Optional[str] = None
-
-    @field_validator("phone")
-    @classmethod
-    def phone_must_be_pakistani(cls, v):
-        if v is not None and v != "":
-            if not re.match(r"^\+92\d{10}$", v):
-                raise ValueError("Phone must be exactly 13 characters: +92 followed by 10 digits")
-        return v
-
-
 class UserOut(UserBase):
     id: str
     role_id: str
@@ -123,6 +104,7 @@ class StudentProfileOut(BaseModel):
     semester: Optional[int] = None
     enrollment_year: Optional[int] = None
     session: Optional[str] = None
+    session_type: Optional[str] = "morning"
     roll_number: Optional[str] = None
 
     class Config:
@@ -132,23 +114,6 @@ class StudentProfileOut(BaseModel):
 class UserWithRole(UserOut):
     role: RoleOut
     student_profile: Optional[StudentProfileOut] = None
-
-
-class PasswordResetBody(BaseModel):
-    new_password: str
-
-    @field_validator("new_password")
-    @classmethod
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain an uppercase letter")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain a lowercase letter")
-        if not re.search(r"\d", v):
-            raise ValueError("Password must contain a digit")
-        return v
 
 
 class PromotionRequest(BaseModel):

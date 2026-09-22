@@ -1,18 +1,17 @@
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.dependencies.auth import require_admin, hash_password
+from app.dependencies.auth import require_admin
 from app.dependencies.ratelimit import limiter
 from app.models import User, Role, TeacherProfile, StudentProfile, Course, PromotionHistory, Assignment, Submission, Quiz, QuizAttempt, AttendanceSession, AttendanceRecord, Result
 from app.schemas.user import (
-    UserCreate, UserUpdate, UserWithRole, PasswordResetBody, PromotionRequest,
+    UserCreate, UserUpdate, UserWithRole, PromotionRequest,
 )
 from app.services.auth_service import create_user as create_user_service
 from app.services.email_service import send_credentials_email
-from app.services.otp_service import create_otp
 
 from app.routers.courses import _student_session_label as _session_label
 
@@ -43,7 +42,7 @@ def _delete_user_dependencies(db: Session, user: User) -> None:
     """
     from app.models import (
         Submission, AttendanceRecord, OTPVerification,
-        Notification, Assignment, StudyMaterial,
+        Assignment, StudyMaterial,
         AttendanceSession, Quiz, QuizQuestion, Result, Review,
         PromotionHistory, QuizAttempt, QuizAttemptAnswer,
     )
@@ -91,7 +90,6 @@ def _delete_user_dependencies(db: Session, user: User) -> None:
     db.query(Assignment).filter(Assignment.teacher_id == user_id).delete()
     db.query(StudyMaterial).filter(StudyMaterial.uploaded_by == user_id).delete()
     db.query(OTPVerification).filter(OTPVerification.user_id == user_id).delete()
-    db.query(Notification).filter(Notification.user_id == user_id).delete()
     db.query(QuizQuestion).filter(
         QuizQuestion.quiz_id.in_(
             db.query(Quiz.id).filter(Quiz.teacher_id == user_id)
@@ -155,17 +153,6 @@ def get_admin_stats(request: Request,
 
 
 # ── Dynamic routes ────────────────────────────────────
-@router.get("/{user_id}", response_model=UserWithRole)
-@limiter.limit("30/minute")
-def get_user(request: Request, 
-        user_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Get user by ID (admin only)."""
-    return _get_user_or_404(db, user_id)
-
-
 @router.get("/{user_id}/profile")
 @limiter.limit("30/minute")
 def get_student_profile(request: Request, 
@@ -186,9 +173,11 @@ def get_student_profile(request: Request,
     session_label = _session_label(profile.enrollment_year) if profile.enrollment_year else None
 
     # Get courses for the CURRENT semester only (so promoted students show zeroed data)
+    student_st = profile.session_type or "morning"
     courses = db.query(Course).filter(
         Course.session == session_label,
         Course.semester == profile.semester,
+        Course.session_type == student_st,
     ).all()
 
     # ── Attendance per course ─────────────────────────
@@ -336,6 +325,7 @@ def get_semester_progress(request: Request,
 
     session_label = _session_label(profile.enrollment_year) if profile.enrollment_year else None
     current_semester = profile.semester or 1
+    student_st = profile.session_type or "morning"
 
     semesters = []
     for sem in range(1, 9):
@@ -343,6 +333,7 @@ def get_semester_progress(request: Request,
         courses = db.query(Course).filter(
             Course.session == session_label,
             Course.semester == sem,
+            Course.session_type == student_st,
         ).all()
         course_ids = [c.id for c in courses]
 
@@ -455,6 +446,8 @@ def create_user(request: Request,
     current_user: User = Depends(require_admin),
 ):
     """Create a new user (admin only)."""
+    if data.role_name == "student":
+        raise HTTPException(status_code=400, detail="Students cannot be created from admin panel. Use the registration page instead.")
     _check_email_available(db, data.email)
     if data.phone:
         phone_existing = db.query(User).filter(User.phone == data.phone).first()
@@ -518,21 +511,6 @@ def update_user(request: Request,
 
 
 @limiter.limit("30/minute")
-@router.put("/{user_id}/password")
-def set_password(request: Request, 
-    user_id: str,
-    data: PasswordResetBody,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Set a new password for a user (admin only)."""
-    user = _get_user_or_404(db, user_id)
-    user.password_hash = hash_password(data.new_password)
-    db.commit()
-    return {"message": "Password updated successfully"}
-
-
-@limiter.limit("30/minute")
 @router.delete("/{user_id}/hard")
 def hard_delete_user(request: Request, 
     user_id: str,
@@ -567,13 +545,15 @@ def delete_user(request: Request,
 @limiter.limit("30/minute")
 @router.get("/promotion/sessions")
 def get_promotion_sessions(request: Request, 
+    session_type: str = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """List all sessions with student counts."""
-    profiles = db.query(StudentProfile).filter(
-        StudentProfile.enrollment_year.isnot(None)
-    ).all()
+    filters = [StudentProfile.enrollment_year.isnot(None)]
+    if session_type:
+        filters.append(StudentProfile.session_type == session_type)
+    profiles = db.query(StudentProfile).filter(*filters).all()
 
     sessions = {}
     for p in profiles:
@@ -589,6 +569,7 @@ def get_promotion_sessions(request: Request,
 @router.get("/promotion/sessions/{session}/semesters")
 def get_session_semesters(request: Request, 
     session: str,
+    session_type: str = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -602,10 +583,13 @@ def get_session_semesters(request: Request,
         raise HTTPException(status_code=400, detail="Invalid session format")
 
     # Current students
-    profiles = db.query(StudentProfile).filter(
+    profile_filters = [
         StudentProfile.enrollment_year == start_year,
         StudentProfile.semester.isnot(None),
-    ).all()
+    ]
+    if session_type:
+        profile_filters.append(StudentProfile.session_type == session_type)
+    profiles = db.query(StudentProfile).filter(*profile_filters).all()
 
     semesters = {}
     for p in profiles:
@@ -617,9 +601,16 @@ def get_session_semesters(request: Request,
             semesters[sem]["graduated_count"] += 1
 
     # Students who were promoted FROM each semester (still count them in from-semester)
-    promoted_records = db.query(PromotionHistory).filter(
+    promoted_query = db.query(PromotionHistory).filter(
         PromotionHistory.session == session,
-    ).all()
+    )
+    if session_type:
+        session_user_ids = [p.user_id for p in db.query(StudentProfile.user_id).filter(
+            StudentProfile.enrollment_year == start_year,
+            StudentProfile.session_type == session_type,
+        ).all()]
+        promoted_query = promoted_query.filter(PromotionHistory.student_id.in_(session_user_ids))
+    promoted_records = promoted_query.all()
     for r in promoted_records:
         sem = r.from_semester
         if sem not in semesters:
@@ -641,6 +632,7 @@ def get_session_semesters(request: Request,
 def get_semester_students(request: Request, 
     session: str,
     semester: int,
+    session_type: str = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -654,16 +646,26 @@ def get_semester_students(request: Request,
         raise HTTPException(status_code=400, detail="Invalid session format")
 
     # Current students in this semester
-    profiles = db.query(StudentProfile).filter(
+    profile_filters = [
         StudentProfile.enrollment_year == start_year,
         StudentProfile.semester == semester,
-    ).all()
+    ]
+    if session_type:
+        profile_filters.append(StudentProfile.session_type == session_type)
+    profiles = db.query(StudentProfile).filter(*profile_filters).all()
 
     # Students who were promoted FROM this semester (now in a higher semester)
-    promoted_records = db.query(PromotionHistory).filter(
+    promoted_query = db.query(PromotionHistory).filter(
         PromotionHistory.session == session,
         PromotionHistory.from_semester == semester,
-    ).all()
+    )
+    if session_type:
+        session_user_ids = [p.user_id for p in db.query(StudentProfile.user_id).filter(
+            StudentProfile.enrollment_year == start_year,
+            StudentProfile.session_type == session_type,
+        ).all()]
+        promoted_query = promoted_query.filter(PromotionHistory.student_id.in_(session_user_ids))
+    promoted_records = promoted_query.all()
     promoted_ids = {r.student_id for r in promoted_records}
     promoted_map = {r.student_id: r.to_semester for r in promoted_records}
 
@@ -690,6 +692,7 @@ def get_semester_students(request: Request,
             "roll_number": p.roll_number if p else None,
             "semester": p.semester if p else semester,
             "enrollment_year": p.enrollment_year if p else start_year,
+            "session_type": p.session_type if p else "morning",
             "promoted": is_promoted,
             "promoted_to": promoted_map.get(uid) if is_promoted else None,
             "is_graduated": p.is_graduated if p else False,

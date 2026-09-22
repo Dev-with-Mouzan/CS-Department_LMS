@@ -12,7 +12,7 @@ from app.services.file_service import save_file
 from app.dependencies.auth import get_current_user, require_teacher
 from app.models import User, Quiz, QuizQuestion, QuizAttempt, QuizAttemptAnswer, Course
 from app.schemas.quiz import (
-    QuizCreate, QuizUpdate, QuizOut, QuizDetailOut, QuestionDetailOut,
+    QuizOut, QuizDetailOut, QuestionDetailOut,
     QuizSubmitIn, QuizAttemptOut, QuizAnswerResultOut,
     QuizTeacherAttemptOut,
 )
@@ -135,7 +135,6 @@ def create_quiz(request: Request,
     current_user: User = Depends(require_teacher),
 ):
     """Create a quiz with its questions and optional attachment (teacher only)."""
-    import json
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -456,41 +455,6 @@ def get_quiz(request: Request,
         **out.model_dump(),
         questions=[_question_out(q, include_correct) for q in quiz.questions],
     )
-
-
-@limiter.limit("30/minute")
-@router.put("/quizzes/{quiz_id}", response_model=QuizOut)
-def update_quiz(request: Request, 
-    quiz_id: str,
-    data: QuizUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_teacher),
-):
-    """Update a quiz and optionally replace its questions (teacher only, must own)."""
-    quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
-    if not quiz:
-        raise HTTPException(status_code=404, detail="Quiz not found")
-    if quiz.teacher_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    update_data = data.model_dump(exclude_unset=True)
-    questions_payload = update_data.pop("questions", None)
-
-    for field, value in update_data.items():
-        setattr(quiz, field, value)
-
-    if questions_payload is not None:
-        if not questions_payload and not quiz.attachment_url:
-            raise HTTPException(status_code=400, detail="A quiz needs either questions or an uploaded document")
-        for old in quiz.questions:
-            db.delete(old)
-        for q in _validate_questions(questions_payload, quiz.title):
-            q.quiz_id = quiz.id
-            db.add(q)
-
-    db.commit()
-    db.refresh(quiz)
-    return _quiz_out(quiz)
 
 
 @limiter.limit("30/minute")

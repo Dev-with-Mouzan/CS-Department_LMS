@@ -31,14 +31,6 @@ MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_MINUTES = 15
 
 
-@limiter.limit("10/minute")
-@router.get("/user-count")
-def get_user_count(request: Request, db: Session = Depends(get_db)):
-    """Check if any users exist in the system (public endpoint)."""
-    count = db.query(User).count()
-    return {"count": count, "has_users": count > 0}
-
-
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 def register(request: Request, data: RegisterRequest, bg_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -230,11 +222,13 @@ def get_me(request: Request, current_user: User = Depends(get_current_user), db:
     """Get current user profile."""
     from app.models import StudentProfile
     semester = None
+    session_type = None
     if current_user.role.name == "student":
         profile = db.query(StudentProfile).filter(
             StudentProfile.user_id == current_user.id
         ).first()
         semester = profile.semester if profile else None
+        session_type = profile.session_type if profile else None
     return {
         "id": str(current_user.id),
         "first_name": current_user.first_name,
@@ -245,4 +239,5 @@ def get_me(request: Request, current_user: User = Depends(get_current_user), db:
         "is_verified": current_user.is_verified,
         "is_active": current_user.is_active,
         "semester": semester,
+        "session_type": session_type,
     }

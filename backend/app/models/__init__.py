@@ -3,7 +3,7 @@ from app.models.models import (
     Course, Assignment, Submission,
     AttendanceSession, AttendanceRecord,
     Quiz, QuizQuestion, QuizAttempt, QuizAttemptAnswer,
-    OTPVerification, Notification, StudyMaterial, Result, Review,
+    OTPVerification, StudyMaterial, Result, Review,
     PromotionHistory, utcnow
 )
 
@@ -12,6 +12,6 @@ __all__ = [
     "Course", "Assignment", "Submission",
     "AttendanceSession", "AttendanceRecord",
     "Quiz", "QuizQuestion", "QuizAttempt", "QuizAttemptAnswer",
-    "OTPVerification", "Notification", "StudyMaterial", "Result", "Review",
+    "OTPVerification", "StudyMaterial", "Result", "Review",
     "PromotionHistory", "utcnow"
 ]

@@ -51,7 +51,6 @@ class User(Base):
     taught_courses = relationship("Course", back_populates="teacher")
     submissions = relationship("Submission", back_populates="student")
     otp_records = relationship("OTPVerification", back_populates="user", cascade="all, delete-orphan")
-    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     quizzes = relationship("Quiz", back_populates="teacher")
 
 
@@ -79,6 +78,7 @@ class StudentProfile(Base):
     semester = Column(Integer)
     enrollment_year = Column(Integer)
     session = Column(String(20), index=True)
+    session_type = Column(String(10), index=True, default="morning")  # morning or evening
     is_graduated = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utcnow)
 
@@ -94,6 +94,7 @@ class Course(Base):
     description = Column(Text)
     semester = Column(Integer, index=True)
     session = Column(String(20), index=True)  # e.g. "23-27"
+    session_type = Column(String(10), index=True, default="morning")  # morning or evening
     teacher_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     source_course_id = Column(String(36), ForeignKey("courses.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True)
@@ -216,7 +217,6 @@ class QuizQuestion(Base):
     text = Column(Text, nullable=False)
     options = Column(Text, nullable=False)  # JSON array of options
     correct_index = Column(Integer, nullable=False)
-    is_mandatory = Column(Boolean, default=True)
     order_index = Column(Integer, default=0)
 
     quiz = relationship("Quiz", back_populates="questions")
@@ -262,8 +262,6 @@ class Result(Base):
     course_id = Column(String(36), ForeignKey("courses.id"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     exam_type = Column(String(20), default="midterm")  # midterm, final, complete
-    entry_type = Column(String(20), default="file")  # file, manual
-    content = Column(Text)  # manual text entry
     file_url = Column(String(500))
     file_name = Column(String(255))
     worst_paper_url = Column(String(500))
@@ -310,20 +308,6 @@ class QuizAttemptAnswer(Base):
 
     attempt = relationship("QuizAttempt", back_populates="answers")
     question = relationship("QuizQuestion")
-
-
-class Notification(Base):
-    __tablename__ = "notifications"
-
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    title = Column(String(255), nullable=False)
-    message = Column(Text, nullable=False)
-    type = Column(String(50))
-    is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=utcnow)
-
-    user = relationship("User", back_populates="notifications")
 
 
 class Review(Base):
