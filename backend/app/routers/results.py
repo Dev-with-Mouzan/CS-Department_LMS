@@ -146,15 +146,15 @@ def create_result(request: Request,
 def delete_result(request: Request,
     result_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_teacher),
+    current_user: User = Depends(get_current_user),
 ):
-    """Delete a result entry (teacher only, must own the course)."""
+    """Delete a result entry (admin or owning teacher)."""
     result = db.query(Result).filter(Result.id == result_id).first()
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
 
     course = db.query(Course).filter(Course.id == result.course_id).first()
-    if not course or course.teacher_id != current_user.id:
+    if current_user.role.name != "admin" and (not course or course.teacher_id != current_user.id):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Delete all associated files

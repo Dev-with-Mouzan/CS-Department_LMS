@@ -105,6 +105,42 @@ export default function Submissions() {
     ? (semesters.find((s) => s.key === activeSemester) && courses.filter((c) => (c.session_type || 'morning') === sessionTab && (c.semester != null ? String(c.semester) : 'other') === activeSemester)) || []
     : []
 
+  const quizSemesters = useMemo(() => {
+    const bySem = {}
+    for (const c of courses.filter((c) => (c.session_type || 'morning') === sessionTab)) {
+      const key = c.semester != null ? String(c.semester) : 'other'
+      if (!bySem[key]) bySem[key] = []
+      bySem[key].push(c)
+    }
+    return Object.entries(bySem)
+      .sort(([a], [b]) => (a === 'other' ? 1 : b === 'other' ? -1 : Number(a) - Number(b)))
+      .map(([key, cs]) => {
+        const courseQuizzes = cs.flatMap((c) => quizzes.filter((q) => q.course_id === c.id))
+        const totalAttempts = courseQuizzes.reduce((sum, q) => sum + (quizAttempts[q.id]?.length || 0), 0)
+        return {
+          key,
+          count: cs.length,
+          session: cs.find((c) => c.session)?.session || '',
+          assignmentCount: courseQuizzes.length,
+          totalSubs: totalAttempts,
+          toReview: 0,
+        }
+      })
+  }, [courses, quizzes, quizAttempts, sessionTab])
+
+  const quizzesByCourse = useMemo(() => {
+    const m = {}
+    for (const q of quizzes) {
+      if (!m[q.course_id]) m[q.course_id] = []
+      m[q.course_id].push(q)
+    }
+    return m
+  }, [quizzes])
+
+  const activeQuizCourses = activeSemester != null
+    ? courses.filter((c) => (c.session_type || 'morning') === sessionTab && (c.semester != null ? String(c.semester) : 'other') === activeSemester)
+    : []
+
   const activeCourseAssignments = activeCourse
     ? assignments.filter((a) => a.course_id === activeCourse.id)
     : []
@@ -208,95 +244,159 @@ export default function Submissions() {
           <div className="w-10 h-10 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
         </div>
       ) : tab === 'quizzes' ? (
-        !activeCourse ? (
-          <EmptyState icon={HelpCircle} message="Select a course to view quiz attempts." />
-        ) : quizzes.filter((q) => q.course_id === activeCourse.id).length === 0 ? (
-          <EmptyState icon={HelpCircle} message="No quizzes in this course." />
-        ) : !selected ? (
-          <div className="space-y-3">
-            {quizzes.filter((q) => q.course_id === activeCourse.id).map((quiz) => {
-              const attempts = quizAttempts[quiz.id] || []
-              return (
-                <button key={quiz.id} onClick={() => { setSelected(quiz); setSubmissions(attempts); }}
-                  className="w-full text-left p-5 rounded-xl border border-surface-200 hover:border-accent-300 hover:bg-accent-50/50 transition-all">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-navy-900">{quiz.title}</p>
-                      {quiz.description && <p className="text-xs text-navy-400 mt-0.5 line-clamp-1">{quiz.description}</p>}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 text-[10px] text-navy-500">
-                      <span className="px-2 py-1 rounded-full bg-accent-50 text-accent-600 font-semibold">{attempts.length} attempts</span>
-                    </div>
-                  </div>
+        <>
+          {/* Breadcrumbs */}
+          <div className="flex items-center gap-2 mb-5 text-xs flex-wrap">
+            <button
+              onClick={goSemesters}
+              className="inline-flex items-center gap-1 font-semibold text-navy-500 hover:text-accent-600 transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Semesters
+            </button>
+            {activeSemester != null && (
+              <>
+                <ChevronRight className="w-3 h-3 text-navy-300" />
+                <button
+                  onClick={goCourses}
+                  className="inline-flex items-center gap-1 font-semibold text-navy-500 hover:text-accent-600 transition-colors"
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  {semLabel(activeSemester)}
                 </button>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 mb-4">
-              <button onClick={() => { setSelected(null); setSubmissions([]); }}
-                className="text-accent-600 hover:underline font-medium text-sm">
-                {selected.title}
-              </button>
-            </div>
-            {submissions.length === 0 ? (
-              <EmptyState icon={HelpCircle} message="No attempts submitted yet." />
-            ) : (
-              <div className="overflow-x-auto border border-surface-200 rounded-xl">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-surface-200 bg-surface-50/60">
-                      <th className="px-4 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Student</th>
-                      <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">Score</th>
-                      <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">%</th>
-                      <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">File</th>
-                      <th className="px-4 py-3 text-right text-2xs font-bold text-navy-400 uppercase">Submitted</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-100">
-                    {submissions.map((att) => (
-                      <tr key={att.id} className="hover:bg-surface-50">
-                        <td className="px-4 py-3 font-medium text-navy-900">{att.student_name}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="font-semibold text-navy-800">{att.score}</span>
-                          <span className="text-navy-400">/{att.total}</span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-semibold ${
-                            att.percentage >= 70 ? 'bg-success/10 text-success-dark' :
-                            att.percentage >= 40 ? 'bg-warning/10 text-warning-dark' :
-                            'bg-danger/10 text-danger-dark'
-                          }`}>
-                            {att.percentage}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {att.submission_url ? (
-                            <a
-                              href={`/api/files/${att.submission_url}?token=${localStorage.getItem('token')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 font-medium"
-                            >
-                              <Paperclip className="w-3 h-3" />
-                              {att.submission_name || 'View'}
-                            </a>
-                          ) : (
-                            <span className="text-xs text-navy-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right text-xs text-navy-500">
-                          {att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              </>
+            )}
+            {activeCourse && (
+              <>
+                <ChevronRight className="w-3 h-3 text-navy-300" />
+                <span className="inline-flex items-center gap-1 font-semibold text-navy-800 truncate max-w-[220px]">
+                  <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                  {activeCourse.title}
+                </span>
+              </>
             )}
           </div>
-        )
+
+          {activeSemester == null ? (
+            <>
+              {/* Session tabs */}
+              <div className="flex justify-center mb-5">
+                <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
+                  {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                    <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null); setSelected(null); setSubmissions([]) }}
+                      className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                        sessionTab === r.value
+                          ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
+                          : 'text-navy-400 hover:text-navy-600'
+                      }`}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {quizSemesters.length === 0 ? (
+                <EmptyState icon={HelpCircle} message="No quizzes in your courses yet. Create one from the Assessments tab." />
+              ) : (
+                <SemesterGrid quizzes semesters={quizSemesters} onPick={setActiveSemester} />
+              )}
+            </>
+          ) : activeCourse == null ? (
+            <CourseGrid
+              quizzes
+              courses={activeQuizCourses}
+              byCourse={quizzesByCourse}
+              counts={quizAttempts}
+              onPick={setActiveCourse}
+            />
+          ) : quizzes.filter((q) => q.course_id === activeCourse.id).length === 0 ? (
+            <EmptyState icon={HelpCircle} message="No quizzes in this course." />
+          ) : (
+            <div className="space-y-3">
+              {quizzes.filter((q) => q.course_id === activeCourse.id).map((quiz) => {
+                const attempts = quizAttempts[quiz.id] || []
+                return (
+                  <button key={quiz.id} onClick={() => { setSelected(quiz); setSubmissions(attempts); }}
+                    className="w-full text-left p-5 rounded-xl border border-surface-200 hover:border-accent-300 hover:bg-accent-50/50 transition-all">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-navy-900">{quiz.title}</p>
+                        {quiz.description && <p className="text-xs text-navy-400 mt-0.5 line-clamp-1">{quiz.description}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 text-[10px] text-navy-500">
+                        <span className="px-2 py-1 rounded-full bg-accent-50 text-accent-600 font-semibold">{attempts.length} attempts</span>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+              {selected && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-4">
+                    <button onClick={() => { setSelected(null); setSubmissions([]); }}
+                      className="text-accent-600 hover:underline font-medium text-sm">
+                      {selected.title}
+                    </button>
+                  </div>
+                  {submissions.length === 0 ? (
+                    <EmptyState icon={HelpCircle} message="No attempts submitted yet." />
+                  ) : (
+                    <div className="overflow-x-auto border border-surface-200 rounded-xl">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-surface-200 bg-surface-50/60">
+                            <th className="px-4 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Student</th>
+                            <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">Score</th>
+                            <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">%</th>
+                            <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">File</th>
+                            <th className="px-4 py-3 text-right text-2xs font-bold text-navy-400 uppercase">Submitted</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-surface-100">
+                          {submissions.map((att) => (
+                            <tr key={att.id} className="hover:bg-surface-50">
+                              <td className="px-4 py-3 font-medium text-navy-900">{att.student_name}</td>
+                              <td className="px-4 py-3 text-center">
+                                <span className="font-semibold text-navy-800">{att.score}</span>
+                                <span className="text-navy-400">/{att.total}</span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-semibold ${
+                                  att.percentage >= 70 ? 'bg-success/10 text-success-dark' :
+                                  att.percentage >= 40 ? 'bg-warning/10 text-warning-dark' :
+                                  'bg-danger/10 text-danger-dark'
+                                }`}>
+                                  {att.percentage}%
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {att.submission_url ? (
+                                  <a
+                                    href={`/api/files/${att.submission_url}?token=${localStorage.getItem('token')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 font-medium"
+                                  >
+                                    <Paperclip className="w-3 h-3" />
+                                    {att.submission_name || 'View'}
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-navy-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right text-xs text-navy-500">
+                                {att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       ) : (
         <>
           {/* Breadcrumbs */}
@@ -357,7 +457,7 @@ export default function Submissions() {
           ) : activeCourse == null ? (
             <CourseGrid
               courses={activeCourses}
-              assignmentsByCourse={assignments.filter((a) => activeCourses.some((c) => c.id === a.course_id)).reduce((m, a) => {
+              byCourse={assignments.filter((a) => activeCourses.some((c) => c.id === a.course_id)).reduce((m, a) => {
                 if (!m[a.course_id]) m[a.course_id] = []
                 m[a.course_id].push(a)
                 return m
@@ -436,7 +536,7 @@ const EmptyState = React.memo(function EmptyState({ icon: Icon, message }) {
   )
 })
 
-const SemesterGrid = React.memo(function SemesterGrid({ semesters, onPick }) {
+const SemesterGrid = React.memo(function SemesterGrid({ semesters, quizzes = false, onPick }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {semesters.map((s) => (
@@ -450,8 +550,8 @@ const SemesterGrid = React.memo(function SemesterGrid({ semesters, onPick }) {
               <GraduationCap className="w-5 h-5" />
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 text-accent-600 text-2xs font-bold">
-              <ClipboardList className="w-3 h-3" />
-              {s.assignmentCount} assignments
+              {quizzes ? <HelpCircle className="w-3 h-3" /> : <ClipboardList className="w-3 h-3" />}
+              {s.assignmentCount} {quizzes ? 'quizzes' : 'assignments'}
             </span>
           </div>
           <h3 className="mt-4 text-lg font-bold text-navy-900 group-hover:text-accent-600 transition-colors">
@@ -460,16 +560,16 @@ const SemesterGrid = React.memo(function SemesterGrid({ semesters, onPick }) {
           {s.session && <p className="text-xs text-navy-400 mt-0.5">Session {s.session}</p>}
           <div className="mt-4 flex items-center gap-4 text-xs text-navy-500">
             <span className="tabular-nums"><span className="font-bold text-navy-900">{s.count}</span> books</span>
-            <span className="tabular-nums"><span className="font-bold text-navy-900">{s.totalSubs}</span> submissions</span>
+            <span className="tabular-nums"><span className="font-bold text-navy-900">{s.totalSubs}</span> {quizzes ? 'attempts' : 'submissions'}</span>
           </div>
-          {s.toReview > 0 && (
+          {!quizzes && s.toReview > 0 && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1 text-2xs font-bold text-amber-700">
               <Clock className="w-3 h-3" />
               {s.toReview} to review
             </div>
           )}
           <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-accent-600">
-            Review submissions
+            {quizzes ? 'View attempts' : 'Review submissions'}
             <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </button>
@@ -478,15 +578,20 @@ const SemesterGrid = React.memo(function SemesterGrid({ semesters, onPick }) {
   )
 })
 
-const CourseGrid = React.memo(function CourseGrid({ courses, assignmentsByCourse, counts, onPick }) {
+const CourseGrid = React.memo(function CourseGrid({ courses, quizzes = false, byCourse, counts, onPick }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {courses.map((c) => {
-        const als = assignmentsByCourse[c.id] || []
-        const totalSubs = als.reduce((sum, a) => sum + (counts[a.id]?.total || 0), 0)
-        const toReview = als.reduce(
-          (sum, a) => sum + ((counts[a.id]?.total || 0) - (counts[a.id]?.graded || 0)), 0,
-        )
+        const items = (byCourse && byCourse[c.id]) || []
+        const totalSubs = quizzes
+          ? items.reduce((sum, q) => sum + ((counts[q.id] || []).length || 0), 0)
+          : items.reduce((sum, a) => sum + (counts[a.id]?.total || 0), 0)
+        const toReview = quizzes
+          ? 0
+          : items.reduce((sum, a) => sum + ((counts[a.id]?.total || 0) - (counts[a.id]?.graded || 0)), 0)
+        const itemLabel = quizzes ? 'quizzes' : 'assignments'
+        const subLabel = quizzes ? 'attempts' : 'submissions'
+        const actionLabel = quizzes ? 'View attempts' : 'View submissions'
         return (
           <button
             key={c.id}
@@ -508,8 +613,8 @@ const CourseGrid = React.memo(function CourseGrid({ courses, assignmentsByCourse
               {c.title}
             </h3>
             <div className="mt-4 flex items-center gap-4 text-xs text-navy-500 flex-wrap">
-              <span className="tabular-nums"><span className="font-bold text-navy-900">{als.length}</span> assignments</span>
-              <span className="tabular-nums"><span className="font-bold text-navy-900">{totalSubs}</span> submissions</span>
+              <span className="tabular-nums"><span className="font-bold text-navy-900">{items.length}</span> {itemLabel}</span>
+              <span className="tabular-nums"><span className="font-bold text-navy-900">{totalSubs}</span> {subLabel}</span>
               {toReview > 0 && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-2xs font-bold text-amber-700">
                   <Clock className="w-3 h-3" />
@@ -518,7 +623,7 @@ const CourseGrid = React.memo(function CourseGrid({ courses, assignmentsByCourse
               )}
             </div>
             <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-accent-600">
-              View submissions
+              {actionLabel}
               <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </button>

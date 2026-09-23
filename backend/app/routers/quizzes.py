@@ -104,7 +104,7 @@ def list_quizzes(request: Request,
 
     if role == "teacher":
         from app.routers.courses import get_teacher_course_ids
-        teacher_course_ids = get_teacher_course_ids(db, current_user.id)
+        teacher_course_ids = get_teacher_course_ids(db, current_user.id, include_inactive=bool(course_id))
         if not teacher_course_ids:
             return []
         query = query.filter(Quiz.course_id.in_(teacher_course_ids))

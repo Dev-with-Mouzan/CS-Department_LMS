@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_teacher
 from app.models import (
-    User, Course, StudentProfile,
+    User, Course,
     AttendanceSession, AttendanceRecord
 )
 from app.schemas.attendance import (
@@ -17,7 +17,7 @@ from app.schemas.attendance import (
     AttendancePercentageOut
 )
 from app.services.attendance_excel import generate_attendance_excel
-from app.routers.courses import student_has_access, get_student_courses
+from app.routers.courses import student_has_access, get_student_courses, get_course_students
 from app.dependencies.ratelimit import limiter
 
 router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
@@ -204,20 +204,10 @@ def get_course_attendance_matrix(request: Request,
         .all()
     )
 
-    # Get students who have access to this course (session+semester match)
-    all_students = db.query(StudentProfile).filter(
-        StudentProfile.semester == course.semester,
-        StudentProfile.enrollment_year.isnot(None),
-    ).all()
-
-    all_user_ids = {sp.user_id for sp in all_students}
-    users_map = {u.id: u for u in db.query(User).filter(User.id.in_(all_user_ids)).all()} if all_user_ids else {}
-
-    enrolled_students = []
-    for sp in all_students:
-        student_user = users_map.get(sp.user_id)
-        if student_user and student_has_access(db, student_user, course):
-            enrolled_students.append(sp)
+    # Get students who have access to this course (current + promoted-away)
+    roster = get_course_students(db, course)
+    users_map = {user.id: user for user, _ in roster}
+    enrolled_students = [profile for _, profile in roster]
 
     records = db.query(AttendanceRecord).join(AttendanceSession).filter(
         AttendanceSession.course_id == course_id,
@@ -301,6 +291,8 @@ def export_attendance_excel(request: Request,
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     role = current_user.role.name
+    if not course.is_active and role != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
     if role == "teacher" and course.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
     if role not in ("teacher", "admin"):

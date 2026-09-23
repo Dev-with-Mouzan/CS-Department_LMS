@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_admin, require_teacher
-from app.models import User, Course, Role, StudentProfile, StudyMaterial, Assignment, Quiz, QuizQuestion
+from app.models import User, Course, Role, StudentProfile, StudyMaterial, Assignment, Quiz, QuizQuestion, PromotionHistory
 from app.schemas.course import CourseCreate, CourseUpdate, CourseOut, ReusableCourseOut, ReuseRequest
 from app.dependencies.ratelimit import limiter
 
@@ -18,7 +18,7 @@ def _student_session_label(enrollment_year: int) -> str:
     return f"{enrollment_year % 100:02d}-{(enrollment_year + 4) % 100:02d}"
 
 
-def student_has_access(db: Session, user: User, course: Course) -> bool:
+def student_has_access(db: Session, user: User, course: Course, include_inactive: bool = False) -> bool:
     """Check if a student can access a course — same session, same session_type, semester <= current, active."""
     profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.id).first()
     if not profile or not profile.enrollment_year or not profile.semester:
@@ -29,15 +29,15 @@ def student_has_access(db: Session, user: User, course: Course) -> bool:
     # Check session_type match (morning/evening)
     student_st = profile.session_type or "morning"
     course_st = course.session_type or "morning"
-    return course.session == student_session and student_st == course_st and course.semester <= profile.semester and course.is_active
+    return course.session == student_session and student_st == course_st and course.semester <= profile.semester and (course.is_active or include_inactive)
 
 
-def get_teacher_course_ids(db: Session, teacher_id: str) -> List[str]:
-    """Get course IDs a teacher should see — active courses only."""
-    return [c.id for c in db.query(Course.id).filter(
-        Course.teacher_id == teacher_id,
-        Course.is_active == True,
-    ).all()]
+def get_teacher_course_ids(db: Session, teacher_id: str, include_inactive: bool = False) -> List[str]:
+    """Get course IDs a teacher should see. Active courses only unless include_inactive."""
+    q = db.query(Course.id).filter(Course.teacher_id == teacher_id)
+    if not include_inactive:
+        q = q.filter(Course.is_active == True)
+    return [c.id for c in q.all()]
 
 
 def get_student_courses(db: Session, user: User) -> List[Course]:
@@ -53,6 +53,34 @@ def get_student_courses(db: Session, user: User) -> List[Course]:
         Course.semester <= profile.semester,
         Course.is_active == True,
     ).all()
+
+
+def get_course_students(db: Session, course: Course) -> List[tuple]:
+    """Course roster: current students in the course semester plus promoted-away students
+    (whose profile semester moved on but who took this course)."""
+    profiles = db.query(StudentProfile).filter(
+        StudentProfile.semester == course.semester,
+        StudentProfile.enrollment_year.isnot(None),
+    ).all()
+
+    # Students promoted out of this course's semester still took this course
+    if course.session:
+        promoted_ids = [r.student_id for r in db.query(PromotionHistory).filter(
+            PromotionHistory.session == course.session,
+            PromotionHistory.from_semester == course.semester,
+        ).all()]
+        if promoted_ids:
+            profiles += db.query(StudentProfile).filter(
+                StudentProfile.user_id.in_(promoted_ids),
+            ).all()
+
+    users_map = {u.id: u for u in db.query(User).filter(User.id.in_({p.user_id for p in profiles})).all()} if profiles else {}
+    result = []
+    for p in profiles:
+        user = users_map.get(p.user_id)
+        if user and student_has_access(db, user, course, include_inactive=True):
+            result.append((user, p))
+    return result
 
 
 @limiter.limit("30/minute")

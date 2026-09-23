@@ -9,10 +9,10 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy.orm import Session
 
 from app.models import (
-    User, Course, StudentProfile,
+    User, Course,
     AttendanceSession, AttendanceRecord,
 )
-from app.routers.courses import student_has_access
+from app.routers.courses import get_course_students
 
 
 def generate_attendance_excel(
@@ -28,24 +28,15 @@ def generate_attendance_excel(
     if not course:
         raise ValueError("Course not found")
 
-    # Get students who have access to this course (session+semester match)
-    all_profiles = db.query(StudentProfile).filter(
-        StudentProfile.semester == course.semester,
-        StudentProfile.enrollment_year.isnot(None),
-    ).all()
-
+    # Roster: current students in this course's semester + promoted-away students
     students = []
-    all_user_ids = {sp.user_id for sp in all_profiles}
-    users_map = {u.id: u for u in db.query(User).filter(User.id.in_(all_user_ids)).all()} if all_user_ids else {}
-    for sp in all_profiles:
-        user = users_map.get(sp.user_id)
-        if user and student_has_access(db, user, course):
-            students.append({
-                "user": user,
-                "profile": sp,
-                "roll_number": sp.roll_number if sp else "",
-                "name": f"{user.first_name} {user.last_name}".strip(),
-            })
+    for user, sp in get_course_students(db, course):
+        students.append({
+            "user": user,
+            "profile": sp,
+            "roll_number": sp.roll_number if sp else "",
+            "name": f"{user.first_name} {user.last_name}".strip(),
+        })
 
     # Sort by roll number
     students.sort(key=lambda s: s["roll_number"] or "zzz")
