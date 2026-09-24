@@ -3,6 +3,7 @@ import { usersAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import ConfirmDialog from '../components/ConfirmDialog'
+import EmptyState from '../components/EmptyState'
 import {
   Users, UserPlus, Mail, Pencil, ShieldCheck, ShieldOff,
   Trash2, Search, GraduationCap, UserCheck, Clock, Eye, EyeOff, AlertTriangle,
@@ -254,7 +255,7 @@ export default function ManageUsers() {
       {filter === 'student' && (
         <div className="flex flex-col items-center gap-3 mb-6">
           <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
-            {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((s) => (
+            {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((s) => (
               <button key={s.value} onClick={() => setSessionTab(s.value)}
                 className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all ${
                   sessionTab === s.value
@@ -305,11 +306,8 @@ export default function ManageUsers() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center">
-                    <span className="inline-flex w-12 h-12 rounded-2xl bg-navy-900/5 text-navy-400 border border-navy-900/10 items-center justify-center mb-3">
-                      <Users className="w-6 h-6" />
-                    </span>
-                    <p className="text-navy-500 text-sm font-medium">No users found matching your criteria.</p>
+                  <td colSpan={5} className="p-6">
+                    <EmptyState icon={Users} title={`No ${filter === 'all' ? 'users' : filter === 'teacher' ? 'teachers' : 'students'} found matching your criteria.`} />
                   </td>
                 </tr>
               ) : filteredUsers.map((user) => {
@@ -346,7 +344,6 @@ export default function ManageUsers() {
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
                               : 'bg-indigo-50 text-indigo-700 border-indigo-200'
                           }`}>
-                            <span className="leading-none">{(user.student_profile?.session_type || 'morning') === 'morning' ? '☀️' : '🌙'}</span>
                             <span>{(user.student_profile?.session_type || 'morning') === 'morning' ? 'Morning' : 'Evening'}</span>
                           </span>
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold border ${

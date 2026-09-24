@@ -20,13 +20,6 @@ import {
   UserCog,
   Trophy,
   Star,
-  Facebook,
-  Instagram,
-  Twitter,
-  Youtube,
-  MapPin,
-  Phone,
-  Mail,
 } from 'lucide-react'
 
 const navConfig = {
@@ -54,12 +47,6 @@ const navConfig = {
     { to: '/student/materials', label: 'Materials', icon: FolderOpen },
     { to: '/student/review', label: 'Review', icon: Star },
   ],
-}
-
-const roleLabels = {
-  admin: 'Administrator',
-  teacher: 'Instructor',
-  student: 'Student',
 }
 
 function Navbar({ links, role, user, onLogout }) {
@@ -193,95 +180,6 @@ function getName(user) {
   return user?.email ? user.email.split('@')[0] : 'User'
 }
 
-function Footer({ links, role }) {
-  const portalLinks = links.map((link) => ({ label: link.label, to: link.to }))
-
-  return (
-    <footer className="bg-navy-950 border-t border-white/5 relative overflow-hidden">
-      <div
-        className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-[0.05] pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #fbbf24 0%, transparent 65%)' }}
-      />
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="py-8 sm:py-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-10 lg:gap-8">
-          {/* Brand */}
-          <div className="lg:col-span-1">
-            <div className="flex items-center gap-3 mb-3">
-              <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 rounded-lg object-cover" loading="lazy" />
-              <div>
-                <p className="text-sm font-bold text-white">CS Department LMS</p>
-                <p className="text-xs text-white/40">Govt. Graduate College Burewala</p>
-              </div>
-            </div>
-            <p className="text-xs sm:text-sm text-white/40 leading-relaxed">
-              CS Department's official Learning Management System at Govt. Graduate College Burewala. Digitizing education for a connected campus.
-            </p>
-            <div className="flex gap-2 sm:gap-3 mt-4">
-              {[{ icon: Facebook, label: 'Facebook' }, { icon: Instagram, label: 'Instagram' }, { icon: Twitter, label: 'Twitter' }, { icon: Youtube, label: 'YouTube' }].map((s) => (
-                <a key={s.label} href="#" aria-label={s.label} className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/5 hover:bg-accent-500/20 flex items-center justify-center text-white/30 hover:text-accent-400 transition-colors">
-                  <s.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div>
-            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-3 sm:mb-5">Menu</h4>
-            <ul className="space-y-2 sm:space-y-3">
-              {portalLinks.map((link) => (
-                <li key={link.to}>
-                  <NavLink to={link.to} end={link.to === `/${role}`} className="text-xs sm:text-sm text-white/40 hover:text-accent-400 transition-colors">
-                    {link.label}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Platform */}
-          <div>
-            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-3 sm:mb-5">Platform</h4>
-            <ul className="space-y-2 sm:space-y-3">
-              <li><Link to="/" className="text-xs sm:text-sm text-white/40 hover:text-accent-400 transition-colors">Website Home</Link></li>
-              <li><Link to="/login" className="text-xs sm:text-sm text-white/40 hover:text-accent-400 transition-colors">Sign In</Link></li>
-              <li><Link to="/register" className="text-xs sm:text-sm text-white/40 hover:text-accent-400 transition-colors">Create Account</Link></li>
-              <li><span className="text-xs sm:text-sm text-white/30">{roleLabels[role]} Portal</span></li>
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h4 className="text-xs font-bold text-white/30 uppercase tracking-wider mb-3 sm:mb-5">Contact Us</h4>
-            <ul className="space-y-3 sm:space-y-4">
-              <li className="flex items-start gap-2.5 sm:gap-3">
-                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-500 mt-0.5 shrink-0" />
-                <span className="text-xs sm:text-sm text-white/40 leading-relaxed">CS Dept., Govt. Graduate College Burewala,<br />Vehari District, Punjab, Pakistan</span>
-              </li>
-              <li className="flex items-center gap-2.5 sm:gap-3">
-                <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-500 shrink-0" />
-                <span className="text-xs sm:text-sm text-white/40">+92 67 334 5678</span>
-              </li>
-              <li className="flex items-center gap-2.5 sm:gap-3">
-                <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-500 shrink-0" />
-                <span className="text-xs sm:text-sm text-white/40">cs@ggcb.edu.pk</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="py-4 sm:py-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-          <p className="text-[10px] sm:text-xs text-white/25">© {new Date().getFullYear()} CS Department, Govt. Graduate College Burewala. All rights reserved.</p>
-          <div className="flex gap-4 sm:gap-6">
-            <a href="#" className="text-[10px] sm:text-xs text-white/25 hover:text-white/50 transition-colors">Privacy Policy</a>
-            <a href="#" className="text-[10px] sm:text-xs text-white/25 hover:text-white/50 transition-colors">Terms of Service</a>
-          </div>
-        </div>
-      </div>
-    </footer>
-  )
-}
-
 const dashboardTourSteps = {
   student: studentTourSteps,
   teacher: teacherTourSteps,
@@ -302,12 +200,11 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-navy-50 via-surface-50 to-surface-100 flex flex-col">
       <Navbar links={links} role={role} user={user} onLogout={handleLogout} />
       <main className="flex-1">
         <Outlet />
       </main>
-      <Footer links={links} role={role} />
       {showTour && tourSteps.length > 0 && (
         <Tour steps={tourSteps} onComplete={completeTour} />
       )}

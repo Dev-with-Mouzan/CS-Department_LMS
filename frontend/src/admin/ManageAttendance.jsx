@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { coursesAPI, attendanceAPI } from '../services/api'
+import EmptyState from '../components/EmptyState'
 import { ordinal, semLabel } from '../utils/format'
 import {
   CalendarCheck, XCircle, Users, Download, GraduationCap,
@@ -169,7 +170,7 @@ export default function ManageAttendance() {
       {activeSemester == null && (
         <div className="flex justify-center mb-6">
           <div className="flex gap-1 p-1 bg-surface-100 rounded-lg flex-wrap justify-center">
-            {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+            {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
               <button key={r.value} onClick={() => setSessionTab(r.value)}
                 className={`px-3 sm:px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                   sessionTab === r.value
@@ -249,12 +250,7 @@ export default function ManageAttendance() {
 
           {activeSemester == null ? (
             semesters.length === 0 ? (
-              <div className="border border-dashed border-surface-200 rounded-xl p-16 text-center">
-                <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-                  <BookOpen className="w-7 h-7" />
-                </span>
-                <p className="text-navy-500 text-sm font-medium">No courses created yet.</p>
-              </div>
+              <EmptyState icon={BookOpen} title="No courses created yet." />
             ) : (
               <SemesterGrid semesters={semesters} onPick={setActiveSemester} />
             )
@@ -280,9 +276,7 @@ export default function ManageAttendance() {
               downloading={downloading}
             />
           ) : (
-            <div className="border border-dashed border-surface-200 rounded-xl p-16 text-center">
-              <p className="text-navy-500 text-sm font-medium">No attendance data available.</p>
-            </div>
+            <EmptyState title="No attendance data available." />
           )}
         </>
       )}
@@ -438,12 +432,7 @@ function AttendanceView({
       </div>
 
       {sessionCount === 0 ? (
-        <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
-          <CalendarCheck className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-          <p className="text-sm text-navy-400">
-            No attendance sessions recorded in {months[month - 1]} {year} for this book.
-          </p>
-        </div>
+        <EmptyState icon={CalendarCheck} title={`No attendance sessions recorded in ${months[month - 1]} ${year} for this book.`} />
       ) : (
         <div className="border border-surface-200 rounded-xl bg-white overflow-hidden">
           <div className="overflow-x-auto">

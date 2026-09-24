@@ -3,6 +3,7 @@ import { coursesAPI, usersAPI, attendanceAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import ConfirmDialog from '../components/ConfirmDialog'
+import EmptyState from '../components/EmptyState'
 import {
   BookOpen, PlusCircle, Trash2, CalendarDays, Pencil, Search, GraduationCap,
   UserCheck, CheckCircle2, Download, AlertTriangle,
@@ -152,7 +153,7 @@ export default function ManageCourses() {
       {/* Toolbar: filters + search + action */}
       <div className="border border-surface-200 rounded-xl bg-white p-3 mb-8 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
         <div className="flex gap-1 p-1 bg-surface-100 rounded-lg flex-wrap justify-center">
-          {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+          {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
             <button key={r.value} onClick={() => setSessionTab(r.value)}
               className={`px-3 sm:px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                 sessionTab === r.value
@@ -215,11 +216,8 @@ export default function ManageCourses() {
                 </tr>
               ) : filteredCourses.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-16 text-center">
-                    <span className="inline-flex w-12 h-12 rounded-2xl bg-navy-900/5 text-navy-400 border border-navy-900/10 items-center justify-center mb-3">
-                      <BookOpen className="w-6 h-6" />
-                    </span>
-                    <p className="text-navy-500 text-sm font-medium">No courses found matching your criteria.</p>
+                  <td colSpan={8} className="p-6">
+                    <EmptyState icon={BookOpen} title="No courses found matching your criteria." />
                   </td>
                 </tr>
               ) : filteredCourses.map((course) => {
@@ -258,7 +256,6 @@ export default function ManageCourses() {
                           ? 'bg-amber-50 text-amber-700 border-amber-200'
                           : 'bg-indigo-50 text-indigo-700 border-indigo-200'
                       }`}>
-                        <span className="leading-none">{(course.session_type || 'morning') === 'morning' ? '☀️' : '🌙'}</span>
                         <span>{(course.session_type || 'morning') === 'morning' ? 'Morning' : 'Evening'}</span>
                       </span>
                     </td>
@@ -389,7 +386,7 @@ export default function ManageCourses() {
                       : 'border-surface-200 bg-surface-0 text-navy-400 hover:border-navy-300'
                   }`}
                 >
-                  {opt === 'morning' ? '☀️ Morning' : '🌙 Evening'}
+                  {opt === 'morning' ? 'Morning' : 'Evening'}
                 </button>
               ))}
             </div>

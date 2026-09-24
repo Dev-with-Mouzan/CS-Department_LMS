@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { parseDate, shortDate, MONTHS } from '../utils/format'
+import EmptyState from '../components/EmptyState'
 import {
   ClipboardList,
   HelpCircle,
@@ -402,7 +403,7 @@ export default function Assessments() {
               {/* Session tabs */}
               <div className="flex justify-center mb-5">
                 <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
-                  {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                  {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
                     <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null) }}
                       className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                         sessionTab === r.value
@@ -415,13 +416,7 @@ export default function Assessments() {
                 </div>
               </div>
               {semesters.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-surface-200 bg-white px-6 py-12 text-center">
-                  <span className="inline-flex w-12 h-12 rounded-xl bg-navy-900 text-white items-center justify-center mb-3">
-                    <BookOpen className="w-6 h-6" />
-                  </span>
-                  <p className="text-sm font-semibold text-navy-900">No courses for {sessionTab} session</p>
-                  <p className="text-xs text-navy-400 mt-1">No courses assigned to the {sessionTab} session yet.</p>
-                </div>
+                <EmptyState icon={BookOpen} title={`No courses for ${sessionTab} session`} hint={`No courses assigned to the ${sessionTab} session yet.`} />
               ) : (
                 <SemesterGrid semesters={semesters} tab={tab} onPick={setActiveSemester} />
               )}
@@ -491,24 +486,12 @@ export default function Assessments() {
 
                   {/* Empty state */}
                   {activeItems.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-surface-200 bg-white px-6 py-12 text-center">
-                      <span className={`inline-flex w-12 h-12 rounded-xl items-center justify-center mb-3 ${tab === 'assignments' ? 'bg-navy-900 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
-                        <activeTab.icon className="w-6 h-6" />
-                      </span>
-                      <p className="text-sm font-semibold text-navy-900">
-                        No {tab === 'assignments' ? 'assignments' : 'quizzes'} in this course
-                      </p>
-                      <p className="text-xs text-navy-400 mt-1">
-                        Create your first {tab === 'assignments' ? 'assignment' : 'quiz'} for {activeCourse.course_code}.
-                      </p>
-                      <button
-                        onClick={() => setShowCreate(true)}
-                        className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-accent-500 text-white text-xs font-semibold px-3.5 py-2.5 shadow-md shadow-accent-500/20 hover:bg-accent-600 active:scale-[0.98] transition-all"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Create {tab === 'assignments' ? 'Assignment' : 'Quiz'}
-                      </button>
-                    </div>
+                    <EmptyState
+                      icon={activeTab.icon}
+                      title={`No ${tab === 'assignments' ? 'assignments' : 'quizzes'} in this course`}
+                      hint={`Create your first ${tab === 'assignments' ? 'assignment' : 'quiz'} for ${activeCourse.course_code}.`}
+                      action={{ label: `Create ${tab === 'assignments' ? 'Assignment' : 'Quiz'}`, onClick: () => setShowCreate(true) }}
+                    />
                   )}
 
                   {/* Assignments list */}

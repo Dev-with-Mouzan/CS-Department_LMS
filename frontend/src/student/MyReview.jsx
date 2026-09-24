@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { reviewsAPI } from '../services/api'
 import ConfirmDialog from '../components/ConfirmDialog'
+import EmptyState from '../components/EmptyState'
 import {
   Star,
   Send,
@@ -300,13 +301,7 @@ export default function MyReview() {
           ))}
         </div>
       ) : !loading ? (
-        <div className="border border-dashed border-surface-200 rounded-2xl py-12 text-center">
-          <span className="inline-flex w-12 h-12 rounded-xl bg-accent-50 text-accent-500 items-center justify-center mb-3">
-            <Star className="w-6 h-6" />
-          </span>
-          <p className="text-sm font-medium text-navy-700">No reviews yet</p>
-          <p className="text-xs text-navy-400 mt-1">Be the first to share your experience!</p>
-        </div>
+        <EmptyState icon={Star} title="No reviews yet" hint="Be the first to share your experience!" />
       ) : null}
     </div>
     <ConfirmDialog

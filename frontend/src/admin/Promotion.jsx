@@ -204,7 +204,7 @@ export default function Promotion() {
 
           <div className="flex justify-center gap-2 mb-6">
             <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
-              {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+              {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
                 <button key={r.value} onClick={() => setSessionTab(r.value)}
                   className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                     sessionTab === r.value

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { coursesAPI, assignmentsAPI, resultsAPI, attendanceAPI } from '../services/api'
+import EmptyState from '../components/EmptyState'
 import { parseDate, shortDate, MONTHS } from '../utils/format'
 import {
   BookOpen,
@@ -330,12 +331,8 @@ export default function TeacherDashboard() {
             </div>
 
             {upcoming.length === 0 ? (
-              <div className="mt-5 rounded-xl border border-dashed border-surface-200 py-10 text-center">
-                <span className="inline-flex w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 items-center justify-center mb-2">
-                  <CheckCircle2 className="w-5 h-5" />
-                </span>
-                <p className="text-sm font-medium text-navy-900">No upcoming deadlines</p>
-                <p className="text-xs text-navy-400 mt-1">Create assessments to keep students working.</p>
+              <div className="mt-5">
+                <EmptyState compact icon={CheckCircle2} title="No upcoming deadlines" hint="Create assessments to keep students working." />
               </div>
             ) : (
               <div className="mt-4 space-y-2.5">
@@ -405,7 +402,7 @@ export default function TeacherDashboard() {
             {/* Session tabs */}
             <div className="mt-4 flex justify-center">
               <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
-                {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
                   <button key={r.value} onClick={() => setSessionTab(r.value)}
                     className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                       sessionTab === r.value
@@ -419,10 +416,8 @@ export default function TeacherDashboard() {
             </div>
 
             {displayedCourses.length === 0 ? (
-              <div className="mt-5 rounded-xl border border-dashed border-surface-200 py-10 text-center">
-                <BookOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-navy-900">No courses for {sessionTab} session</p>
-                <p className="text-xs text-navy-400 mt-1">No courses assigned to the {sessionTab} session yet.</p>
+              <div className="mt-5">
+                <EmptyState compact icon={BookOpen} title={`No courses for ${sessionTab} session`} hint={`No courses assigned to the ${sessionTab} session yet.`} />
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -530,9 +525,8 @@ export default function TeacherDashboard() {
             </div>
 
             {results.length === 0 ? (
-              <div className="mt-5 rounded-xl border border-dashed border-surface-200 py-7 text-center">
-                <p className="text-sm font-medium text-navy-900">Nothing published yet</p>
-                <p className="text-xs text-navy-400 mt-1">Results you publish will appear here.</p>
+              <div className="mt-5">
+                <EmptyState compact title="Nothing published yet" hint="Results you publish will appear here." />
               </div>
             ) : (
               <div className="mt-4 space-y-1">

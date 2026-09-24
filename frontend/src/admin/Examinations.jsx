@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import api, { resultsAPI, coursesAPI } from '../services/api'
 import ConfirmDialog from '../components/ConfirmDialog'
+import EmptyState from '../components/EmptyState'
 import { ordinal, semLabel } from '../utils/format'
 import {
   Trophy, FileText, GraduationCap, ScrollText, Trash2,
@@ -135,7 +136,7 @@ export default function Examinations() {
       {activeSemester == null && (
         <div className="flex justify-center mb-5">
           <div className="flex gap-1 p-1 bg-surface-100 rounded-lg flex-wrap justify-center">
-            {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+            {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
               <button key={r.value} onClick={() => setSessionTab(r.value)}
                 className={`px-3 sm:px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                   sessionTab === r.value
@@ -228,10 +229,7 @@ export default function Examinations() {
 
           {activeSemester == null ? (
             semesters.length === 0 ? (
-              <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center bg-white">
-                <Trophy className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                <p className="text-sm text-navy-400">No courses created yet.</p>
-              </div>
+              <EmptyState icon={Trophy} title="No courses created yet." />
             ) : (
               <SemesterGrid semesters={semesters} tabLabel={examLabels[tab]} onPick={setActiveSemester} />
             )
@@ -261,12 +259,7 @@ export default function Examinations() {
 
               {/* Results list */}
               {filtered.length === 0 ? (
-                <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
-                  <Trophy className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                  <p className="text-sm text-navy-400">
-                    No {examLabels[tab].toLowerCase()} results for this book yet.
-                  </p>
-                </div>
+                <EmptyState icon={Trophy} title={`No ${examLabels[tab].toLowerCase()} results for this book yet.`} />
               ) : (
                 <div className="space-y-3">
                   {filtered.map(r => (

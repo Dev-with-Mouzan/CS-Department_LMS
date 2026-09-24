@@ -118,4 +118,4 @@ class UserWithRole(UserOut):
 
 class PromotionRequest(BaseModel):
     student_ids: list[str]
-    to_semester: int = Field(..., ge=1, le=8)
+    to_semester: int | None = Field(None, ge=1, le=8)

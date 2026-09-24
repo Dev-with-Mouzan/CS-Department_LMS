@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { assignmentsAPI, coursesAPI, quizzesAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
+import EmptyState from '../components/EmptyState'
 import { ordinal, semLabel } from '../utils/format'
 import {
   Inbox, ClipboardList, HelpCircle, Clock, Award,
@@ -282,7 +283,7 @@ export default function Submissions() {
               {/* Session tabs */}
               <div className="flex justify-center mb-5">
                 <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
-                  {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                  {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
                     <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null); setSelected(null); setSubmissions([]) }}
                       className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                         sessionTab === r.value
@@ -295,7 +296,7 @@ export default function Submissions() {
                 </div>
               </div>
               {quizSemesters.length === 0 ? (
-                <EmptyState icon={HelpCircle} message="No quizzes in your courses yet. Create one from the Assessments tab." />
+                <EmptyState icon={HelpCircle} title="No quizzes in your courses yet. Create one from the Assessments tab." />
               ) : (
                 <SemesterGrid quizzes semesters={quizSemesters} onPick={setActiveSemester} />
               )}
@@ -309,7 +310,7 @@ export default function Submissions() {
               onPick={setActiveCourse}
             />
           ) : quizzes.filter((q) => q.course_id === activeCourse.id).length === 0 ? (
-            <EmptyState icon={HelpCircle} message="No quizzes in this course." />
+            <EmptyState icon={HelpCircle} title="No quizzes in this course." />
           ) : (
             <div className="space-y-3">
               {quizzes.filter((q) => q.course_id === activeCourse.id).map((quiz) => {
@@ -338,7 +339,7 @@ export default function Submissions() {
                     </button>
                   </div>
                   {submissions.length === 0 ? (
-                    <EmptyState icon={HelpCircle} message="No attempts submitted yet." />
+                    <EmptyState icon={HelpCircle} title="No attempts submitted yet." />
                   ) : (
                     <div className="overflow-x-auto border border-surface-200 rounded-xl">
                       <table className="w-full text-sm">
@@ -436,7 +437,7 @@ export default function Submissions() {
               {/* Session tabs */}
               <div className="flex justify-center mb-5">
                 <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
-                  {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                  {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
                     <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null) }}
                       className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                         sessionTab === r.value
@@ -449,7 +450,7 @@ export default function Submissions() {
                 </div>
               </div>
               {semesters.length === 0 ? (
-                <EmptyState icon={Inbox} message="You have no courses yet. Ask the admin to assign you some." />
+                <EmptyState icon={Inbox} title="You have no courses yet. Ask the admin to assign you some." />
               ) : (
                 <SemesterGrid semesters={semesters} onPick={setActiveSemester} />
               )}
@@ -468,7 +469,7 @@ export default function Submissions() {
           ) : (
             <>
               {activeCourseAssignments.length === 0 ? (
-                <EmptyState icon={ClipboardList} message="No assignments for this book yet. Create one from the Assessments tab." />
+                <EmptyState icon={ClipboardList} title="No assignments for this book yet. Create one from the Assessments tab." />
               ) : (
                 <>
                   <AssignmentList
@@ -524,17 +525,6 @@ export default function Submissions() {
 }
 
 /* ── Sub-components ─────────────────────────────────── */
-
-const EmptyState = React.memo(function EmptyState({ icon: Icon, message }) {
-  return (
-    <div className="border border-dashed border-surface-200 rounded-xl p-16 text-center">
-      <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-        <Icon className="w-7 h-7" />
-      </span>
-      <p className="text-navy-500 text-sm font-medium">{message}</p>
-    </div>
-  )
-})
 
 const SemesterGrid = React.memo(function SemesterGrid({ semesters, quizzes = false, onPick }) {
   return (
@@ -711,7 +701,7 @@ const SubmissionsTable = React.memo(function SubmissionsTable({ submissions, max
       </div>
 
       {submissions.length === 0 ? (
-        <div className="px-6 py-12 text-center text-navy-400 text-sm">No submissions yet</div>
+        <EmptyState compact icon={Inbox} title="No submissions yet" hint="Students' work will appear here once they respond." />
       ) : (
         <>
           {/* Desktop table */}

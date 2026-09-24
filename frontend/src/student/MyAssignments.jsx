@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { assignmentsAPI, quizzesAPI } from '../services/api'
+import EmptyState from '../components/EmptyState'
 import {
   ClipboardList,
   HelpCircle,
@@ -246,15 +247,11 @@ export default function MyAssignments() {
 function SubjectGrid({ courses, tab, onPick }) {
   if (courses.length === 0) {
     return (
-      <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
-        <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-          {tab === 'assignments' ? <ClipboardList className="w-7 h-7" /> : <HelpCircle className="w-7 h-7" />}
-        </span>
-        <p className="text-navy-500 text-sm font-medium">
-          {tab === 'assignments' ? 'No assignments published for any of your subjects yet.' : 'No quizzes published for any of your subjects yet.'}
-        </p>
-        <p className="text-navy-400 text-xs mt-1.5">They will appear here once your teachers publish them.</p>
-      </div>
+      <EmptyState
+        icon={tab === 'assignments' ? ClipboardList : HelpCircle}
+        title={tab === 'assignments' ? 'No assignments published for any of your subjects yet.' : 'No quizzes published for any of your subjects yet.'}
+        hint="They will appear here once your teachers publish them."
+      />
     )
   }
 
@@ -336,12 +333,7 @@ const statusMeta = (status) => ({
 function AssignmentList({ items, courseCode, openId, setOpenId, uploading, onFileSelect }) {
   if (items.length === 0) {
     return (
-      <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
-        <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-          <ClipboardList className="w-7 h-7" />
-        </span>
-        <p className="text-navy-500 text-sm font-medium">No assignments published for this subject yet.</p>
-      </div>
+      <EmptyState icon={ClipboardList} title="No assignments published for this subject yet." />
     )
   }
 
@@ -530,12 +522,7 @@ function AssignmentList({ items, courseCode, openId, setOpenId, uploading, onFil
 function QuizList({ items, courseCode }) {
   if (items.length === 0) {
     return (
-      <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
-        <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-          <HelpCircle className="w-7 h-7" />
-        </span>
-        <p className="text-navy-500 text-sm font-medium">No quizzes published for this subject yet.</p>
-      </div>
+      <EmptyState icon={HelpCircle} title="No quizzes published for this subject yet." />
     )
   }
 

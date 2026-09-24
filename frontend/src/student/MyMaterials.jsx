@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api, { materialsAPI } from '../services/api'
+import EmptyState from '../components/EmptyState'
 import {
   FolderOpen, FileText, Presentation, BookOpen, File, Download, Search,
   ChevronLeft, ChevronRight,
@@ -124,14 +125,12 @@ export default function MyMaterials() {
               </div>
 
               {filtered.length === 0 ? (
-                <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
-                  <FolderOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                  <p className="text-sm text-navy-400">
-                    {activeCourse.items.length === 0
-                      ? `No materials uploaded for ${activeCourse.name} yet.`
-                      : 'No materials match your search.'}
-                  </p>
-                </div>
+                <EmptyState
+                  icon={FolderOpen}
+                  title={activeCourse.items.length === 0
+                    ? `No materials uploaded for ${activeCourse.name} yet.`
+                    : 'No materials match your search.'}
+                />
               ) : (
                 <div className="space-y-3">
                   {filtered.map(m => {
@@ -176,11 +175,7 @@ export default function MyMaterials() {
 function SubjectGrid({ courses, categoryCounts, onPick }) {
   if (courses.length === 0) {
     return (
-      <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
-        <FolderOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-        <p className="text-sm text-navy-400">No course materials available yet.</p>
-        <p className="text-xs text-navy-400 mt-1">They will appear here once your teachers upload them.</p>
-      </div>
+      <EmptyState icon={FolderOpen} title="No course materials available yet." hint="They will appear here once your teachers upload them." />
     )
   }
 

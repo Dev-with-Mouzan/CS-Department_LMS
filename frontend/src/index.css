@@ -92,12 +92,18 @@
 
   /* Card styles */
   .card {
-    @apply bg-surface-0 rounded-2xl border border-surface-200/60 shadow-card
+    @apply bg-surface-0 rounded-2xl border border-surface-200 shadow-card
            transition-all duration-200;
   }
 
   .card-hover {
-    @apply card hover:shadow-card-hover hover:border-surface-300/60;
+    @apply card hover:shadow-card-hover hover:border-surface-300;
+  }
+
+  /* Portal cards — lift them clearly off the page background */
+  main .bg-white.border-surface-200.rounded-xl,
+  main .bg-white.border-surface-200.rounded-2xl {
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 10px 28px -14px rgb(15 23 42 / 0.16);
   }
 
   /* Badge styles */

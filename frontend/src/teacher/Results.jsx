@@ -3,6 +3,7 @@ import api, { resultsAPI, coursesAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import ConfirmDialog from '../components/ConfirmDialog'
+import EmptyState from '../components/EmptyState'
 import { ordinal, semLabel } from '../utils/format'
 import {
   Trophy, FileText, GraduationCap, ScrollText, PlusCircle, Trash2,
@@ -232,7 +233,7 @@ export default function Results() {
               {/* Session tabs */}
               <div className="flex justify-center mb-5">
                 <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
-                  {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                  {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
                     <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null) }}
                       className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                         sessionTab === r.value
@@ -245,10 +246,7 @@ export default function Results() {
                 </div>
               </div>
               {semesters.length === 0 ? (
-                <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center bg-white">
-                  <Trophy className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                  <p className="text-sm text-navy-400">No courses yet. Ask the admin to assign you some.</p>
-                </div>
+                <EmptyState icon={BookOpen} title="No courses yet. Ask the admin to assign you some." />
               ) : (
                 <SemesterGrid semesters={semesters} tabLabel={examLabels[tab]} onPick={setActiveSemester} />
               )}
@@ -285,12 +283,7 @@ export default function Results() {
 
               {/* Results list */}
               {filtered.length === 0 ? (
-                <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
-                  <Trophy className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                  <p className="text-sm text-navy-400">
-                    No {examLabels[tab].toLowerCase()} results yet. Add one with the complete result and the best & worst papers.
-                  </p>
-                </div>
+                <EmptyState icon={Trophy} title={`No ${examLabels[tab].toLowerCase()} results yet. Add one with the complete result and the best & worst papers.`} />
               ) : (
                 <div className="space-y-3">
                   {filtered.map(r => (

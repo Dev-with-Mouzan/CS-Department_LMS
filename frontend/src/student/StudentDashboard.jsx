@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authAPI, coursesAPI, assignmentsAPI, resultsAPI, attendanceAPI } from '../services/api'
+import EmptyState from '../components/EmptyState'
 import { parseDate, MONTHS } from '../utils/format'
 import {
   BookOpen,
@@ -287,12 +288,8 @@ export default function StudentDashboard() {
             </div>
 
             {upcoming.length === 0 ? (
-              <div className="mt-5 rounded-xl border border-dashed border-surface-200 py-10 text-center">
-                <span className="inline-flex w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 items-center justify-center mb-2">
-                  <CheckCircle2 className="w-5 h-5" />
-                </span>
-                <p className="text-sm font-medium text-navy-900">No pending assessments</p>
-                <p className="text-xs text-navy-400 mt-1">You're all caught up.</p>
+              <div className="mt-5">
+                <EmptyState compact icon={CheckCircle2} title="No pending assessments" hint="You're all caught up." />
               </div>
             ) : (
               <div className="mt-4 space-y-2.5">
@@ -373,10 +370,8 @@ export default function StudentDashboard() {
             </div>
 
             {currentCourses.length === 0 ? (
-              <div className="mt-5 rounded-xl border border-dashed border-surface-200 py-10 text-center">
-                <BookOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-navy-900">No courses available yet</p>
-                <p className="text-xs text-navy-400 mt-1">Your semester courses will show up here.</p>
+              <div className="mt-5">
+                <EmptyState compact icon={BookOpen} title="No courses available yet" hint="Your semester courses will show up here." />
               </div>
             ) : (
               <div className="mt-4 space-y-3">
@@ -502,9 +497,8 @@ export default function StudentDashboard() {
             </div>
 
             {results.length === 0 ? (
-              <div className="mt-5 rounded-xl border border-dashed border-surface-200 py-7 text-center">
-                <p className="text-sm font-medium text-navy-900">Nothing published yet</p>
-                <p className="text-xs text-navy-400 mt-1">Results appear here once teachers publish them.</p>
+              <div className="mt-5">
+                <EmptyState compact title="Nothing published yet" hint="Results appear here once teachers publish them." />
               </div>
             ) : (
               <div className="mt-4 space-y-1">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import api, { resultsAPI } from '../services/api'
+import EmptyState from '../components/EmptyState'
 import {
   Trophy, FileText, GraduationCap, ScrollText, BookOpen,
   Eye, X, ShieldCheck, TrendingDown, TrendingUp, FileQuestion,
@@ -292,14 +293,7 @@ export default function MyResults() {
           {!activeCourse ? (
             <SubjectGrid courses={visibleCourses} tabLabel={examLabels[tab]} onPick={setActiveCourseId} />
           ) : activeResults.length === 0 ? (
-            <div className="border border-dashed border-surface-200 rounded-xl p-16 text-center">
-              <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-                <Trophy className="w-7 h-7" />
-              </span>
-              <p className="text-navy-500 text-sm font-medium">
-                No {examLabels[tab].toLowerCase()} results published for this subject yet.
-              </p>
-            </div>
+            <EmptyState icon={Trophy} title={`No ${examLabels[tab].toLowerCase()} results published for this subject yet.`} />
           ) : (
             <div className="space-y-3">
               {activeResults.map(r => (
@@ -362,14 +356,7 @@ export default function MyResults() {
 function SubjectGrid({ courses, tabLabel, onPick }) {
   if (courses.length === 0) {
     return (
-      <div className="border border-dashed border-surface-200 rounded-xl p-16 text-center">
-        <span className="inline-flex w-14 h-14 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 items-center justify-center mb-4">
-          <Trophy className="w-7 h-7" />
-        </span>
-        <p className="text-navy-500 text-sm font-medium">
-          No {tabLabel.toLowerCase()} results published for your subjects yet.
-        </p>
-      </div>
+      <EmptyState icon={Trophy} title={`No ${tabLabel.toLowerCase()} results published for your subjects yet.`} />
     )
   }
 

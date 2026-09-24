@@ -3,6 +3,7 @@ import api, { materialsAPI, coursesAPI, assignmentsAPI, quizzesAPI } from '../se
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import ConfirmDialog from '../components/ConfirmDialog'
+import EmptyState from '../components/EmptyState'
 import { ordinal, semLabel } from '../utils/format'
 import {
   FolderOpen, PlusCircle, Trash2, FileText, Presentation, BookOpen,
@@ -299,7 +300,7 @@ export default function ManageMaterials() {
             <>
               <div className="flex justify-center mb-5">
                 <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
-                  {[{ value: 'morning', label: '☀️ Morning' }, { value: 'evening', label: '🌙 Evening' }].map((r) => (
+                  {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
                     <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null) }}
                       className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
                         sessionTab === r.value
@@ -312,10 +313,7 @@ export default function ManageMaterials() {
                 </div>
               </div>
               {semesters.length === 0 ? (
-                <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center bg-white">
-                  <FolderOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                  <p className="text-sm text-navy-400">No courses yet. Ask the admin to assign you some.</p>
-                </div>
+                <EmptyState icon={FolderOpen} title="No courses yet. Ask the admin to assign you some." />
               ) : (
                 <SemesterGrid semesters={semesters} onPick={setActiveSemester} />
               )}
@@ -352,12 +350,7 @@ export default function ManageMaterials() {
 
               {/* Materials list */}
               {filtered.length === 0 ? (
-                <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
-                  <FolderOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-                  <p className="text-sm text-navy-400">
-                    No materials uploaded for {activeCourse.course_code} yet.
-                  </p>
-                </div>
+                <EmptyState icon={FolderOpen} title={`No materials uploaded for ${activeCourse.course_code} yet.`} />
               ) : (
                 <div className="space-y-3">
                   {filtered.map(m => {

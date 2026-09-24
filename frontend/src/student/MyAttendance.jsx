@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { coursesAPI, attendanceAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import EmptyState from '../components/EmptyState'
 import {
   CalendarCheck,
   BookOpen,
@@ -188,10 +189,7 @@ export default function MyAttendance() {
 function SubjectGrid({ courses, summary, onPick }) {
   if (courses.length === 0) {
     return (
-      <div className="border border-dashed border-surface-200 rounded-xl py-16 text-center">
-        <BookOpen className="w-8 h-8 text-navy-300 mx-auto mb-2" />
-        <p className="text-sm text-navy-400">No courses available yet.</p>
-      </div>
+      <EmptyState icon={BookOpen} title="No courses available yet." />
     )
   }
 
@@ -302,9 +300,8 @@ function SubjectDetail({ course, att, sessions, sessionsLoading }) {
             <div className="w-8 h-8 border-2 border-surface-200 border-t-accent-500 rounded-full animate-spin" />
           </div>
         ) : sessions.length === 0 ? (
-          <div className="mt-4 border border-dashed border-surface-200 rounded-xl py-10 text-center">
-            <CalendarCheck className="w-7 h-7 text-navy-300 mx-auto mb-2" />
-            <p className="text-sm text-navy-400">No attendance sessions have been held for this subject yet.</p>
+          <div className="mt-4">
+            <EmptyState icon={CalendarCheck} title="No attendance sessions have been held for this subject yet." />
           </div>
         ) : (
           <div className="mt-4 space-y-2">

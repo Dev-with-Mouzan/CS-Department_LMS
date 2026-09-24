@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { usersAPI, resultsAPI } from '../services/api'
+import EmptyState from '../components/EmptyState'
 import { parseDate, shortDate, MONTHS } from '../utils/format'
 import {
   Users,
@@ -265,10 +266,8 @@ export default function AdminDashboard() {
             </div>
 
             {recentUsers.length === 0 ? (
-              <div className="mt-5 rounded-xl border border-dashed border-surface-200 py-7 text-center">
-                <Users className="w-7 h-7 text-navy-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-navy-900">No users yet</p>
-                <p className="text-xs text-navy-400 mt-1">Accounts created here will appear in this list.</p>
+              <div className="mt-5">
+                <EmptyState compact icon={Users} title="No users yet" hint="Accounts created here will appear in this list." />
               </div>
             ) : (
               <div className="mt-4 space-y-1">
@@ -380,10 +379,8 @@ export default function AdminDashboard() {
             </div>
 
             {recentResults.length === 0 ? (
-              <div className="mt-5 rounded-xl border border-dashed border-surface-200 py-7 text-center">
-                <Trophy className="w-7 h-7 text-navy-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-navy-900">No results published</p>
-                <p className="text-xs text-navy-400 mt-1">Result sheets uploaded by teachers appear here.</p>
+              <div className="mt-5">
+                <EmptyState compact icon={Trophy} title="No results published" hint="Result sheets uploaded by teachers appear here." />
               </div>
             ) : (
               <div className="mt-4 space-y-2.5">

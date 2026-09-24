@@ -37,10 +37,10 @@ export default {
         // Surface colors
         surface: {
           0: '#ffffff',
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
+          50: '#f6f8fb',
+          100: '#eef1f6',
+          200: '#dbe3ec',
+          300: '#c3d0de',
         },
         // Status colors — muted, not garish
         success: { light: '#dcfce7', DEFAULT: '#16a34a', dark: '#15803d' },
