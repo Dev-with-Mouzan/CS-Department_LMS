@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     Column, String, Text, Boolean, Integer, Float,
-    DateTime, Date, Time, ForeignKey, UniqueConstraint
+    DateTime, Date, Time, ForeignKey, Index, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 
@@ -81,6 +81,17 @@ class StudentProfile(Base):
     session_type = Column(String(10), index=True, default="morning")  # morning or evening
     is_graduated = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utcnow)
+
+    __table_args__ = (
+        Index(
+            "uq_student_roll_scope",
+            "roll_number",
+            "semester",
+            "session",
+            "session_type",
+            unique=True,
+        ),
+    )
 
     user = relationship("User", back_populates="student_profile")
 
@@ -194,6 +205,7 @@ class Quiz(Base):
     deadline = Column(DateTime, nullable=True)  # deadline to attempt; null = no deadline
     attachment_url = Column(String(500), nullable=True)
     attachment_name = Column(String(255), nullable=True)
+    max_marks = Column(Integer, nullable=True)
     is_published = Column(Boolean, default=True)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
@@ -286,6 +298,9 @@ class QuizAttempt(Base):
     total = Column(Integer, nullable=False, default=0)
     submission_url = Column(String(500), nullable=True)
     submission_name = Column(String(255), nullable=True)
+    grade = Column(Float, nullable=True)
+    feedback = Column(Text, nullable=True)
+    grading_status = Column(String(20), default="submitted", nullable=False)
     submitted_at = Column(DateTime, default=utcnow)
 
     quiz = relationship("Quiz", back_populates="attempts")

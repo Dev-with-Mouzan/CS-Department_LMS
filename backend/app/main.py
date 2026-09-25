@@ -1,3 +1,4 @@
+import json
 import os
 import logging
 from contextlib import asynccontextmanager
@@ -7,7 +8,8 @@ from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from sqlalchemy import text
+from sqlalchemy import func, text
+from sqlalchemy.exc import IntegrityError
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -16,7 +18,7 @@ from app.config import settings
 from app.database.database import engine, SessionLocal, Base
 from app.dependencies.auth import get_current_user
 from app.dependencies.ratelimit import limiter
-from app.models import User
+from app.models import Assignment, Result, StudyMaterial, Submission, User, Quiz, QuizAttempt
 from app.services.auth_service import create_default_roles, create_default_admin
 from app.routers import auth, users, courses, assignments, attendance, materials, results, reviews, quizzes
 
@@ -27,8 +29,8 @@ _ALLOWLISTED_MIGRATIONS = {
     "users": [("phone", "VARCHAR(20)")],
     "courses": [("semester", "INTEGER"), ("source_course_id", "VARCHAR(36)"), ("session", "VARCHAR(20)"), ("session_type", "VARCHAR(10)"), ("is_active", "BOOLEAN DEFAULT 1")],
     "student_profiles": [("roll_number", "VARCHAR(50)"), ("is_graduated", "BOOLEAN DEFAULT 0"), ("session_type", "VARCHAR(10)")],
-    "quizzes": [("deadline", "DATETIME"), ("attachment_url", "VARCHAR(500)"), ("attachment_name", "VARCHAR(255)")],
-    "quiz_attempts": [("submission_url", "VARCHAR(500)"), ("submission_name", "VARCHAR(255)")],
+    "quizzes": [("deadline", "DATETIME"), ("attachment_url", "VARCHAR(500)"), ("attachment_name", "VARCHAR(255)"), ("max_marks", "INTEGER")],
+    "quiz_attempts": [("submission_url", "VARCHAR(500)"), ("submission_name", "VARCHAR(255)"), ("grade", "FLOAT"), ("feedback", "TEXT"), ("grading_status", "VARCHAR(20) DEFAULT 'submitted'")],
     "results": [
         ("worst_paper_url", "VARCHAR(500)"),
         ("worst_paper_name", "VARCHAR(255)"),
@@ -108,6 +110,33 @@ def _backfill_session_types(db):
         logger.info("Backfilled session_type for %d students and %d courses", len(profiles), len(courses))
 
 
+def _backfill_quiz_grading_status(db):
+    from app.models.models import QuizAttempt
+    attempts = db.query(QuizAttempt).filter(
+        QuizAttempt.grading_status == "submitted",
+        QuizAttempt.submission_url.is_(None),
+    ).all()
+    for attempt in attempts:
+        attempt.grading_status = "graded"
+    if attempts:
+        db.commit()
+        logger.info("Backfilled grading status for %d quiz attempts", len(attempts))
+
+
+def _ensure_student_roll_index(db):
+    try:
+        db.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_student_roll_scope "
+            "ON student_profiles (roll_number, semester, session, session_type)"
+        ))
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise RuntimeError(
+            "Cannot enforce semester-scoped roll numbers: duplicate legacy rows exist"
+        ) from exc
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle."""
@@ -122,8 +151,10 @@ async def lifespan(app: FastAPI):
         create_default_roles(db)
         create_default_admin(db)
         _add_missing_columns(db)
+        _backfill_quiz_grading_status(db)
         _backfill_student_sessions(db)
         _backfill_session_types(db)
+        _ensure_student_roll_index(db)
     finally:
         db.close()
 
@@ -145,7 +176,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         elif path == "/api/reviews/public":
             response.headers["Cache-Control"] = "public, max-age=300"
         elif path.startswith("/api/files/"):
-            response.headers["Cache-Control"] = "public, max-age=3600"
+            response.headers["Cache-Control"] = "private, no-store"
         else:
             response.headers["Cache-Control"] = "no-store"
 
@@ -206,6 +237,87 @@ async def health(request: Request):
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
+def _can_access_upload(db, user, subdirectory: str, filename: str) -> bool:
+    from app.routers.courses import student_has_access
+
+    subdirectory = subdirectory.lower()
+    supported = {"assignments", "materials", "quizzes", "quiz_submissions", "results", "submissions"}
+    if subdirectory not in supported:
+        return False
+
+    relative_path = f"{subdirectory}/{filename}"
+    windows_path = relative_path.replace("/", "\\")
+    raw_paths = {
+        relative_path,
+        f"uploads/{relative_path}",
+        windows_path,
+        f"uploads\\{windows_path}",
+    }
+    paths = tuple(path.lower() for path in raw_paths)
+    match_paths = {path.replace("\\", "/").lower() for path in raw_paths}
+    role = user.role.name if user.role else None
+
+    def course_allowed(course, allow_student=True):
+        if not course:
+            return False
+        if role == "admin":
+            return True
+        if role == "teacher":
+            return course.teacher_id == user.id
+        return role == "student" and allow_student and student_has_access(db, user, course)
+
+    def matches(value):
+        return isinstance(value, str) and value.replace("\\", "/").lower() in match_paths
+
+    if subdirectory == "quizzes":
+        quizzes = db.query(Quiz).filter(func.lower(Quiz.attachment_url).in_(paths)).all()
+        return any(
+            course_allowed(quiz.course)
+            and (role != "student" or quiz.is_published)
+            for quiz in quizzes
+        )
+
+    if subdirectory == "quiz_submissions":
+        attempts = db.query(QuizAttempt).filter(func.lower(QuizAttempt.submission_url).in_(paths)).all()
+        return any(
+            attempt.student_id == user.id
+            or course_allowed(attempt.quiz.course if attempt.quiz else None, allow_student=False)
+            for attempt in attempts
+        )
+
+    if subdirectory == "assignments":
+        assignments = db.query(Assignment).filter(func.lower(Assignment.attachment_url).in_(paths)).all()
+        return any(course_allowed(assignment.course) for assignment in assignments)
+
+    if subdirectory == "submissions":
+        submissions = db.query(Submission).filter(func.lower(Submission.file_url).in_(paths)).all()
+        return any(
+            submission.student_id == user.id
+            or course_allowed(submission.assignment.course, allow_student=False)
+            for submission in submissions
+        )
+
+    if subdirectory == "materials":
+        materials = db.query(StudyMaterial).filter(func.lower(StudyMaterial.file_url).in_(paths)).all()
+        return any(course_allowed(material.course) for material in materials)
+
+    for result in db.query(Result).all():
+        urls = [result.file_url, result.best_paper_url, result.worst_paper_url]
+        if result.extra_files_json:
+            try:
+                extra_files = json.loads(result.extra_files_json)
+            except (TypeError, ValueError):
+                extra_files = []
+            for extra in extra_files or []:
+                if isinstance(extra, dict):
+                    urls.append(extra.get("url"))
+                elif isinstance(extra, str):
+                    urls.append(extra)
+        if any(matches(url) for url in urls) and course_allowed(result.course):
+            return True
+    return False
+
+
 @app.get("/api/files/{subdirectory}/{filename}")
 async def serve_file(subdirectory: str, filename: str,
     request: Request,
@@ -229,22 +341,25 @@ async def serve_file(subdirectory: str, filename: str,
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]+$', subdirectory) or not re.match(r'^[a-zA-Z0-9_.-]+$', filename):
+        raise HTTPException(status_code=400, detail="Invalid path")
+    if ".." in subdirectory or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    subdirectory = subdirectory.replace("..", "").replace("/", "").replace("\\", "").lower()
+    filename = filename.replace("..", "").replace("/", "").replace("\\", "")
+
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.id == user_id).first()
         if not user or not user.is_active:
             raise HTTPException(status_code=401, detail="Not authenticated")
+        if not _can_access_upload(db, user, subdirectory, filename):
+            raise HTTPException(status_code=404, detail="File not found")
     finally:
         db.close()
-    """Serve uploaded files with role-based access control."""
-    import re
-    if not re.match(r'^[a-zA-Z0-9_-]+$', subdirectory) or not re.match(r'^[a-zA-Z0-9_.-]+$', filename):
-        raise HTTPException(status_code=400, detail="Invalid path")
-    
-    # Sanitize to prevent path traversal
-    subdirectory = subdirectory.replace("..", "").replace("/", "").replace("\\", "")
-    filename = filename.replace("..", "").replace("/", "").replace("\\", "")
-    
+
     file_path = os.path.join("uploads", subdirectory, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")

@@ -149,15 +149,17 @@ export const quizzesAPI = {
   },
   delete: (id) => api.delete(`/quizzes/${id}`),
   submit: (quizId, answers) => api.post(`/quizzes/${quizId}/submit`, { answers }),
-  submitFile: (quizId, file) => {
+  submitFile: (quizId, file, answers = []) => {
     const formData = new FormData()
     formData.append('file', file)
+    if (answers.length > 0) formData.append('answers', JSON.stringify(answers))
     return api.post(`/quizzes/${quizId}/submit-file`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
   getAttempt: (quizId) => api.get(`/quizzes/${quizId}/attempts`),
   getAllAttempts: (quizId) => api.get(`/quizzes/${quizId}/all-attempts`),
+  gradeAttempt: (attemptId, data) => api.put(`/quiz-attempts/${attemptId}/grade`, data),
 }
 
 // ── Reviews API ───────────────────────────────────

@@ -561,7 +561,7 @@ export default function Assessments() {
                                 </p>
                                 {q.attachment_url && (
                                   <a
-                                    href={`/api/files/${q.attachment_url}?token=${localStorage.getItem('token')}`}
+                                    href={`/api/files/${q.attachment_url.replace(/^uploads[\\/]/, '')}?token=${localStorage.getItem('token')}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 font-medium mt-1"

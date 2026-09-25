@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -18,6 +19,7 @@ from app.services.auth_service import (
     get_user_by_email, get_user_by_phone, create_user, authenticate_user, update_password,
     get_student_by_roll_number,
 )
+from app.routers.courses import _student_session_label
 from app.services.otp_service import (
     create_otp, verify_otp, can_resend_otp
 )
@@ -43,13 +45,30 @@ def register(request: Request, data: RegisterRequest, bg_tasks: BackgroundTasks,
     if phone_existing:
         raise HTTPException(status_code=400, detail="Phone number already registered")
 
-    roll_existing = get_student_by_roll_number(db, data.roll_number)
+    session_type = data.session_type if data.session_type in ("morning", "evening") else "morning"
+    roll_existing = get_student_by_roll_number(
+        db,
+        data.roll_number,
+        data.semester,
+        _student_session_label(data.enrollment_year),
+        session_type,
+    )
     if roll_existing:
-        raise HTTPException(status_code=400, detail="Roll number already registered")
+        raise HTTPException(
+            status_code=400,
+            detail="Roll number already exists for this semester, session, and shift",
+        )
 
     user_data = data.model_dump()
     user_data["role_name"] = "student"
-    user = create_user(db, user_data)
+    try:
+        user = create_user(db, user_data)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Roll number already exists for this semester, session, and shift",
+        ) from exc
 
     # Generate OTP for verification (defer SMS to background)
     otp_record, otp_code = create_otp(db, user, purpose="registration", send_sms=False)

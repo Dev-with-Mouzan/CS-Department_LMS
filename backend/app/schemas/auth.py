@@ -1,6 +1,6 @@
 import re
 from typing import Optional
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -32,7 +32,7 @@ class RegisterRequest(BaseModel):
     department: Optional[str] = None
     student_id: Optional[str] = None
     roll_number: str  # required — student roll number
-    enrollment_year: int  # required — enrollment year
+    enrollment_year: int = Field(gt=0)  # required — enrollment year
     session_type: str = "morning"  # morning or evening
 
     @field_validator("email")

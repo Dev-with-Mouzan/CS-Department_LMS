@@ -10,7 +10,7 @@ import {
 export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
   const [courses, setCourses] = useState([])
   const [form, setForm] = useState({
-    course_id: courseId || '', title: '', description: '', time_limit: '', deadline: '',
+    course_id: courseId || '', title: '', description: '', time_limit: '', deadline: '', max_marks: '',
   })
   const [questions, setQuestions] = useState([
     { text: '', options: ['', '', '', ''], correct: 0 },
@@ -59,6 +59,11 @@ export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
     setSuccess('')
 
     // Validate
+    if (form.max_marks && parseInt(form.max_marks) < 1) {
+      setError('Maximum marks must be greater than zero')
+      return
+    }
+
     if (!attachment) {
       // No document uploaded — questions are required
       for (let i = 0; i < questions.length; i++) {
@@ -88,6 +93,8 @@ export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
       if (form.description) formData.append('description', form.description.trim())
       if (form.time_limit) formData.append('time_limit', parseInt(form.time_limit))
       if (form.deadline) formData.append('deadline', new Date(form.deadline).toISOString())
+      if (form.max_marks) formData.append('max_marks', parseInt(form.max_marks))
+      else if (attachment) formData.append('max_marks', 100)
       const validQuestions = questions.filter(q => {
         const opts = q.options.filter(o => o.trim())
         return q.text.trim() || opts.length >= 2
@@ -167,7 +174,7 @@ export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
               className="input-field resize-none" placeholder="Any instructions for students..." />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="input-label">Time Limit (minutes, optional)</label>
               <input type="number" value={form.time_limit} min={1}
@@ -179,6 +186,12 @@ export default function CreateQuiz({ courseId, onSuccess, onCancel }) {
               <input type="datetime-local" value={form.deadline}
                 onChange={(e) => setForm({ ...form, deadline: e.target.value })}
                 className="input-field" />
+            </div>
+            <div>
+              <label className="input-label">Max Marks</label>
+              <input type="number" value={form.max_marks} min={1}
+                onChange={(e) => setForm({ ...form, max_marks: e.target.value })}
+                className="input-field" placeholder="100" />
             </div>
           </div>
 

@@ -302,6 +302,25 @@ def reuse_materials(request: Request,
         if not quiz:
             continue
 
+        new_attachment_url = None
+        if quiz.attachment_url:
+            stored_attachment_url = quiz.attachment_url.replace("\\", "/")
+            if stored_attachment_url.startswith("uploads/"):
+                stored_attachment_url = stored_attachment_url[len("uploads/"):]
+            new_attachment_url = stored_attachment_url
+
+            source_path = quiz.attachment_url.replace("\\", "/")
+            if not os.path.isabs(source_path) and not source_path.startswith("uploads/"):
+                source_path = f"uploads/{source_path}"
+            src_path = os.path.join(os.getcwd(), source_path) if not os.path.isabs(source_path) else source_path
+            if os.path.exists(src_path):
+                ts = dt.now().strftime("%Y%m%d_%H%M%S_%f")
+                new_filename = f"{ts}_{os.path.basename(stored_attachment_url)}"
+                new_attachment_url = f"quizzes/{new_filename}"
+                dest_path = os.path.join(os.getcwd(), "uploads", "quizzes", new_filename)
+                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                shutil.copy2(src_path, dest_path)
+
         new_quiz = Quiz(
             course_id=target.id,
             teacher_id=current_user.id,
@@ -309,6 +328,9 @@ def reuse_materials(request: Request,
             description=quiz.description,
             time_limit=quiz.time_limit,
             deadline=None,
+            attachment_url=new_attachment_url or quiz.attachment_url,
+            attachment_name=quiz.attachment_name,
+            max_marks=quiz.max_marks if quiz.max_marks is not None else (100 if quiz.attachment_url else None),
             is_published=False,
         )
         db.add(new_quiz)

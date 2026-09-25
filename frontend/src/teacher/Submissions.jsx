@@ -118,13 +118,17 @@ export default function Submissions() {
       .map(([key, cs]) => {
         const courseQuizzes = cs.flatMap((c) => quizzes.filter((q) => q.course_id === c.id))
         const totalAttempts = courseQuizzes.reduce((sum, q) => sum + (quizAttempts[q.id]?.length || 0), 0)
+        const toReview = courseQuizzes.reduce(
+          (sum, q) => sum + (quizAttempts[q.id] || []).filter((attempt) => attempt.submission_url && attempt.grading_status !== 'graded').length,
+          0,
+        )
         return {
           key,
           count: cs.length,
           session: cs.find((c) => c.session)?.session || '',
           assignmentCount: courseQuizzes.length,
           totalSubs: totalAttempts,
-          toReview: 0,
+          toReview,
         }
       })
   }, [courses, quizzes, quizAttempts, sessionTab])
@@ -172,12 +176,20 @@ export default function Submissions() {
   const handleGrade = async (e) => {
     e.preventDefault()
     try {
-      await assignmentsAPI.grade(selectedSub.id, {
+      const payload = {
         grade: parseFloat(gradeForm.grade),
         feedback: gradeForm.feedback.trim() || null,
-      })
+      }
+      if (tab === 'quizzes') {
+        await quizzesAPI.gradeAttempt(selectedSub.id, payload)
+        const attempts = await quizzesAPI.getAllAttempts(selected.id)
+        setSubmissions(attempts.data || [])
+        setQuizAttempts((prev) => ({ ...prev, [selected.id]: attempts.data || [] }))
+      } else {
+        await assignmentsAPI.grade(selectedSub.id, payload)
+        if (selected) await viewSubmissions(selected)
+      }
       setShowGradeModal(false)
-      if (selected) await viewSubmissions(selected)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to grade submission')
     }
@@ -347,48 +359,93 @@ export default function Submissions() {
                           <tr className="border-b border-surface-200 bg-surface-50/60">
                             <th className="px-4 py-3 text-left text-2xs font-bold text-navy-400 uppercase">Student</th>
                             <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">Score</th>
+                            {selected.attachment_url && (
+                              <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">Grade</th>
+                            )}
                             <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">%</th>
                             <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">File</th>
+                            {selected.attachment_url && (
+                              <th className="px-4 py-3 text-center text-2xs font-bold text-navy-400 uppercase">Status</th>
+                            )}
                             <th className="px-4 py-3 text-right text-2xs font-bold text-navy-400 uppercase">Submitted</th>
+                            {selected.attachment_url && (
+                              <th className="px-4 py-3 text-right text-2xs font-bold text-navy-400 uppercase">Action</th>
+                            )}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-surface-100">
-                          {submissions.map((att) => (
-                            <tr key={att.id} className="hover:bg-surface-50">
-                              <td className="px-4 py-3 font-medium text-navy-900">{att.student_name}</td>
-                              <td className="px-4 py-3 text-center">
-                                <span className="font-semibold text-navy-800">{att.score}</span>
-                                <span className="text-navy-400">/{att.total}</span>
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-semibold ${
-                                  att.percentage >= 70 ? 'bg-success/10 text-success-dark' :
-                                  att.percentage >= 40 ? 'bg-warning/10 text-warning-dark' :
-                                  'bg-danger/10 text-danger-dark'
-                                }`}>
-                                  {att.percentage}%
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                {att.submission_url ? (
-                                  <a
-                                    href={`/api/files/${att.submission_url}?token=${localStorage.getItem('token')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 font-medium"
-                                  >
-                                    <Paperclip className="w-3 h-3" />
-                                    {att.submission_name || 'View'}
-                                  </a>
-                                ) : (
-                                  <span className="text-xs text-navy-300">—</span>
+                          {submissions.map((att) => {
+                            const status = att.grading_status || (att.submission_url ? 'submitted' : 'graded')
+                            return (
+                              <tr key={att.id} className="hover:bg-surface-50">
+                                <td className="px-4 py-3 font-medium text-navy-900">{att.student_name}</td>
+                                <td className="px-4 py-3 text-center">
+                                  {selected.attachment_url && (status !== 'graded' || att.total === 0) ? (
+                                    <span className="text-navy-300">—</span>
+                                  ) : (
+                                    <>
+                                      <span className="font-semibold text-navy-800">{att.score}</span>
+                                      <span className="text-navy-400">/{att.total}</span>
+                                    </>
+                                  )}
+                                </td>
+                                {selected.attachment_url && (
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="font-semibold text-navy-800">{att.grade ?? '—'}</span>
+                                    {att.max_marks != null && <span className="text-navy-400">/{att.max_marks}</span>}
+                                  </td>
                                 )}
-                              </td>
-                              <td className="px-4 py-3 text-right text-xs text-navy-500">
-                                {att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : '—'}
-                              </td>
-                            </tr>
-                          ))}
+                                <td className="px-4 py-3 text-center">
+                                  {selected.attachment_url && status !== 'graded' ? (
+                                    <span className="text-navy-300">—</span>
+                                  ) : (
+                                    <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-semibold ${
+                                      att.percentage >= 70 ? 'bg-success/10 text-success-dark' :
+                                      att.percentage >= 40 ? 'bg-warning/10 text-warning-dark' :
+                                      'bg-danger/10 text-danger-dark'
+                                    }`}>
+                                      {att.percentage}%
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  {att.submission_url ? (
+                                    <a
+                                      href={`/api/files/${att.submission_url.replace(/^uploads[\\/]/, '')}?token=${localStorage.getItem('token')}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 font-medium"
+                                    >
+                                      <Paperclip className="w-3 h-3" />
+                                      {att.submission_name || 'View'}
+                                    </a>
+                                  ) : (
+                                    <span className="text-xs text-navy-300">—</span>
+                                  )}
+                                </td>
+                                {selected.attachment_url && (
+                                  <td className="px-4 py-3 text-center">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold ${
+                                      status === 'graded' ? 'bg-success/10 text-success-dark' : 'bg-info-light text-info-dark'
+                                    }`}>
+                                      {status === 'graded' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                      {status}
+                                    </span>
+                                  </td>
+                                )}
+                                <td className="px-4 py-3 text-right text-xs text-navy-500">
+                                  {att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : '—'}
+                                </td>
+                                {selected.attachment_url && (
+                                  <td className="px-4 py-3 text-right">
+                                    <Button variant="ghost" size="sm" onClick={() => openGrade(att)}>
+                                      {status === 'graded' ? 'Re-grade' : 'Grade'}
+                                    </Button>
+                                  </td>
+                                )}
+                              </tr>
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -552,7 +609,7 @@ const SemesterGrid = React.memo(function SemesterGrid({ semesters, quizzes = fal
             <span className="tabular-nums"><span className="font-bold text-navy-900">{s.count}</span> books</span>
             <span className="tabular-nums"><span className="font-bold text-navy-900">{s.totalSubs}</span> {quizzes ? 'attempts' : 'submissions'}</span>
           </div>
-          {!quizzes && s.toReview > 0 && (
+          {s.toReview > 0 && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1 text-2xs font-bold text-amber-700">
               <Clock className="w-3 h-3" />
               {s.toReview} to review
@@ -577,7 +634,7 @@ const CourseGrid = React.memo(function CourseGrid({ courses, quizzes = false, by
           ? items.reduce((sum, q) => sum + ((counts[q.id] || []).length || 0), 0)
           : items.reduce((sum, a) => sum + (counts[a.id]?.total || 0), 0)
         const toReview = quizzes
-          ? 0
+          ? items.reduce((sum, q) => sum + (counts[q.id] || []).filter((attempt) => attempt.submission_url && attempt.grading_status !== 'graded').length, 0)
           : items.reduce((sum, a) => sum + ((counts[a.id]?.total || 0) - (counts[a.id]?.graded || 0)), 0)
         const itemLabel = quizzes ? 'quizzes' : 'assignments'
         const subLabel = quizzes ? 'attempts' : 'submissions'

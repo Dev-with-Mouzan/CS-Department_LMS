@@ -6,15 +6,16 @@ from datetime import datetime, timezone
 from fastapi import Request,  APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from pydantic import ValidationError
 
 from app.database.database import get_db
-from app.services.file_service import save_file
+from app.services.file_service import delete_file, save_file
 from app.dependencies.auth import get_current_user, require_teacher
 from app.models import User, Quiz, QuizQuestion, QuizAttempt, QuizAttemptAnswer, Course
 from app.schemas.quiz import (
     QuizOut, QuizDetailOut, QuestionDetailOut,
     QuizSubmitIn, QuizAttemptOut, QuizAnswerResultOut,
-    QuizTeacherAttemptOut,
+    QuizTeacherAttemptOut, QuizAttemptGrade,
 )
 from app.routers.courses import student_has_access, get_student_courses
 from app.dependencies.ratelimit import limiter
@@ -55,9 +56,101 @@ def _quiz_out(q: Quiz) -> QuizOut:
         deadline=q.deadline,
         attachment_url=q.attachment_url,
         attachment_name=q.attachment_name,
+        max_marks=_quiz_max_marks(q),
         question_count=len(q.questions),
         is_published=q.is_published,
         created_at=q.created_at,
+    )
+
+
+def _quiz_max_marks(quiz: Quiz) -> Optional[int]:
+    if quiz.max_marks is not None:
+        return quiz.max_marks
+    return 100 if quiz.attachment_url else None
+
+
+def _score_answers(quiz: Quiz, answers):
+    questions = {question.id: question for question in quiz.questions}
+    validated_answers = []
+    seen_questions = set()
+    for answer in answers:
+        question = questions.get(answer.question_id)
+        if not question or answer.question_id in seen_questions:
+            raise HTTPException(status_code=400, detail="Each quiz question must be answered exactly once")
+        options = _parse_options(question)
+        if answer.selected_index < 0 or answer.selected_index >= len(options):
+            raise HTTPException(status_code=400, detail="Invalid answer selected")
+        seen_questions.add(answer.question_id)
+        validated_answers.append((answer, question))
+    if len(seen_questions) != len(questions):
+        raise HTTPException(status_code=400, detail="Please answer all quiz questions")
+
+    score = 0
+    answer_results = []
+    answer_records = []
+    for answer, question in validated_answers:
+        is_correct = answer.selected_index == question.correct_index
+        if is_correct:
+            score += 1
+        answer_results.append({
+            "question_id": question.id,
+            "question_text": question.text,
+            "options": _parse_options(question),
+            "selected_index": answer.selected_index,
+            "correct_index": question.correct_index,
+            "is_correct": is_correct,
+        })
+        answer_records.append(QuizAttemptAnswer(
+            question_id=question.id,
+            selected_index=answer.selected_index,
+            is_correct=is_correct,
+        ))
+    return score, len(questions), answer_results, answer_records
+
+
+def _attempt_out(attempt: QuizAttempt, answers=None) -> QuizAttemptOut:
+    status = attempt.grading_status or ("submitted" if attempt.submission_url else "graded")
+    return QuizAttemptOut(
+        id=attempt.id,
+        quiz_id=attempt.quiz_id,
+        score=attempt.score,
+        total=attempt.total,
+        submission_url=attempt.submission_url,
+        submission_name=attempt.submission_name,
+        grade=attempt.grade,
+        feedback=attempt.feedback,
+        grading_status=status,
+        max_marks=_quiz_max_marks(attempt.quiz),
+        submitted_at=attempt.submitted_at,
+        answers=[QuizAnswerResultOut(**answer) for answer in (answers or [])],
+    )
+
+
+def _teacher_attempt_out(attempt: QuizAttempt, quiz: Quiz, student: Optional[User]) -> QuizTeacherAttemptOut:
+    max_marks = _quiz_max_marks(quiz)
+    if attempt.submission_url and attempt.grade is not None and max_marks:
+        percentage = attempt.grade / max_marks * 100
+    elif attempt.total > 0:
+        percentage = attempt.score / attempt.total * 100
+    else:
+        percentage = 0
+    status = attempt.grading_status or ("submitted" if attempt.submission_url else "graded")
+    student_name = f"{student.first_name} {student.last_name}" if student else "Unknown"
+    return QuizTeacherAttemptOut(
+        id=attempt.id,
+        quiz_id=attempt.quiz_id,
+        student_id=attempt.student_id,
+        student_name=student_name,
+        score=attempt.score,
+        total=attempt.total,
+        percentage=round(percentage, 1),
+        submission_url=attempt.submission_url,
+        submission_name=attempt.submission_name,
+        grade=attempt.grade,
+        feedback=attempt.feedback,
+        grading_status=status,
+        max_marks=max_marks,
+        submitted_at=attempt.submitted_at,
     )
 
 
@@ -129,6 +222,7 @@ def create_quiz(request: Request,
     description: Optional[str] = Form(None),
     time_limit: Optional[int] = Form(None),
     deadline: Optional[str] = Form(None),
+    max_marks: Optional[int] = Form(None),
     questions: str = Form(...),
     attachment: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
@@ -154,6 +248,8 @@ def create_quiz(request: Request,
 
     if not parsed_questions and not attachment_url:
         raise HTTPException(status_code=400, detail="A quiz needs either questions or an uploaded document")
+    if max_marks is not None and max_marks <= 0:
+        raise HTTPException(status_code=400, detail="Maximum marks must be greater than zero")
 
     if not title.strip():
         raise HTTPException(status_code=400, detail="Quiz title is required")
@@ -172,6 +268,7 @@ def create_quiz(request: Request,
         deadline=parsed_deadline,
         attachment_url=attachment_url,
         attachment_name=attachment_name,
+        max_marks=max_marks if max_marks is not None else (100 if attachment_url else None),
     )
     db.add(quiz)
     db.flush()
@@ -218,66 +315,31 @@ def submit_quiz(request: Request,
     if existing:
         raise HTTPException(status_code=400, detail="You have already attempted this quiz")
 
-    # Load questions for grading
-    questions = {q.id: q for q in quiz.questions}
+    if quiz.attachment_url:
+        raise HTTPException(status_code=400, detail="This quiz requires a file submission")
 
-    score = 0
-    total = len(questions)
-    answer_results = []
+    score, total, answer_results, answer_records = _score_answers(quiz, data.answers)
 
-    for ans in data.answers:
-        question = questions.get(ans.question_id)
-        if not question:
-            continue
-        is_correct = ans.selected_index == question.correct_index
-        if is_correct:
-            score += 1
-        answer_results.append({
-            "question_id": question.id,
-            "question_text": question.text,
-            "options": _parse_options(question),
-            "selected_index": ans.selected_index,
-            "correct_index": question.correct_index,
-            "is_correct": is_correct,
-        })
-
-    # Create attempt
     attempt = QuizAttempt(
         quiz_id=quiz_id,
         student_id=current_user.id,
         score=score,
         total=total,
+        grading_status="graded",
     )
     db.add(attempt)
-    db.flush()
-
-    # Save individual answers
-    for ans in data.answers:
-        question = questions.get(ans.question_id)
-        if not question:
-            continue
-        db.add(QuizAttemptAnswer(
-            attempt_id=attempt.id,
-            question_id=ans.question_id,
-            selected_index=ans.selected_index,
-            is_correct=ans.selected_index == question.correct_index,
-        ))
-
     try:
+        db.flush()
+        for answer in answer_records:
+            answer.attempt_id = attempt.id
+            db.add(answer)
         db.commit()
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="You have already attempted this quiz")
     db.refresh(attempt)
 
-    return QuizAttemptOut(
-        id=attempt.id,
-        quiz_id=attempt.quiz_id,
-        score=attempt.score,
-        total=attempt.total,
-        submitted_at=attempt.submitted_at,
-        answers=[QuizAnswerResultOut(**a) for a in answer_results],
-    )
+    return _attempt_out(attempt, answer_results)
 
 
 @limiter.limit("30/minute")
@@ -285,16 +347,19 @@ def submit_quiz(request: Request,
 def submit_quiz_file(request: Request,
     quiz_id: str,
     file: UploadFile = File(...),
+    answers: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Submit a file for a document-only quiz (no MCQs)."""
+    """Submit a file for a document-attached quiz."""
     if current_user.role.name != "student":
         raise HTTPException(status_code=403, detail="Only students can submit quizzes")
 
     quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
+    if not quiz.attachment_url:
+        raise HTTPException(status_code=400, detail="This quiz does not accept file submissions")
     if not quiz.is_published:
         raise HTTPException(status_code=400, detail="Quiz is not published yet")
     if quiz.deadline and datetime.now(timezone.utc).replace(tzinfo=None) > quiz.deadline:
@@ -311,35 +376,43 @@ def submit_quiz_file(request: Request,
     if existing:
         raise HTTPException(status_code=400, detail="You have already attempted this quiz")
 
+    answer_data = []
+    if answers:
+        try:
+            parsed_answers = json.loads(answers)
+            if not isinstance(parsed_answers, list):
+                raise ValueError
+            answer_data = QuizSubmitIn(answers=parsed_answers).answers
+        except (TypeError, ValueError, ValidationError):
+            raise HTTPException(status_code=400, detail="Invalid quiz answers")
+
+    score, total, answer_results, answer_records = _score_answers(quiz, answer_data)
     submission_url = save_file(file, subdirectory="quiz_submissions")
     submission_name = file.filename
 
     attempt = QuizAttempt(
         quiz_id=quiz_id,
         student_id=current_user.id,
-        score=0,
-        total=0,
+        score=score,
+        total=total,
         submission_url=submission_url,
         submission_name=submission_name,
+        grading_status="submitted",
     )
     db.add(attempt)
     try:
+        db.flush()
+        for answer in answer_records:
+            answer.attempt_id = attempt.id
+            db.add(answer)
         db.commit()
     except IntegrityError:
         db.rollback()
+        delete_file(submission_url)
         raise HTTPException(status_code=400, detail="You have already attempted this quiz")
     db.refresh(attempt)
 
-    return QuizAttemptOut(
-        id=attempt.id,
-        quiz_id=attempt.quiz_id,
-        score=attempt.score,
-        total=attempt.total,
-        submission_url=attempt.submission_url,
-        submission_name=attempt.submission_name,
-        submitted_at=attempt.submitted_at,
-        answers=[],
-    )
+    return _attempt_out(attempt, answer_results)
 
 
 @limiter.limit("30/minute")
@@ -373,16 +446,7 @@ def get_my_attempt(request: Request,
                 is_correct=aa.is_correct,
             ))
 
-    return QuizAttemptOut(
-        id=attempt.id,
-        quiz_id=attempt.quiz_id,
-        score=attempt.score,
-        total=attempt.total,
-        submission_url=attempt.submission_url,
-        submission_name=attempt.submission_name,
-        submitted_at=attempt.submitted_at,
-        answers=answers_out,
-    )
+    return _attempt_out(attempt, answers_out)
 
 
 @limiter.limit("30/minute")
@@ -405,22 +469,44 @@ def get_all_attempts(request: Request,
     student_ids = list({a.student_id for a in attempts})
     students = {u.id: u for u in db.query(User).filter(User.id.in_(student_ids)).all()} if student_ids else {}
     result = []
-    for a in attempts:
-        student = students.get(a.student_id)
-        pct = (a.score / a.total * 100) if a.total > 0 else 0
-        result.append(QuizTeacherAttemptOut(
-            id=a.id,
-            quiz_id=a.quiz_id,
-            student_id=a.student_id,
-            student_name=f"{student.first_name} {student.last_name}" if student else "Unknown",
-            score=a.score,
-            total=a.total,
-            percentage=round(pct, 1),
-            submission_url=a.submission_url,
-            submission_name=a.submission_name,
-            submitted_at=a.submitted_at,
-        ))
+    for attempt in attempts:
+        result.append(_teacher_attempt_out(attempt, quiz, students.get(attempt.student_id)))
     return result
+
+
+@limiter.limit("30/minute")
+@router.put("/quiz-attempts/{attempt_id}/grade", response_model=QuizTeacherAttemptOut)
+def grade_quiz_attempt(request: Request,
+    attempt_id: str,
+    data: QuizAttemptGrade,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_teacher),
+):
+    attempt = db.query(QuizAttempt).filter(QuizAttempt.id == attempt_id).first()
+    if not attempt:
+        raise HTTPException(status_code=404, detail="Quiz attempt not found")
+
+    quiz = db.query(Quiz).filter(Quiz.id == attempt.quiz_id).first()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    course = db.query(Course).filter(Course.id == quiz.course_id).first()
+    if not course or course.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not quiz.attachment_url:
+        raise HTTPException(status_code=400, detail="Only document-attached quizzes require teacher grading")
+
+    max_marks = _quiz_max_marks(quiz)
+    if max_marks is not None and data.grade > max_marks:
+        raise HTTPException(status_code=400, detail=f"Grade cannot exceed maximum marks ({max_marks})")
+
+    attempt.grade = data.grade
+    attempt.feedback = data.feedback
+    attempt.grading_status = "graded"
+    db.commit()
+    db.refresh(attempt)
+
+    student = db.query(User).filter(User.id == attempt.student_id).first()
+    return _teacher_attempt_out(attempt, quiz, student)
 
 
 @limiter.limit("30/minute")
@@ -438,7 +524,7 @@ def get_quiz(request: Request,
     role = current_user.role.name
     include_correct = False
     if role == "teacher":
-        if quiz.teacher_id != current_user.id:
+        if not quiz.course or quiz.course.teacher_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
         include_correct = True
     elif role == "student":
@@ -468,7 +554,7 @@ def delete_quiz(request: Request,
     quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
-    if quiz.teacher_id != current_user.id:
+    if not quiz.course or quiz.course.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     db.delete(quiz)

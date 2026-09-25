@@ -21,6 +21,7 @@ import {
   BadgeCheck,
   FileQuestion,
   Timer,
+  MessageSquare,
 } from 'lucide-react'
 
 const tabs = [
@@ -546,20 +547,18 @@ function QuizCard({ quiz, courseCode }) {
   const toggle = async () => {
     const next = !expanded
     setExpanded(next)
-    if (next && !detail) {
+    if (next) {
       setLoadingDetail(true)
       try {
-        const r = await quizzesAPI.get(quiz.id)
-        setDetail(r.data)
-        // Check if already attempted
-        try {
-          const attemptRes = await quizzesAPI.getAttempt(quiz.id)
-          setResult(attemptRes.data)
-        } catch {
-          // No previous attempt — fresh quiz
+        if (!detail) {
+          const r = await quizzesAPI.get(quiz.id)
+          setDetail(r.data)
         }
+        const attemptRes = await quizzesAPI.getAttempt(quiz.id)
+        setResult(attemptRes.data)
       } catch {
-        setDetail({ questions: [] })
+        if (!detail) setDetail({ questions: [] })
+        setResult(null)
       } finally {
         setLoadingDetail(false)
       }
@@ -570,20 +569,31 @@ function QuizCard({ quiz, courseCode }) {
     setAnswers((prev) => ({ ...prev, [questionId]: index }))
   }
 
-  const isDocumentOnly = detail && detail.questions.length === 0 && quiz.attachment_url
+  const isDocumentQuiz = !!quiz.attachment_url
 
   const handleSubmit = async () => {
     if (!detail) return
     setError('')
 
-    if (isDocumentOnly) {
+    const questions = detail.questions || []
+    const unanswered = questions.filter((q) => answers[q.id] === undefined)
+    if (unanswered.length > 0) {
+      setError(`Please answer all ${questions.length} questions before submitting.`)
+      return
+    }
+
+    if (isDocumentQuiz) {
       if (!submissionFile) {
         setError('Please upload your submission file.')
         return
       }
       setSubmitting(true)
       try {
-        const res = await quizzesAPI.submitFile(quiz.id, submissionFile)
+        const payload = questions.map((q) => ({
+          question_id: q.id,
+          selected_index: answers[q.id],
+        }))
+        const res = await quizzesAPI.submitFile(quiz.id, submissionFile, payload)
         setResult(res.data)
       } catch (err) {
         setError(err.response?.data?.detail || 'Failed to submit')
@@ -593,15 +603,10 @@ function QuizCard({ quiz, courseCode }) {
       return
     }
 
-    if (!detail.questions) return
-    const unanswered = detail.questions.filter((q) => answers[q.id] === undefined)
-    if (unanswered.length > 0) {
-      setError(`Please answer all ${detail.questions.length} questions before submitting.`)
-      return
-    }
+    if (questions.length === 0) return
     setSubmitting(true)
     try {
-      const payload = detail.questions.map((q) => ({
+      const payload = questions.map((q) => ({
         question_id: q.id,
         selected_index: answers[q.id],
       }))
@@ -614,7 +619,16 @@ function QuizCard({ quiz, courseCode }) {
     }
   }
 
-  const scorePercent = result ? Math.round((result.score / result.total) * 100) : 0
+  const effectiveMaxMarks = result?.max_marks ?? quiz.max_marks ?? (quiz.attachment_url ? 100 : null)
+  const autoScore = !isDocumentQuiz && result?.grading_status === 'graded' && result.total > 0
+  const manualScore = isDocumentQuiz && result?.grading_status === 'graded' && result.grade != null && effectiveMaxMarks
+  const scorePercent = result
+    ? autoScore
+      ? Math.round((result.score / result.total) * 100)
+      : manualScore
+        ? Math.round((result.grade / effectiveMaxMarks) * 100)
+        : 0
+    : 0
   const scoreTone = scorePercent >= 70 ? 'text-emerald-600' : scorePercent >= 40 ? 'text-amber-600' : 'text-red-500'
 
   const isExpired = quiz.deadline && new Date() > new Date(quiz.deadline)
@@ -635,9 +649,13 @@ function QuizCard({ quiz, courseCode }) {
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-navy-900">{quiz.title}</h3>
             {result ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-2xs font-bold">
-                <CheckCircle2 className="w-3 h-3" />
-                Completed
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-2xs font-bold ${
+                isDocumentQuiz && result.grading_status !== 'graded'
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}>
+                {isDocumentQuiz && result.grading_status !== 'graded' ? <Clock className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                {isDocumentQuiz ? (result.grading_status === 'graded' ? 'Graded' : 'Awaiting grading') : 'Completed'}
               </span>
             ) : isExpired ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 text-2xs font-bold">
@@ -680,9 +698,22 @@ function QuizCard({ quiz, courseCode }) {
               </span>
             )}
             {result && (
-              <span className={`inline-flex items-center gap-1 text-2xs font-bold ${scoreTone}`}>
-                Score: {result.score}/{result.total}
-              </span>
+              isDocumentQuiz ? (
+                result.grading_status === 'graded' && result.grade != null ? (
+                  <span className={`inline-flex items-center gap-1 text-2xs font-bold ${scoreTone}`}>
+                    Grade: {result.grade}/{effectiveMaxMarks}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-2xs font-bold text-amber-700">
+                    <Clock className="w-3 h-3" />
+                    Awaiting teacher grading
+                  </span>
+                )
+              ) : (
+                <span className={`inline-flex items-center gap-1 text-2xs font-bold ${scoreTone}`}>
+                  Score: {result.score}/{result.total}
+                </span>
+              )
             )}
           </div>
         </div>
@@ -697,7 +728,7 @@ function QuizCard({ quiz, courseCode }) {
 
           {quiz.attachment_url && (
             <a
-              href={`/api/files/${quiz.attachment_url}?token=${localStorage.getItem('token')}`}
+              href={`/api/files/${quiz.attachment_url.replace(/^uploads[\\/]/, '')}?token=${localStorage.getItem('token')}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm text-accent-600 hover:text-accent-700 font-medium"
@@ -714,35 +745,89 @@ function QuizCard({ quiz, courseCode }) {
           ) : result ? (
             /* ── Result View ── */
             <div className="space-y-4">
-              {/* Score banner */}
-              <div className={`flex items-center gap-4 p-4 rounded-xl border ${
-                scorePercent >= 70
-                  ? 'bg-emerald-50 border-emerald-200'
-                  : scorePercent >= 40
-                    ? 'bg-amber-50 border-amber-200'
-                    : 'bg-red-50 border-red-200'
-              }`}>
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-extrabold ${
+              {isDocumentQuiz ? (
+                result.grading_status === 'graded' && result.grade != null ? (
+                  <div className={`flex items-center gap-4 p-4 rounded-xl border ${
+                    scorePercent >= 70
+                      ? 'bg-emerald-50 border-emerald-200'
+                      : scorePercent >= 40
+                        ? 'bg-amber-50 border-amber-200'
+                        : 'bg-red-50 border-red-200'
+                  }`}>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-extrabold ${
+                      scorePercent >= 70
+                        ? 'bg-emerald-500 text-white'
+                        : scorePercent >= 40
+                          ? 'bg-amber-500 text-white'
+                          : 'bg-red-500 text-white'
+                    }`}>
+                      {result.grade}/{effectiveMaxMarks}
+                    </div>
+                    <div>
+                      <p className={`text-sm font-bold ${scoreTone}`}>Graded by your teacher</p>
+                      <p className="text-xs text-navy-500 mt-0.5">You received {scorePercent}% of the available marks.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50">
+                    <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-800">Submitted — awaiting teacher grading</p>
+                      <p className="text-xs text-amber-700 mt-0.5">Your file was received. Your grade will appear here after review.</p>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className={`flex items-center gap-4 p-4 rounded-xl border ${
                   scorePercent >= 70
-                    ? 'bg-emerald-500 text-white'
+                    ? 'bg-emerald-50 border-emerald-200'
                     : scorePercent >= 40
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-red-500 text-white'
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-red-50 border-red-200'
                 }`}>
-                  {result.score}/{result.total}
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-extrabold ${
+                    scorePercent >= 70
+                      ? 'bg-emerald-500 text-white'
+                      : scorePercent >= 40
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-red-500 text-white'
+                  }`}>
+                    {result.score}/{result.total}
+                  </div>
+                  <div>
+                    <p className={`text-sm font-bold ${scoreTone}`}>
+                      {scorePercent >= 70 ? 'Great job!' : scorePercent >= 40 ? 'Keep practicing!' : 'Needs improvement'}
+                    </p>
+                    <p className="text-xs text-navy-500 mt-0.5">
+                      You scored {scorePercent}% — {result.score} out of {result.total} correct
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className={`text-sm font-bold ${scoreTone}`}>
-                    {scorePercent >= 70 ? 'Great job!' : scorePercent >= 40 ? 'Keep practicing!' : 'Needs improvement'}
-                  </p>
-                  <p className="text-xs text-navy-500 mt-0.5">
-                    You scored {scorePercent}% — {result.score} out of {result.total} correct
-                  </p>
-                </div>
-              </div>
+              )}
 
-              {/* Question-by-question review */}
-              {result.answers.map((a, i) => (
+              {result.feedback && (
+                <div className="flex items-start gap-2.5 rounded-xl border border-accent-200 bg-accent-50 p-3.5 text-sm text-navy-700">
+                  <MessageSquare className="w-4 h-4 mt-0.5 text-accent-600 shrink-0" />
+                  <span>{result.feedback}</span>
+                </div>
+              )}
+
+              {isDocumentQuiz && result.submission_url && (
+                <div className="space-y-2">
+                  <p className="text-sm text-navy-600 font-medium">Your submission:</p>
+                  <a
+                    href={`/api/files/${result.submission_url.replace(/^uploads[\\/]/, '')}?token=${localStorage.getItem('token')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-accent-600 hover:text-accent-700 font-medium"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                    {result.submission_name || 'Download submission'}
+                  </a>
+                </div>
+              )}
+
+              {(result.answers || []).map((a, i) => (
                 <div
                   key={a.question_id}
                   className={`rounded-xl border p-4 ${
@@ -843,7 +928,7 @@ function QuizCard({ quiz, courseCode }) {
                 <p className="text-sm text-navy-400 text-center py-4">No questions available for this quiz.</p>
               )}
 
-              {isDocumentOnly && !result && (
+              {isDocumentQuiz && !result && (
                 <div className="space-y-3">
                   <p className="text-sm text-navy-600 font-medium">Upload your submission:</p>
                   <input
@@ -860,21 +945,6 @@ function QuizCard({ quiz, courseCode }) {
                 </div>
               )}
 
-              {isDocumentOnly && result && result.submission_url && (
-                <div className="space-y-2">
-                  <p className="text-sm text-navy-600 font-medium">Your submission:</p>
-                  <a
-                    href={`/api/files/${result.submission_url}?token=${localStorage.getItem('token')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-accent-600 hover:text-accent-700 font-medium"
-                  >
-                    <Paperclip className="w-4 h-4" />
-                    {result.submission_name || 'Download submission'}
-                  </a>
-                </div>
-              )}
-
               {isExpired && (
                 <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-xs font-semibold">
                   <Clock className="w-4 h-4 shrink-0" />
@@ -882,14 +952,14 @@ function QuizCard({ quiz, courseCode }) {
                 </div>
               )}
 
-              {((detail && detail.questions.length > 0) || isDocumentOnly) && !isExpired && !result && (
+              {((detail && detail.questions.length > 0) || isDocumentQuiz) && !isExpired && !result && (
                 <div className="flex items-center justify-between pt-2">
                   {detail && detail.questions.length > 0 && (
                     <p className="text-xs text-navy-400">
                       {Object.keys(answers).length} of {detail.questions.length} answered
                     </p>
                   )}
-                  {isDocumentOnly && <p />}
+                  {isDocumentQuiz && <p />}
                   <button
                     onClick={handleSubmit}
                     disabled={submitting}
@@ -903,7 +973,7 @@ function QuizCard({ quiz, courseCode }) {
                     ) : (
                       <>
                         <CheckCircle2 className="w-4 h-4" />
-                        {isDocumentOnly ? 'Submit File' : 'Submit Quiz'}
+                        {isDocumentQuiz ? 'Submit File' : 'Submit Quiz'}
                       </>
                     )}
                   </button>

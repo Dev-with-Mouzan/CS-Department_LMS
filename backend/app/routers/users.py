@@ -1,6 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -10,7 +11,10 @@ from app.models import User, Role, TeacherProfile, StudentProfile, Course, Promo
 from app.schemas.user import (
     UserCreate, UserUpdate, UserWithRole, PromotionRequest,
 )
-from app.services.auth_service import create_user as create_user_service
+from app.services.auth_service import (
+    create_user as create_user_service,
+    get_student_by_roll_number,
+)
 from app.services.email_service import send_credentials_email
 
 from app.routers.courses import _student_session_label as _session_label
@@ -31,6 +35,21 @@ def _check_email_available(db: Session, email: str, exclude_user_id=None) -> Non
         query = query.filter(User.id != exclude_user_id)
     if query.first():
         raise HTTPException(status_code=400, detail="Email already registered")
+
+
+def _roll_number_conflict(db: Session, profile: StudentProfile, semester: int):
+    if not profile.roll_number or profile.enrollment_year is None:
+        return None
+    session = _session_label(profile.enrollment_year)
+    session_type = profile.session_type or "morning"
+    return get_student_by_roll_number(
+        db,
+        profile.roll_number,
+        semester,
+        session,
+        session_type,
+        exclude_user_id=profile.user_id,
+    )
 
 
 def _delete_user_dependencies(db: Session, user: User) -> None:
@@ -500,11 +519,23 @@ def update_user(request: Request,
     if semester is not None:
         profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.id).first()
         if profile:
+            if _roll_number_conflict(db, profile, semester):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Roll number already exists for this semester, session, and shift",
+                )
             profile.semester = semester
         else:
             db.add(StudentProfile(user_id=user.id, semester=semester))
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Roll number already exists for this semester, session, and shift",
+        ) from exc
     db.refresh(user)
 
     return user
@@ -720,8 +751,8 @@ def promote_students(request: Request,
     if not to_semester or to_semester < 1 or to_semester > 8:
         raise HTTPException(status_code=400, detail="Invalid target semester")
 
-    promoted = 0
-    archived_semesters = set()
+    profiles_to_promote = []
+    pending_keys = set()
     for sid in student_ids:
         profile = db.query(StudentProfile).filter(StudentProfile.user_id == sid).first()
         if not profile or not profile.enrollment_year:
@@ -732,10 +763,28 @@ def promote_students(request: Request,
             continue
 
         session_label = _session_label(profile.enrollment_year)
+        session_type = profile.session_type or "morning"
+        if _roll_number_conflict(db, profile, to_semester):
+            raise HTTPException(
+                status_code=400,
+                detail="Roll number already exists for this semester, session, and shift",
+            )
 
-        # Record promotion history
+        key = (profile.roll_number, to_semester, session_label, session_type)
+        if profile.roll_number and key in pending_keys:
+            raise HTTPException(
+                status_code=400,
+                detail="Roll number already exists for this semester, session, and shift",
+            )
+        if profile.roll_number:
+            pending_keys.add(key)
+        profiles_to_promote.append((profile, from_semester, session_label))
+
+    promoted = 0
+    archived_semesters = set()
+    for profile, from_semester, session_label in profiles_to_promote:
         db.add(PromotionHistory(
-            student_id=sid,
+            student_id=profile.user_id,
             from_semester=from_semester,
             to_semester=to_semester,
             session=session_label,
@@ -756,7 +805,14 @@ def promote_students(request: Request,
             Course.is_active == True,
         ).update({"is_active": False})
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Roll number already exists for this semester, session, and shift",
+        ) from exc
     return {"message": f"Promoted {promoted} students to semester {to_semester}", "count": promoted}
 
 

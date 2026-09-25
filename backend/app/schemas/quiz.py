@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.common import UTCDateTime
 
@@ -25,6 +25,7 @@ class QuizOut(BaseModel):
     deadline: Optional[datetime] = None
     attachment_url: Optional[str] = None
     attachment_name: Optional[str] = None
+    max_marks: Optional[int] = None
     question_count: int
     is_published: bool
     created_at: UTCDateTime
@@ -59,8 +60,17 @@ class QuizAttemptOut(BaseModel):
     total: int
     submission_url: Optional[str] = None
     submission_name: Optional[str] = None
+    grade: Optional[float] = None
+    feedback: Optional[str] = None
+    grading_status: str = "submitted"
+    max_marks: Optional[int] = None
     submitted_at: object
     answers: List[QuizAnswerResultOut] = []
+
+
+class QuizAttemptGrade(BaseModel):
+    grade: float = Field(ge=0)
+    feedback: Optional[str] = None
 
 
 class QuizTeacherAttemptOut(BaseModel):
@@ -73,4 +83,8 @@ class QuizTeacherAttemptOut(BaseModel):
     percentage: float
     submission_url: Optional[str] = None
     submission_name: Optional[str] = None
+    grade: Optional[float] = None
+    feedback: Optional[str] = None
+    grading_status: str = "submitted"
+    max_marks: Optional[int] = None
     submitted_at: object

@@ -18,8 +18,23 @@ def get_user_by_phone(db: Session, phone: str) -> User | None:
     return db.query(User).filter(User.phone == phone).first()
 
 
-def get_student_by_roll_number(db: Session, roll_number: str) -> StudentProfile | None:
-    return db.query(StudentProfile).filter(StudentProfile.roll_number == roll_number).first()
+def get_student_by_roll_number(
+    db: Session,
+    roll_number: str,
+    semester: int,
+    session: str,
+    session_type: str,
+    exclude_user_id: str | None = None,
+) -> StudentProfile | None:
+    query = db.query(StudentProfile).filter(
+        StudentProfile.roll_number == roll_number,
+        StudentProfile.semester == semester,
+        StudentProfile.session == session,
+        StudentProfile.session_type == session_type,
+    )
+    if exclude_user_id:
+        query = query.filter(StudentProfile.user_id != exclude_user_id)
+    return query.first()
 
 
 def get_role_by_name(db: Session, role_name: str) -> Role | None:
@@ -54,7 +69,7 @@ def create_user(db: Session, user_data: dict) -> User:
     elif role.name == "student":
         enrollment_year = user_data.get("enrollment_year")
         session_label = None
-        if enrollment_year:
+        if enrollment_year is not None:
             session_label = f"{enrollment_year % 100:02d}-{(enrollment_year + 4) % 100:02d}"
         session_type = user_data.get("session_type", "morning")
         if session_type not in ("morning", "evening"):
