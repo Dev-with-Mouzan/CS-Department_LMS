@@ -549,6 +549,7 @@ function QuizCard({ quiz, courseCode }) {
     setExpanded(next)
     if (next) {
       setLoadingDetail(true)
+      setError('')
       try {
         if (!detail) {
           const r = await quizzesAPI.get(quiz.id)
@@ -556,9 +557,10 @@ function QuizCard({ quiz, courseCode }) {
         }
         const attemptRes = await quizzesAPI.getAttempt(quiz.id)
         setResult(attemptRes.data)
-      } catch {
-        if (!detail) setDetail({ questions: [] })
+      } catch (err) {
+        setDetail((prev) => prev ?? { questions: [] })
         setResult(null)
+        setError(err.response?.data?.detail || 'Failed to load this quiz')
       } finally {
         setLoadingDetail(false)
       }

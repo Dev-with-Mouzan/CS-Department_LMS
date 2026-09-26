@@ -136,6 +136,55 @@ class QuizGradingTests(unittest.TestCase):
         self.assertEqual(body["grading_status"], "graded")
         self.assertIsNone(body["grade"])
 
+    def test_student_reopens_mcq_attempt_with_questions_and_score(self):
+        quiz = self.add_quiz(questions=2)
+        question_ids = [
+            q.id
+            for q in self.db.query(QuizQuestion)
+            .filter(QuizQuestion.quiz_id == quiz.id)
+            .order_by(QuizQuestion.order_index)
+            .all()
+        ]
+        answers = [
+            {"question_id": question_ids[0], "selected_index": 1},
+            {"question_id": question_ids[1], "selected_index": 0},
+        ]
+
+        submitted = self.request(
+            self.student,
+            "POST",
+            f"/api/quizzes/{quiz.id}/submit",
+            json={"answers": answers},
+        )
+        self.assertEqual(submitted.status_code, 200)
+
+        response = self.request(
+            self.student,
+            "GET",
+            f"/api/quizzes/{quiz.id}/attempts",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["score"], 1)
+        self.assertEqual(body["total"], 2)
+        self.assertEqual(body["grading_status"], "graded")
+        self.assertEqual({a["question_id"] for a in body["answers"]}, set(question_ids))
+        self.assertEqual([a["is_correct"] for a in body["answers"]], [True, False])
+        self.assertEqual([a["correct_index"] for a in body["answers"]], [1, 1])
+        for answer in body["answers"]:
+            self.assertTrue(answer["question_text"])
+            self.assertEqual(len(answer["options"]), 2)
+
+        repeat = self.request(
+            self.student,
+            "POST",
+            f"/api/quizzes/{quiz.id}/submit",
+            json={"answers": answers},
+        )
+        self.assertEqual(repeat.status_code, 400)
+        self.assertIn("already attempted", repeat.json()["detail"])
+
     def test_duplicate_quiz_answers_are_rejected(self):
         quiz = self.add_quiz(questions=1)
         question_id = self.db.query(QuizQuestion).filter(QuizQuestion.quiz_id == quiz.id).one().id

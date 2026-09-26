@@ -287,7 +287,7 @@ export default function Results() {
               ) : (
                 <div className="space-y-3">
                   {filtered.map(r => (
-                    <div key={r.id} className="border border-surface-200 rounded-xl bg-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-4 hover:border-accent-300 hover:shadow-elevated transition-all">
+                    <div key={r.id} className="relative border border-surface-200 rounded-xl bg-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-4 hover:border-accent-300 hover:shadow-elevated transition-all">
                       <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border bg-accent-50 text-accent-600 border-accent-200 self-start">
                         <ScrollText className="w-5 h-5" />
                       </span>
@@ -314,7 +314,7 @@ export default function Results() {
                           </button>
                         ))}
                         <button onClick={() => handleDelete(r)} title="Delete"
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-red-600 border border-red-200 bg-white hover:bg-red-50 transition-colors">
+                          className="absolute top-4 right-4 sm:static w-8 h-8 rounded-lg flex items-center justify-center text-red-600 border border-red-200 bg-white hover:bg-red-50 transition-colors">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>

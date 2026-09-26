@@ -49,7 +49,7 @@ const FAQ_DATA = [
   },
   {
     keywords: ['file format', 'file type', 'upload format', 'supported format', 'formats', 'pdf', 'doc', 'zip', 'file formats supported', 'what formats', 'resubmit', 'edit submission'],
-    answer: '**Supported File Formats**\n\nYou can submit assignments in:\n- 📄 **PDF** documents\n- 📝 **Word** documents (DOC, DOCX)\n- 🖼️ **Images** (JPG, PNG)\n- 📦 **ZIP** archives\n\n📏 Maximum file size: **10MB**\n\n💡 Convert your files to PDF for best compatibility.',
+    answer: '**Supported File Formats**\n\nYou can submit assignments in:\n- 📄 **PDF** documents\n- 📝 **Word** documents (DOC, DOCX)\n- 🖼️ **Images** (JPG, PNG)\n- 📦 **ZIP** archives\n\n📏 Maximum file size: **100MB**\n\n💡 Convert your files to PDF for best compatibility.',
     followUp: ['How do I submit an assignment?', 'Can I resubmit?'],
   },
   {
@@ -65,7 +65,7 @@ const FAQ_DATA = [
   },
   {
     keywords: ['download limit', 'file size', 'storage', 'space', 'upload limit', 'file size limit', 'size limit', 'how big', 'maximum size'],
-    answer: '**File Size Limits**\n\n- Maximum file size: **10MB** per upload\n- Supported formats: PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, ZIP\n- No limit on number of downloads\n- Materials are stored securely in the cloud\n\n💡 Compress large files to ZIP before uploading.',
+    answer: '**File Size Limits**\n\n- Maximum file size: **100MB** per upload\n- Supported formats: PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, ZIP\n- No limit on number of downloads\n- Materials are stored securely in the cloud\n\n💡 Compress large files to ZIP before uploading.',
     followUp: ['How do I upload materials?', 'What formats are supported?'],
   },
   // Courses

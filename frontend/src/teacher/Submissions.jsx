@@ -353,7 +353,8 @@ export default function Submissions() {
                   {submissions.length === 0 ? (
                     <EmptyState icon={HelpCircle} title="No attempts submitted yet." />
                   ) : (
-                    <div className="overflow-x-auto border border-surface-200 rounded-xl">
+                    <>
+                    <div className="hidden sm:block overflow-x-auto border border-surface-200 rounded-xl">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-surface-200 bg-surface-50/60">
@@ -448,7 +449,92 @@ export default function Submissions() {
                           })}
                         </tbody>
                       </table>
-                    </div>
+                      </div>
+
+                      {/* Mobile cards */}
+                      <div className="sm:hidden border border-surface-200 rounded-xl overflow-hidden divide-y divide-surface-100">
+                        {submissions.map((att) => {
+                          const status = att.grading_status || (att.submission_url ? 'submitted' : 'graded')
+                          const showScore = !(selected.attachment_url && (status !== 'graded' || att.total === 0))
+                          const showPct = !(selected.attachment_url && status !== 'graded')
+                          return (
+                            <div key={att.id} className="p-4 space-y-2.5">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-semibold text-navy-900 truncate">{att.student_name}</p>
+                                {selected.attachment_url ? (
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold shrink-0 ${
+                                    status === 'graded' ? 'bg-success/10 text-success-dark' : 'bg-info-light text-info-dark'
+                                  }`}>
+                                    {status === 'graded' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                    {status}
+                                  </span>
+                                ) : (
+                                  <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-semibold shrink-0 ${
+                                    att.percentage >= 70 ? 'bg-success/10 text-success-dark' :
+                                    att.percentage >= 40 ? 'bg-warning/10 text-warning-dark' :
+                                    'bg-danger/10 text-danger-dark'
+                                  }`}>
+                                    {att.percentage}%
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-2xs text-navy-500">
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="text-navy-400">Score</span>
+                                  {showScore ? (
+                                    <span className="font-bold text-navy-700">
+                                      {att.score}<span className="font-normal text-navy-400">/{att.total}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-navy-300">—</span>
+                                  )}
+                                </span>
+                                {selected.attachment_url && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="text-navy-400">Grade</span>
+                                    <span className="font-bold text-navy-700">{att.grade ?? '—'}</span>
+                                    {att.max_marks != null && <span className="text-navy-400">/{att.max_marks}</span>}
+                                  </span>
+                                )}
+                                {selected.attachment_url && showPct && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="text-navy-400">%</span>
+                                    <span className="font-bold text-navy-700">{att.percentage}%</span>
+                                  </span>
+                                )}
+                                <span className="inline-flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-navy-300" />
+                                  {att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : '—'}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                {att.submission_url ? (
+                                  <a
+                                    href={`/api/files/${att.submission_url.replace(/^uploads[\\/]/, '')}?token=${localStorage.getItem('token')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 min-w-0 text-xs text-accent-600 hover:text-accent-700 font-medium"
+                                  >
+                                    <Paperclip className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">{att.submission_name || 'View'}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-2xs text-navy-300">—</span>
+                                )}
+                                {selected.attachment_url && (
+                                  <button
+                                    onClick={() => openGrade(att)}
+                                    className="text-2xs font-semibold text-accent-600 hover:text-accent-700 px-2 py-1 shrink-0"
+                                  >
+                                    {status === 'graded' ? 'Re-grade' : 'Grade'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </>
                   )}
                 </div>
               )}

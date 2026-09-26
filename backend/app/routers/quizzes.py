@@ -122,7 +122,7 @@ def _attempt_out(attempt: QuizAttempt, answers=None) -> QuizAttemptOut:
         grading_status=status,
         max_marks=_quiz_max_marks(attempt.quiz),
         submitted_at=attempt.submitted_at,
-        answers=[QuizAnswerResultOut(**answer) for answer in (answers or [])],
+        answers=[a if isinstance(a, QuizAnswerResultOut) else QuizAnswerResultOut(**a) for a in (answers or [])],
     )
 
 

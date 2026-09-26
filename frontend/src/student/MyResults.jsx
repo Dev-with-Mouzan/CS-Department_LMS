@@ -52,27 +52,31 @@ export default function MyResults() {
     return r.file_url
   }
 
+  const downloadFile = async (r, kind) => {
+    const fileName = fileNameFor(r, kind) || 'download'
+    const url = getFileUrl(r, kind)
+    if (!url) { setError('File not found'); return }
+    try {
+      const filePath = url.replace(/^uploads[\\/]/, '')
+      const res = await api.get(`/files/${filePath}`, { responseType: 'blob' })
+      const blob = new Blob([res.data], { type: res.data.type || 'application/octet-stream' })
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(blobUrl)
+    } catch { setError('Failed to download file') }
+  }
+
   const openPreview = async (r, kind, label) => {
     const fileName = fileNameFor(r, kind)
     const ext = fileName.split('.').pop().toLowerCase()
 
     if (!PREVIEWABLE.has(ext)) {
-      // Auto-download non-previewable files
-      const url = getFileUrl(r, kind)
-      if (!url) { setError('File not found'); return }
-      try {
-        const filePath = url.replace(/^uploads[\\/]/, '')
-        const res = await api.get(`/files/${filePath}`, { responseType: 'blob' })
-        const blob = new Blob([res.data])
-        const blobUrl = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = blobUrl
-        link.download = fileName || 'download'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        window.URL.revokeObjectURL(blobUrl)
-      } catch { setError('Failed to download file') }
+      await downloadFile(r, kind)
       return
     }
 
@@ -84,7 +88,7 @@ export default function MyResults() {
       }
       const filePath = url.replace(/^uploads[\\/]/, '')
       const res = await api.get(`/files/${filePath}`, { responseType: 'blob' })
-      const blob = new Blob([res.data])
+      const blob = new Blob([res.data], { type: res.data.type || `application/${ext}` })
 
       if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
         const buf = await blob.arrayBuffer()
@@ -158,7 +162,7 @@ export default function MyResults() {
               <div className="min-w-0">
                 <p className="text-sm font-bold text-navy-900 truncate">{preview.label} — {preview.title}</p>
                 <p className="text-[11px] text-navy-400 truncate">
-                  {preview.type !== 'unsupported' ? 'Viewing online · download is disabled' : ''}
+                  {preview.type !== 'unsupported' ? 'Viewing online' : ''}
                   {preview.fileName ? ` · ${preview.fileName}` : ''}
                 </p>
               </div>
@@ -213,7 +217,7 @@ export default function MyResults() {
               )}
 
               {preview.type === 'iframe' && (
-                <iframe src={preview.url} title={preview.label} className="w-full h-full border-0" sandbox="allow-same-origin" />
+                <iframe src={preview.url} title={preview.label} className="w-full h-full border-0" />
               )}
 
               {preview.type === 'unsupported' && (
@@ -322,24 +326,32 @@ export default function MyResults() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
                     {files(r).map(f => (
-                      <button
-                        key={f.kind}
-                        onClick={() => openPreview(r, f.kind, f.label)}
-                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-colors ${f.cls}`}
-                      >
-                        <f.icon className="w-3.5 h-3.5 shrink-0" />
-                        <span className="min-w-0 flex-1 truncate text-left">{f.label}</span>
-                        <span className="inline-flex items-center gap-1 shrink-0">
-                          <Eye className="w-3.5 h-3.5" />
-                          View
-                        </span>
-                      </button>
+                      <div key={f.kind} className="flex items-stretch gap-1.5">
+                        <button
+                          onClick={() => openPreview(r, f.kind, f.label)}
+                          className={`flex-1 min-w-0 flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-colors ${f.cls}`}
+                        >
+                          <f.icon className="w-3.5 h-3.5 shrink-0" />
+                          <span className="min-w-0 flex-1 truncate text-left">{f.label}</span>
+                          <span className="inline-flex items-center gap-1 shrink-0">
+                            <Eye className="w-3.5 h-3.5" />
+                            View
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => downloadFile(r, f.kind)}
+                          title={`Download ${f.label}`}
+                          className="shrink-0 px-2.5 rounded-xl border border-surface-200 bg-surface-50 text-navy-500 hover:bg-surface-100 hover:text-navy-800 hover:border-accent-300 transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     ))}
                   </div>
 
                   <p className="flex items-center gap-1.5 mt-3 text-[10px] text-navy-300">
                     <ShieldCheck className="w-3 h-3" />
-                    View only — files open in the reader here and cannot be downloaded.
+                    View online, or download a copy to open in another app.
                   </p>
                 </div>
               ))}
