@@ -256,7 +256,7 @@ function Hero() {
   return (
     <section
       id="hero"
-      className="relative h-[100dvh] min-h-[600px] flex items-center overflow-hidden"
+      className="relative min-h-[max(600px,100dvh)] flex items-center overflow-hidden"
     >
       {/* Background image */}
       <div className="absolute inset-0">
@@ -280,9 +280,13 @@ function Hero() {
           </div>
 
           <h1 className="hero-animate text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white leading-[1.05] tracking-tight">
-            The Future of CS
-            <br />
-            <span className="text-accent-400">Learning.</span>
+            The Future of{' '}
+            <span className="whitespace-nowrap">
+              CS
+              <br className="hidden sm:inline" />
+              {' '}
+              <span className="text-accent-400">Learning.</span>
+            </span>
           </h1>
 
           <p className="hero-animate mt-7 text-lg lg:text-xl text-white/50 max-w-lg leading-relaxed mx-auto lg:mx-0">
