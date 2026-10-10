@@ -160,7 +160,7 @@ function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="lg:hidden bg-surface-0/98 backdrop-blur-md border-b border-surface-200 shadow-elevated">
+        <div className="lg:hidden bg-surface-0/95 backdrop-blur-md border-b border-surface-200 shadow-elevated">
           <div className="px-4 py-4 space-y-1">
             {links.map((l) => (
               <a
@@ -734,12 +734,12 @@ function FacultyCarousel({ faculty }) {
       </div>
 
       {/* Left Arrow */}
-      <button onClick={() => go(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+      <button onClick={() => go(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 xl:-translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
         <ChevronLeft className="w-5 h-5 text-navy-600" />
       </button>
 
       {/* Right Arrow */}
-      <button onClick={() => go(1)} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+      <button onClick={() => go(1)} className="absolute right-0 top-1/2 -translate-y-1/2 xl:translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
         <ChevronRight className="w-5 h-5 text-navy-600" />
       </button>
     </div>
@@ -906,12 +906,12 @@ function StudentReviewsCarousel({ reviews }) {
       </div>
 
       {/* Left Arrow */}
-      <button onClick={() => go(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+      <button onClick={() => go(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 xl:-translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
         <ChevronLeft className="w-5 h-5 text-navy-600" />
       </button>
 
       {/* Right Arrow */}
-      <button onClick={() => go(1)} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
+      <button onClick={() => go(1)} className="absolute right-0 top-1/2 -translate-y-1/2 xl:translate-x-10 z-20 w-10 h-10 rounded-full bg-white/90 border border-surface-200 shadow-md flex items-center justify-center hover:bg-white hover:shadow-lg transition-all cursor-pointer">
         <ChevronRight className="w-5 h-5 text-navy-600" />
       </button>
     </div>
