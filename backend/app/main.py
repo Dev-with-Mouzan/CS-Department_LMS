@@ -2,6 +2,7 @@ import json
 import os
 import logging
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, HTTPException
@@ -182,6 +183,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class RelativeRedirectMiddleware(BaseHTTPMiddleware):
+    # Browsers block https->http redirects (mixed content); make them relative
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        location = response.headers.get("location")
+        if location and "://" in location:
+            parsed = urlparse(location)
+            if parsed.scheme:
+                relative = parsed.path + (f"?{parsed.query}" if parsed.query else "")
+                response.headers["location"] = relative
+        return response
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Role-Based Learning Management System — CS Department LMS",
@@ -194,6 +208,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RelativeRedirectMiddleware)
 
 # CORS middleware — origins from config
 app.add_middleware(
