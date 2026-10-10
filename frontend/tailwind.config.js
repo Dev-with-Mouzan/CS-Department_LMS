@@ -51,23 +51,18 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
-        display: ['Inter', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         '2xs': ['0.65rem', { lineHeight: '0.875rem' }],
-        'display-lg': ['2.5rem', { lineHeight: '3rem', fontWeight: '700' }],
         'display-md': ['2rem', { lineHeight: '2.5rem', fontWeight: '700' }],
         'display-sm': ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
       },
       borderRadius: {
         '2xl': '1rem',
-        '3xl': '1.25rem',
       },
       boxShadow: {
         'card': '0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04)',
-        'card-hover': '0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.06)',
         'elevated': '0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04)',
-        'inner-glow': 'inset 0 1px 0 0 rgb(255 255 255 / 0.05)',
         'glow': '0 0 18px 2px rgb(245 158 11 / 0.35), 0 10px 15px -3px rgb(0 0 0 / 0.08)',
       },
       animation: {

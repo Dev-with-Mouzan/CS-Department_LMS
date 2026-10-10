@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
@@ -22,7 +21,8 @@ class QuizOut(BaseModel):
     title: str
     description: Optional[str] = None
     time_limit: Optional[int] = None
-    deadline: Optional[datetime] = None
+    deadline: Optional[UTCDateTime] = None
+    total_questions: Optional[int] = None
     attachment_url: Optional[str] = None
     attachment_name: Optional[str] = None
     max_marks: Optional[int] = None
@@ -33,6 +33,23 @@ class QuizOut(BaseModel):
 
 class QuizDetailOut(QuizOut):
     questions: List[QuestionDetailOut] = []
+    # when this student first opened a timed quiz (serialized with Z suffix)
+    started_at: Optional[UTCDateTime] = None
+
+
+class ParsedQuestionOut(BaseModel):
+    text: str
+    options: List[str]
+    correct: int
+
+
+class ParseFileOut(BaseModel):
+    questions: List[ParsedQuestionOut]
+    count: int
+
+
+class QuizPublishIn(BaseModel):
+    is_published: bool
 
 
 class QuizAnswerIn(BaseModel):
@@ -42,6 +59,8 @@ class QuizAnswerIn(BaseModel):
 
 class QuizSubmitIn(BaseModel):
     answers: List[QuizAnswerIn]
+    # set by the client's countdown auto-submit: unanswered questions allowed
+    timed_out: bool = False
 
 
 class QuizAnswerResultOut(BaseModel):
@@ -78,13 +97,14 @@ class QuizTeacherAttemptOut(BaseModel):
     quiz_id: str
     student_id: str
     student_name: str
-    score: int
-    total: int
-    percentage: float
+    score: int = 0
+    total: int = 0
+    percentage: float = 0.0
     submission_url: Optional[str] = None
     submission_name: Optional[str] = None
     grade: Optional[float] = None
     feedback: Optional[str] = None
     grading_status: str = "submitted"
     max_marks: Optional[int] = None
-    submitted_at: object
+    submitted_at: object = None
+    not_attempted: bool = False

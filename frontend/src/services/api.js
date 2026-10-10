@@ -7,16 +7,6 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Request deduplication for GET requests — prevents identical concurrent calls
-const _getCache = new Map()
-const deduplicatedGet = (url, config) => {
-  const key = `${url}:${JSON.stringify(config?.params || {})}`
-  if (_getCache.has(key)) return _getCache.get(key)
-  const promise = api.get(url, config).finally(() => _getCache.delete(key))
-  _getCache.set(key, promise)
-  return promise
-}
-
 // Attach JWT token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
@@ -148,7 +138,8 @@ export const quizzesAPI = {
     return api.post('/quizzes', data)
   },
   delete: (id) => api.delete(`/quizzes/${id}`),
-  submit: (quizId, answers) => api.post(`/quizzes/${quizId}/submit`, { answers }),
+  submit: (quizId, answers, timedOut = false) =>
+    api.post(`/quizzes/${quizId}/submit`, { answers, timed_out: timedOut }),
   submitFile: (quizId, file, answers = []) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -160,11 +151,21 @@ export const quizzesAPI = {
   getAttempt: (quizId) => api.get(`/quizzes/${quizId}/attempts`),
   getAllAttempts: (quizId) => api.get(`/quizzes/${quizId}/all-attempts`),
   gradeAttempt: (attemptId, data) => api.put(`/quiz-attempts/${attemptId}/grade`, data),
+  parseFile: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/quizzes/parse-file', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  exportResults: (quizId) =>
+    api.get(`/quizzes/${quizId}/export`, { responseType: 'blob' }),
+  setPublished: (quizId, is_published) =>
+    api.put(`/quizzes/${quizId}/publish`, { is_published }),
 }
 
 // ── Reviews API ───────────────────────────────────
 export const reviewsAPI = {
-  listPublic: (limit) => api.get('/reviews/public', { params: { limit } }),
   listMine: () => api.get('/reviews/'),
   create: (data) => api.post('/reviews/', data),
   update: (id, data) => api.put(`/reviews/${id}`, data),

@@ -9,7 +9,7 @@ from app.dependencies.auth import get_current_user, require_teacher
 from app.models import User, Result, Course
 from app.schemas.result import ResultOut
 from app.services.file_service import save_file, delete_file
-from app.routers.courses import student_has_access, get_student_courses
+from app.routers.courses import get_student_courses
 from app.dependencies.ratelimit import limiter
 
 router = APIRouter(prefix="/api/results", tags=["Results"])

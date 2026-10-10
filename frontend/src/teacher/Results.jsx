@@ -4,10 +4,10 @@ import Modal from '../components/Modal'
 import Button from '../components/Button'
 import ConfirmDialog from '../components/ConfirmDialog'
 import EmptyState from '../components/EmptyState'
-import { ordinal, semLabel } from '../utils/format'
+import { semLabel } from '../utils/format'
 import {
   Trophy, FileText, GraduationCap, ScrollText, PlusCircle, Trash2,
-  Download, BookOpen, TrendingDown, TrendingUp, ChevronRight, ChevronLeft, AlertTriangle,
+  Download, BookOpen, ChevronRight, ChevronLeft, AlertTriangle,
 } from 'lucide-react'
 
 const tabs = [

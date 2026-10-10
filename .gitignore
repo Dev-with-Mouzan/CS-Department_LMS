@@ -41,3 +41,11 @@ backups/
 
 # OpenCode tooling
 .opencode/
+
+# Keys and Secrets
+*.key
+*.key.pub
+ssh-key*
+db.txt
+setup_script.sh
+

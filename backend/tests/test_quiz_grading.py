@@ -219,23 +219,22 @@ class QuizGradingTests(unittest.TestCase):
 
         self.assertEqual(attempt.grading_status, "graded")
 
-    def test_document_quiz_stores_max_marks(self):
-        with patch("app.routers.quizzes.save_file", return_value="uploads/quizzes/brief.pdf"):
-            response = self.request(
-                self.teacher,
-                "POST",
-                "/api/quizzes",
-                data={
-                    "course_id": self.course.id,
-                    "title": "Written quiz",
-                    "questions": "[]",
-                    "max_marks": "20",
-                },
-                files={"attachment": ("brief.pdf", b"brief", "application/pdf")},
-            )
+    def test_create_quiz_rejects_attachment_mcq_only(self):
+        response = self.request(
+            self.teacher,
+            "POST",
+            "/api/quizzes",
+            data={
+                "course_id": self.course.id,
+                "title": "Written quiz",
+                "questions": "[]",
+                "max_marks": "20",
+            },
+            files={"attachment": ("brief.pdf", b"brief", "application/pdf")},
+        )
 
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()["max_marks"], 20)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("MCQ-only", response.json()["detail"])
 
     def test_incomplete_quiz_answers_are_rejected(self):
         quiz = self.add_quiz(questions=2)
@@ -292,7 +291,7 @@ class QuizGradingTests(unittest.TestCase):
         self.assertEqual(out_of_range.status_code, 400)
         save_file.assert_not_called()
 
-    def test_reused_document_quiz_keeps_grading_metadata(self):
+    def test_reuse_copies_mcq_quizzes_but_skips_document_quizzes(self):
         source = Course(
             course_code="QUIZ102",
             title="Source Quiz Course",
@@ -303,9 +302,11 @@ class QuizGradingTests(unittest.TestCase):
         )
         self.db.add(source)
         self.db.flush()
-        quiz = self.add_quiz(attachment=True, questions=0)
-        quiz.course_id = source.id
-        quiz.max_marks = 25
+        mcq_quiz = self.add_quiz(questions=1)
+        mcq_quiz.course_id = source.id
+        mcq_quiz.max_marks = 25
+        doc_quiz = self.add_quiz(attachment=True, questions=0)
+        doc_quiz.course_id = source.id
         self.db.commit()
 
         with patch("os.path.exists", return_value=True), \
@@ -318,21 +319,21 @@ class QuizGradingTests(unittest.TestCase):
                     "source_course_id": source.id,
                     "materials": [],
                     "assignments": [],
-                    "quizzes": [quiz.id],
+                    "quizzes": [mcq_quiz.id, doc_quiz.id],
                 },
             )
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["copied"]["quizzes"], 1)
         copied = self.db.query(Quiz).filter(
             Quiz.course_id == self.course.id,
-            Quiz.id != quiz.id,
-        ).one()
-        self.assertTrue(copied.attachment_url.startswith("quizzes/"))
-        self.assertNotIn("uploads/", copied.attachment_url)
-        self.assertNotIn(".pdf.pdf", copied.attachment_url)
-        copy_file.assert_called_once()
-        self.assertEqual(copied.attachment_name, "brief.pdf")
-        self.assertEqual(copied.max_marks, 25)
+            Quiz.id.notin_([mcq_quiz.id, doc_quiz.id]),
+        ).all()
+        self.assertEqual(len(copied), 1)
+        self.assertIsNone(copied[0].attachment_url)
+        self.assertEqual(copied[0].max_marks, 25)
+        self.assertEqual(len(copied[0].questions), 1)
+        copy_file.assert_not_called()
 
     def test_document_submission_stays_pending_teacher_grading(self):
         quiz = self.add_quiz(attachment=True, questions=0)

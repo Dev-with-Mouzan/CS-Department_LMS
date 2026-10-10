@@ -4,7 +4,7 @@ import Modal from '../components/Modal'
 import Button from '../components/Button'
 import ConfirmDialog from '../components/ConfirmDialog'
 import EmptyState from '../components/EmptyState'
-import { ordinal, semLabel } from '../utils/format'
+import { semLabel } from '../utils/format'
 import {
   FolderOpen, PlusCircle, Trash2, FileText, Presentation, BookOpen,
   File, Download, Search, ChevronRight, ChevronLeft, GraduationCap,
@@ -26,7 +26,6 @@ export default function ManageMaterials() {
   const [showModal, setShowModal] = useState(false)
   const [search, setSearch] = useState('')
   const [form, setForm] = useState({ title: '', description: '', category: 'notes', course_id: '' })
-  const [file, setFile] = useState(null)
   const [files, setFiles] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [sessionTab, setSessionTab] = useState('morning')
@@ -159,7 +158,8 @@ export default function ManageMaterials() {
       setSourceItems({
         materials: mats.data || [],
         assignments: asgs.data || [],
-        quizzes: qzs.data || [],
+        // Quiz section is MCQ-only — document quizzes are not reusable
+        quizzes: (qzs.data || []).filter((q) => !q.attachment_url),
       })
     } catch (err) {
       console.error(err)

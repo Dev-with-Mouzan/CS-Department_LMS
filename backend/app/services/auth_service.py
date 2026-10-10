@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-from uuid import UUID
 import logging
 
 from sqlalchemy.orm import Session
@@ -12,10 +10,6 @@ logger = logging.getLogger(__name__)
 
 def get_user_by_email(db: Session, email: str) -> User | None:
     return db.query(User).filter(User.email == email).first()
-
-
-def get_user_by_phone(db: Session, phone: str) -> User | None:
-    return db.query(User).filter(User.phone == phone).first()
 
 
 def get_student_by_roll_number(

@@ -1,14 +1,7 @@
-from datetime import datetime
 from typing import Optional, Literal
 from pydantic import BaseModel
 
 from app.schemas.common import UTCDateTime
-
-
-class StudyMaterialCreate(BaseModel):
-    title: str
-    description: Optional[str] = None
-    category: Literal["notes", "slides", "assignment", "reference", "other"] = "notes"
 
 
 class StudyMaterialOut(BaseModel):

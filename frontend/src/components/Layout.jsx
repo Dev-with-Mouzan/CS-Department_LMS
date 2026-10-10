@@ -12,12 +12,10 @@ import {
   CalendarCheck,
   FolderOpen,
   LogOut,
-  GraduationCap,
   Menu,
   X,
   UserPlus,
   ChevronDown,
-  UserCog,
   Trophy,
   Star,
 } from 'lucide-react'

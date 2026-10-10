@@ -26,13 +26,6 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
     role_name: str  # "admin", "teacher", "student"
-    employee_id: Optional[str] = None
-    department: Optional[str] = None
-    qualification: Optional[str] = None
-    student_id: Optional[str] = None
-    semester: Optional[int] = None
-    enrollment_year: Optional[int] = None
-    session_type: Optional[str] = "morning"  # morning or evening
 
     @field_validator("password")
     @classmethod

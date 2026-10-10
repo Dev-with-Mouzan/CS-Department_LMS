@@ -1,5 +1,5 @@
 import calendar
-from datetime import date, datetime
+from datetime import date
 from calendar import month_name
 
 from openpyxl import Workbook

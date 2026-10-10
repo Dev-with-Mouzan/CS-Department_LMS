@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { coursesAPI, attendanceAPI } from '../services/api'
 import Button from '../components/Button'
 import EmptyState from '../components/EmptyState'
-import { ordinal, semLabel } from '../utils/format'
+import { semLabel } from '../utils/format'
 import {
   CalendarCheck, CheckCircle2, XCircle, Users, Save, Download, Lock,
   ChevronRight, ChevronLeft, GraduationCap, BookOpen,

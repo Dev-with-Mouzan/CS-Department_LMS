@@ -301,6 +301,9 @@ def reuse_materials(request: Request,
         ).first()
         if not quiz:
             continue
+        # Quiz section is MCQ-only — never copy document/attachment quizzes
+        if quiz.attachment_url:
+            continue
 
         new_attachment_url = None
         if quiz.attachment_url:
@@ -328,6 +331,7 @@ def reuse_materials(request: Request,
             description=quiz.description,
             time_limit=quiz.time_limit,
             deadline=None,
+            total_questions=quiz.total_questions,
             attachment_url=new_attachment_url or quiz.attachment_url,
             attachment_name=quiz.attachment_name,
             max_marks=quiz.max_marks if quiz.max_marks is not None else (100 if quiz.attachment_url else None),

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
 import { AnimatedSection, StaggerContainer } from '../hooks/useScrollReveal.jsx'
@@ -564,7 +564,7 @@ function HowItWorks() {
       step: 1,
       icon: UserPlus,
       title: 'Create Your Account',
-      description: 'Sign up with your college email and phone number. Verify your account with a one-time SMS code.',
+      description: 'Sign up with your college email. Verify your account with a one-time code sent to your inbox.',
       detail: 'Takes less than 30 seconds',
     },
     {
@@ -968,7 +968,7 @@ function FAQ() {
   const [openIndex, setOpenIndex] = useState(null)
 
   const faqs = [
-    { question: 'How do I create an account and sign in?', answer: 'Students and teachers register with their official email address and phone number. After registering, a 6-digit OTP is sent to your phone via SMS to verify your account. Once verified, you can sign in securely with your email and password.' },
+    { question: 'How do I create an account and sign in?', answer: 'Students and teachers register with their official email address. After registering, a 6-digit OTP is sent to your email to verify your account. Once verified, you can sign in securely with your email and password.' },
     { question: "What can I do with my student dashboard?", answer: 'Students get a dedicated dashboard for viewing their attendance history, checking assignments posted by teachers, submitting work before deadlines, and tracking their grades and performance over time.' },
     { question: 'How is attendance marked and tracked?', answer: 'Teachers mark attendance digitally from their dashboard with one tap per student, and the record is timestamped and saved instantly. Students can view their complete attendance history with charts and reports anytime.' },
     { question: 'How do assignments and submissions work?', answer: 'Teachers create assignments with deadlines directly in the portal. Students see new assignments in their dashboard and submit their work online. Teachers grade submissions and results appear in the student dashboard.' },

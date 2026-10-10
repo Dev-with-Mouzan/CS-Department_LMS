@@ -11,12 +11,10 @@ class LoginRequest(BaseModel):
 class RegisterResponse(BaseModel):
     message: str
     email: str
-    phone: str
 
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"
     user_id: str
     role: str
     is_verified: bool
@@ -26,7 +24,6 @@ class RegisterRequest(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    phone: str  # required — OTP verification destination
     password: str
     semester: int  # required — auto-enrollment target
     department: Optional[str] = None
@@ -64,11 +61,11 @@ class OTPResendRequest(BaseModel):
 
 
 class PasswordResetRequest(BaseModel):
-    phone: str
+    email: EmailStr
 
 
 class PasswordResetConfirm(BaseModel):
-    phone: str
+    email: EmailStr
     otp_code: str
     new_password: str
 

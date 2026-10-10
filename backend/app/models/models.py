@@ -59,9 +59,6 @@ class TeacherProfile(Base):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey("users.id"), unique=True, nullable=False)
-    employee_id = Column(String(50), unique=True)
-    department = Column(String(100))
-    qualification = Column(String(255))
     created_at = Column(DateTime, default=utcnow)
 
     user = relationship("User", back_populates="teacher_profile")
@@ -113,7 +110,6 @@ class Course(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     teacher = relationship("User", back_populates="taught_courses")
-    source_course = relationship("Course", remote_side="Course.id", backref="derived_courses")
     assignments = relationship("Assignment", back_populates="course", cascade="all, delete-orphan")
     attendance_sessions = relationship("AttendanceSession", back_populates="course", cascade="all, delete-orphan")
     quizzes = relationship("Quiz", back_populates="course", cascade="all, delete-orphan")
@@ -203,6 +199,7 @@ class Quiz(Base):
     description = Column(Text)
     time_limit = Column(Integer, nullable=True)  # minutes; null = no limit
     deadline = Column(DateTime, nullable=True)  # deadline to attempt; null = no deadline
+    total_questions = Column(Integer, nullable=True)  # per-student shuffled subset size; null = all
     attachment_url = Column(String(500), nullable=True)
     attachment_name = Column(String(255), nullable=True)
     max_marks = Column(Integer, nullable=True)
@@ -323,6 +320,19 @@ class QuizAttemptAnswer(Base):
 
     attempt = relationship("QuizAttempt", back_populates="answers")
     question = relationship("QuizQuestion")
+
+
+class QuizTimer(Base):
+    __tablename__ = "quiz_timers"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    quiz_id = Column(String(36), ForeignKey("quizzes.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    started_at = Column(DateTime, nullable=False, default=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("quiz_id", "student_id", name="uq_quiz_student_timer"),
+    )
 
 
 class Review(Base):

@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from datetime import datetime, timezone
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -16,7 +16,6 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from app.config import settings
 from app.database.database import engine, SessionLocal, Base
-from app.dependencies.auth import get_current_user
 from app.dependencies.ratelimit import limiter
 from app.models import Assignment, Result, StudyMaterial, Submission, User, Quiz, QuizAttempt
 from app.services.auth_service import create_default_roles, create_default_admin
@@ -29,7 +28,7 @@ _ALLOWLISTED_MIGRATIONS = {
     "users": [("phone", "VARCHAR(20)")],
     "courses": [("semester", "INTEGER"), ("source_course_id", "VARCHAR(36)"), ("session", "VARCHAR(20)"), ("session_type", "VARCHAR(10)"), ("is_active", "BOOLEAN DEFAULT 1")],
     "student_profiles": [("roll_number", "VARCHAR(50)"), ("is_graduated", "BOOLEAN DEFAULT 0"), ("session_type", "VARCHAR(10)")],
-    "quizzes": [("deadline", "DATETIME"), ("attachment_url", "VARCHAR(500)"), ("attachment_name", "VARCHAR(255)"), ("max_marks", "INTEGER")],
+    "quizzes": [("deadline", "DATETIME"), ("attachment_url", "VARCHAR(500)"), ("attachment_name", "VARCHAR(255)"), ("max_marks", "INTEGER"), ("total_questions", "INTEGER")],
     "quiz_attempts": [("submission_url", "VARCHAR(500)"), ("submission_name", "VARCHAR(255)"), ("grade", "FLOAT"), ("feedback", "TEXT"), ("grading_status", "VARCHAR(20) DEFAULT 'submitted'")],
     "results": [
         ("worst_paper_url", "VARCHAR(500)"),

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ChevronRight, ChevronLeft, X, Sparkles, GripVertical } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Sparkles } from 'lucide-react'
 
 const TOUR_KEY = 'lms_tour_completed'
 

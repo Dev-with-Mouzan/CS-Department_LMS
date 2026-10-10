@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { usersAPI, resultsAPI } from '../services/api'
 import EmptyState from '../components/EmptyState'
-import { parseDate, shortDate, MONTHS } from '../utils/format'
+import { parseDate, shortDate } from '../utils/format'
 import {
   Users,
   GraduationCap,
@@ -146,7 +146,6 @@ export default function AdminDashboard() {
   ]
 
   const activePct = totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0
-  const completionPct = results.length > 0 ? results.filter(r => r.status === 'complete').length / results.length * 100 : 0
 
   return (
     <div className="p-5 lg:p-8 max-w-6xl mx-auto w-full">
@@ -284,7 +283,7 @@ export default function AdminDashboard() {
                           {`${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Unnamed user'}
                         </p>
                         <p className="text-[10px] text-navy-400 truncate">
-                          {u.email || u.phone || ''} · joined {shortDate(u.created_at)}
+                          {u.email || ''} · joined {shortDate(u.created_at)}
                         </p>
                       </div>
                       <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold ${r.cls}`}>{r.label}</span>

@@ -6,8 +6,8 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import EmptyState from '../components/EmptyState'
 import {
   Users, UserPlus, Mail, Pencil, ShieldCheck, ShieldOff,
-  Trash2, Search, GraduationCap, UserCheck, Clock, Eye, EyeOff, AlertTriangle,
-  CheckCircle2, Copy, ArrowRight,
+  Trash2, Search, GraduationCap, UserCheck, Eye, EyeOff, AlertTriangle,
+  CheckCircle2, Copy,
 } from 'lucide-react'
 
 const ROLE_BAGE = {
@@ -33,7 +33,7 @@ export default function ManageUsers() {
   const [loading, setLoading] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState({
-    first_name: '', last_name: '', email: '', phone: '', password: '',
+    first_name: '', last_name: '', email: '', password: '',
     role_name: 'teacher', semester: '', session_type: 'morning',
   })
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -55,7 +55,7 @@ export default function ManageUsers() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ first_name: '', last_name: '', email: '', phone: '', password: '', role_name: 'teacher', semester: '', session_type: 'morning' })
+    setForm({ first_name: '', last_name: '', email: '', password: '', role_name: 'teacher', semester: '', session_type: 'morning' })
     setShowPassword(false)
     setModalError(null)
     setShowModal(true)
@@ -67,7 +67,6 @@ export default function ManageUsers() {
       first_name: user.first_name || '',
       last_name: user.last_name || '',
       email: user.email || '',
-      phone: (user.phone || '').replace(/^\+92/, ''),
       password: '',
       role_name: user.role?.name || 'student',
       semester: user.student_profile?.semester || '',
@@ -79,19 +78,17 @@ export default function ManageUsers() {
     setShowModal(true)
   }
 
-  const normalizePhone = (p) => (p ? `+92${p.replace(/^\+92/, '')}` : undefined)
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
       if (editing) {
-        const { first_name, last_name, email, phone, is_active, is_verified, semester } = form
-        const payload = { first_name, last_name, email, phone: normalizePhone(phone), is_active, is_verified }
+        const { first_name, last_name, email, is_active, is_verified, semester } = form
+        const payload = { first_name, last_name, email, is_active, is_verified }
         if (editing.role?.name === 'student' && semester) payload.semester = parseInt(semester, 10)
         await usersAPI.update(editing.id, payload)
       } else {
-        const { first_name, last_name, email, phone, password, role_name, semester, session_type } = form
-        const payload = { first_name, last_name, email, phone: normalizePhone(phone), password, role_name, session_type }
+        const { first_name, last_name, email, password, role_name, semester, session_type } = form
+        const payload = { first_name, last_name, email, password, role_name, session_type }
         if (role_name === 'student' && semester) {
           payload.semester = parseInt(semester, 10)
         }
@@ -321,7 +318,6 @@ export default function ManageUsers() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-navy-900 truncate">{user.first_name} {user.last_name}</p>
-                          <p className="text-2xs font-mono text-navy-300">{user.phone || '—'}</p>
                         </div>
                       </div>
                     </td>
@@ -428,18 +424,6 @@ export default function ManageUsers() {
               <input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })}
                 className="input-field" required />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-
-            <div>
-              <label className="input-label">Phone <span className="text-danger">*</span></label>
-              <div className="relative flex">
-                <span className="flex items-center pl-3.5 pr-2 bg-surface-100 border border-r-0 border-surface-200 rounded-l-xl text-sm font-semibold text-navy-600 select-none">+92</span>
-                <input type="tel" value={form.phone.replace(/^\+92/, '')}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-surface-0 border border-surface-200 rounded-r-xl text-sm text-navy-900 placeholder-navy-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 hover:border-navy-300" placeholder="3XX XXXXXXX" required />
-              </div>
-              </div>
           </div>
           <div>
             <label className="input-label">Email <span className="text-danger">*</span></label>

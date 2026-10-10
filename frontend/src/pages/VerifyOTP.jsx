@@ -7,10 +7,8 @@ import {
   Lock,
   Mail,
   CheckCircle2,
-  BarChart3,
   ArrowRight,
   ArrowLeft,
-  MessageSquare,
 } from 'lucide-react'
 
 export default function VerifyOTP() {
@@ -48,7 +46,6 @@ export default function VerifyOTP() {
   // Get email from pending verification or from logged-in user
   const pendingData = JSON.parse(localStorage.getItem('pendingVerification') || '{}')
   const email = user?.email || pendingData.email
-  const phone = user?.phone || pendingData.phone
 
   const handleVerify = async (e) => {
     e.preventDefault()
@@ -117,15 +114,15 @@ export default function VerifyOTP() {
                 Almost <span className="text-accent-400">there.</span>
               </h2>
               <p className="mt-6 text-navy-300 text-lg max-w-sm leading-relaxed">
-                We've sent a one-time code to your phone to make sure it's really you. Enter it below to finish setting up your account.
+                We've sent a one-time code to your email to make sure it's really you. Enter it below to finish setting up your account.
               </p>
             </div>
           </div>
 
           <div className="space-y-4 mt-16">
             {[
-              { icon: ShieldCheck, text: 'Phone-verified accounts' },
-              { icon: MessageSquare, text: 'OTP sent via SMS' },
+              { icon: ShieldCheck, text: 'Email-verified accounts' },
+              { icon: Mail, text: 'OTP sent via email' },
               { icon: Lock, text: 'Your data stays secure' },
             ].map((f) => (
               <div key={f.text} className="flex items-center gap-3 text-sm text-navy-200">
@@ -163,7 +160,7 @@ export default function VerifyOTP() {
             <h1 className="text-3xl font-extrabold text-navy-900 tracking-tight">Verify your account</h1>
             <p className="text-navy-400 mt-2">
               Enter the 6-digit OTP
-              {phone ? ` sent to ${phone}` : ''}
+              {email ? ` sent to ${email}` : ''}
             </p>
           </div>
 
@@ -197,7 +194,7 @@ export default function VerifyOTP() {
 
               <p className="flex items-center gap-2 text-xs text-navy-400">
                 <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
-                {phone ? `Code sent to ${phone}` : 'Check your phone for the OTP code'}
+                {email ? `Code sent to ${email}` : 'Check your email for the OTP code'}
               </p>
 
               <button

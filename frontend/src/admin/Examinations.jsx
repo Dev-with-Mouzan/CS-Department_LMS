@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import api, { resultsAPI, coursesAPI } from '../services/api'
 import ConfirmDialog from '../components/ConfirmDialog'
 import EmptyState from '../components/EmptyState'
-import { ordinal, semLabel } from '../utils/format'
+import { semLabel } from '../utils/format'
 import {
   Trophy, FileText, GraduationCap, ScrollText, Trash2,
-  Download, BookOpen, TrendingDown, TrendingUp, ChevronRight, ChevronLeft, AlertTriangle,
+  Download, BookOpen, ChevronRight, ChevronLeft, AlertTriangle,
   Activity, Archive,
 } from 'lucide-react'
 

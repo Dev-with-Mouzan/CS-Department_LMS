@@ -482,7 +482,7 @@ def create_user(request: Request,
         db.refresh(user)
 
     # Teachers created by admin: auto-verify so they can login immediately,
-    # and email the credentials (email, phone, password) to the teacher.
+    # and email the credentials (email, password) to the teacher.
     if user.role.name == "teacher":
         user.is_verified = True
         db.commit()
@@ -491,7 +491,6 @@ def create_user(request: Request,
             send_credentials_email,
             user.email,
             f"{user.first_name} {user.last_name}",
-            user.phone,
             data.password,
         )
 

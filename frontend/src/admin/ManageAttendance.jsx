@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { coursesAPI, attendanceAPI } from '../services/api'
 import EmptyState from '../components/EmptyState'
-import { ordinal, semLabel } from '../utils/format'
+import { semLabel } from '../utils/format'
 import {
   CalendarCheck, XCircle, Users, Download, GraduationCap,
   BookOpen, ChevronRight, ChevronLeft, Activity, Archive,

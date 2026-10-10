@@ -18,13 +18,6 @@ class Settings(BaseSettings):
     # Default admin credentials (used on first startup to seed admin user)
     ADMIN_EMAIL: str = ""
     ADMIN_PASSWORD: str = ""
-    # SMS provider: "fast2sms", "twilio", or "console" (dev only)
-    SMS_PROVIDER: str = "console"
-    FAST2SMS_API_KEY: str = ""
-    FAST2SMS_SENDER_ID: str = ""
-    TWILIO_ACCOUNT_SID: str = ""
-    TWILIO_AUTH_TOKEN: str = ""
-    TWILIO_FROM_NUMBER: str = ""
     # Email provider: "smtp" or "console" (dev only)
     EMAIL_PROVIDER: str = "console"
     SMTP_HOST: str = ""

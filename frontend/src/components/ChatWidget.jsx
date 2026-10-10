@@ -12,12 +12,12 @@ const FAQ_DATA = [
   // Registration & Account
   {
     keywords: ['register', 'registering', 'signup', 'sign up', 'create account', 'new account', 'join', 'get started', 'how do i register', 'how to register'],
-    answer: '**Creating Your Account**\n\n1. Click **"Get Started"** on the homepage\n2. Enter your details: name, college email, phone number, and password\n3. You\'ll receive a **6-digit OTP** via SMS\n4. Enter the OTP to verify your account\n5. Sign in with your email and password\n\n⏱️ Takes less than 60 seconds!',
+    answer: '**Creating Your Account**\n\n1. Click **"Get Started"** on the homepage\n2. Enter your details: name, college email, and password\n3. You\'ll receive a **6-digit OTP** via email\n4. Enter the OTP to verify your account\n5. Sign in with your email and password\n\n⏱️ Takes less than 60 seconds!',
     followUp: ['What if I didn\'t receive the OTP?', 'Can I use a personal email?'],
   },
   {
-    keywords: ['otp', 'verification', 'verify', 'code', 'sms', 'didnt receive', 'did not receive', 'verification code'],
-    answer: '**OTP Verification**\n\n- After registration, a **6-digit OTP** is sent to your phone via SMS\n- Enter the code on the verification screen\n- The OTP expires after **5 minutes**\n- Didn\'t receive it? Check your spam or request a new code\n\n💡 Make sure your phone number is correct during registration.',
+    keywords: ['otp', 'verification', 'verify', 'code', 'email', 'didnt receive', 'did not receive', 'verification code'],
+    answer: '**OTP Verification**\n\n- After registration, a **6-digit OTP** is sent to your email\n- Enter the code on the verification screen\n- The OTP expires after **5 minutes**\n- Didn\'t receive it? Check your spam folder or request a new code\n\n💡 Make sure your email address is correct during registration.',
     followUp: ['How do I register?', 'I forgot my password'],
   },
   {
@@ -92,8 +92,8 @@ const FAQ_DATA = [
   },
   // Profile & Settings
   {
-    keywords: ['profile', 'name', 'email', 'update', 'personal info', 'edit profile', 'phone number', 'who is my admin', 'change my password'],
-    answer: '**Profile Management**\n\n- Your profile is managed by the **admin**\n- Contact your administrator to update:\n  - Name, email, or phone number\n  - Roll number or department\n  - Personal details\n\n💡 Keep your information up to date for accurate records.',
+    keywords: ['profile', 'name', 'email', 'update', 'personal info', 'edit profile', 'roll number', 'who is my admin', 'change my password'],
+    answer: '**Profile Management**\n\n- Your profile is managed by the **admin**\n- Contact your administrator to update:\n  - Name, email, or roll number\n  - Department or personal details\n\n💡 Keep your information up to date for accurate records.',
     followUp: ['How do I change my password?', 'Who is my admin?'],
   },
   // Teacher Features

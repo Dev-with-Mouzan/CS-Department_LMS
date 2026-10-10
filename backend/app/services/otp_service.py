@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import OTPVerification, User, utcnow
 from app.dependencies.auth import hash_password, verify_password
-from app.services.sms_service import send_otp_sms
 
 
 def generate_otp(length: int = 6) -> str:
@@ -15,8 +14,11 @@ def generate_otp(length: int = 6) -> str:
     return "".join(secrets.choice(string.digits) for _ in range(length))
 
 
-def create_otp(db: Session, user: User, purpose: str = "registration", send_sms: bool = True):
-    """Create a new OTP record for a user and optionally send it via SMS."""
+def create_otp(db: Session, user: User, purpose: str = "registration"):
+    """Create a new OTP record for a user.
+
+    Delivery (email) is the caller's job so it can run in BackgroundTasks.
+    """
     # Invalidate any existing unused OTPs for this user with the same purpose
     db.query(OTPVerification).filter(
         OTPVerification.user_id == user.id,
@@ -37,10 +39,6 @@ def create_otp(db: Session, user: User, purpose: str = "registration", send_sms:
     db.add(otp_record)
     db.commit()
     db.refresh(otp_record)
-
-    # Send OTP via SMS to the user's phone number (caller can defer via BackgroundTasks)
-    if send_sms and user.phone:
-        send_otp_sms(user.phone, otp_code)
 
     return otp_record, otp_code
 

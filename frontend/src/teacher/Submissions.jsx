@@ -3,13 +3,16 @@ import { assignmentsAPI, coursesAPI, quizzesAPI } from '../services/api'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import EmptyState from '../components/EmptyState'
-import { ordinal, semLabel } from '../utils/format'
+import { semLabel } from '../utils/format'
 import {
   Inbox, ClipboardList, HelpCircle, Clock, Award,
   CheckCircle2, AlertTriangle, ChevronRight, ChevronLeft,
   User as UserIcon, MessageSquare, Star, FileText, Download,
   GraduationCap, BookOpen, Paperclip,
 } from 'lucide-react'
+
+// After a quiz deadline passes the API also returns enrolled students who never attempted
+const realAttempts = (list) => (list || []).filter((a) => !a.not_attempted)
 
 export default function Submissions() {
   const [tab, setTab] = useState('assignments') // 'assignments' | 'quizzes'
@@ -70,12 +73,6 @@ export default function Submissions() {
       .finally(() => setLoading(false))
   }, [tab])
 
-  const coursesById = useMemo(() => {
-    const map = {}
-    for (const c of courses) map[c.id] = c
-    return map
-  }, [courses])
-
   const semesters = useMemo(() => {
     const bySem = {}
     for (const c of courses.filter((c) => (c.session_type || 'morning') === sessionTab)) {
@@ -117,7 +114,7 @@ export default function Submissions() {
       .sort(([a], [b]) => (a === 'other' ? 1 : b === 'other' ? -1 : Number(a) - Number(b)))
       .map(([key, cs]) => {
         const courseQuizzes = cs.flatMap((c) => quizzes.filter((q) => q.course_id === c.id))
-        const totalAttempts = courseQuizzes.reduce((sum, q) => sum + (quizAttempts[q.id]?.length || 0), 0)
+        const totalAttempts = courseQuizzes.reduce((sum, q) => sum + realAttempts(quizAttempts[q.id]).length, 0)
         const toReview = courseQuizzes.reduce(
           (sum, q) => sum + (quizAttempts[q.id] || []).filter((attempt) => attempt.submission_url && attempt.grading_status !== 'graded').length,
           0,
@@ -202,6 +199,26 @@ export default function Submissions() {
     setSubmissions([])
   }
 
+  const downloadQuizResults = async (quiz) => {
+    const target = quiz && quiz.id ? quiz : selected
+    if (!target) return
+    try {
+      const res = await quizzesAPI.exportResults(target.id)
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      const disp = res.headers?.['content-disposition'] || ''
+      const match = disp.match(/filename="?([^";]+)"?/)
+      link.href = url
+      link.download = match ? match[1] : `${target.title}_results.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to export results')
+    }
+  }
+
   const goCourses = () => {
     setActiveCourse(null)
     setSelected(null)
@@ -239,7 +256,7 @@ export default function Submissions() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400/50 ${
                 tab === t.id
                   ? 'bg-accent-500 text-white shadow-md shadow-accent-500/20'
                   : 'text-navy-500 hover:text-navy-700 hover:bg-surface-50'
@@ -297,7 +314,7 @@ export default function Submissions() {
                 <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
                   {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
                     <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null); setSelected(null); setSubmissions([]) }}
-                      className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                      className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400/50 ${
                         sessionTab === r.value
                           ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
                           : 'text-navy-400 hover:text-navy-600'
@@ -327,28 +344,88 @@ export default function Submissions() {
             <div className="space-y-3">
               {quizzes.filter((q) => q.course_id === activeCourse.id).map((quiz) => {
                 const attempts = quizAttempts[quiz.id] || []
+                const dueLabel = quiz.deadline
+                  ? new Date(quiz.deadline).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+                  : null
                 return (
-                  <button key={quiz.id} onClick={() => { setSelected(quiz); setSubmissions(attempts); }}
-                    className="w-full text-left p-5 rounded-xl border border-surface-200 hover:border-accent-300 hover:bg-accent-50/50 transition-all">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-navy-900">{quiz.title}</p>
-                        {quiz.description && <p className="text-xs text-navy-400 mt-0.5 line-clamp-1">{quiz.description}</p>}
+                  <div
+                    key={quiz.id}
+                    className={`rounded-2xl border bg-white p-4 sm:p-5 transition-all ${
+                      selected?.id === quiz.id
+                        ? 'border-accent-400 ring-2 ring-accent-400/30 shadow-elevated'
+                        : 'border-surface-100 shadow-sm hover:shadow-elevated'
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <span className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                          <HelpCircle className="w-5 h-5" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-bold text-navy-900 truncate">{quiz.title}</h3>
+                            {quiz.is_published ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 text-2xs font-bold">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Published
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-600 text-2xs font-bold">
+                                <Clock className="w-3 h-3" />
+                                Draft
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-navy-950 text-white text-2xs font-bold">
+                              <GraduationCap className="w-3 h-3" />
+                              {realAttempts(attempts).length} attempts
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-100 text-navy-500 text-2xs font-bold">
+                              <HelpCircle className="w-3 h-3" />
+                              {quiz.question_count} questions
+                            </span>
+                            {dueLabel && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-600 text-2xs font-bold">
+                                <Clock className="w-3 h-3" />
+                                Due {dueLabel}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0 text-[10px] text-navy-500">
-                        <span className="px-2 py-1 rounded-full bg-accent-50 text-accent-600 font-semibold">{attempts.length} attempts</span>
+                      <div className="flex flex-wrap items-center gap-2 shrink-0 sm:ml-auto">
+                        <button
+                          onClick={() => { setSelected(quiz); setSubmissions(attempts); }}
+                          className="inline-flex items-center gap-1 px-4 py-2.5 rounded-xl bg-surface-100 text-navy-600 hover:bg-surface-200 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400/50"
+                        >
+                          View attempts
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => downloadQuizResults(quiz)}
+                          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-500 text-white hover:bg-accent-600 text-sm font-bold transition-colors shadow-md shadow-accent-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400/50"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download Excel
+                        </button>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
               {selected && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center justify-between gap-2 mb-4">
                     <button onClick={() => { setSelected(null); setSubmissions([]); }}
-                      className="text-accent-600 hover:underline font-medium text-sm">
+                      className="inline-flex items-center gap-1.5 text-accent-600 hover:text-accent-700 font-semibold text-sm">
+                      <ChevronLeft className="w-4 h-4" />
                       {selected.title}
                     </button>
+                    <Button variant="ghost" size="sm" onClick={() => downloadQuizResults()}>
+                      <Download className="w-4 h-4 mr-1.5" />
+                      Export Excel
+                    </Button>
                   </div>
                   {submissions.length === 0 ? (
                     <EmptyState icon={HelpCircle} title="No attempts submitted yet." />
@@ -378,10 +455,14 @@ export default function Submissions() {
                           {submissions.map((att) => {
                             const status = att.grading_status || (att.submission_url ? 'submitted' : 'graded')
                             return (
-                              <tr key={att.id} className="hover:bg-surface-50">
+                              <tr key={att.id} className="transition-colors hover:bg-accent-50/60">
                                 <td className="px-4 py-3 font-medium text-navy-900">{att.student_name}</td>
                                 <td className="px-4 py-3 text-center">
-                                  {selected.attachment_url && (status !== 'graded' || att.total === 0) ? (
+                                  {att.not_attempted ? (
+                                    <span className="inline-flex px-2 py-0.5 rounded-full text-2xs font-semibold bg-surface-100 text-navy-400 border border-surface-200">
+                                      Not attempted
+                                    </span>
+                                  ) : selected.attachment_url && (status !== 'graded' || att.total === 0) ? (
                                     <span className="text-navy-300">—</span>
                                   ) : (
                                     <>
@@ -397,7 +478,9 @@ export default function Submissions() {
                                   </td>
                                 )}
                                 <td className="px-4 py-3 text-center">
-                                  {selected.attachment_url && status !== 'graded' ? (
+                                  {att.not_attempted ? (
+                                    <span className="text-navy-300">—</span>
+                                  ) : selected.attachment_url && status !== 'graded' ? (
                                     <span className="text-navy-300">—</span>
                                   ) : (
                                     <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-semibold ${
@@ -427,14 +510,16 @@ export default function Submissions() {
                                 {selected.attachment_url && (
                                   <td className="px-4 py-3 text-center">
                                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold ${
-                                      status === 'graded' ? 'bg-success/10 text-success-dark' : 'bg-info-light text-info-dark'
+                                      status === 'graded' ? 'bg-success/10 text-success-dark' :
+                                      status === 'not_attempted' ? 'bg-surface-100 text-navy-400' :
+                                      'bg-info-light text-info-dark'
                                     }`}>
                                       {status === 'graded' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                      {status}
+                                      {status === 'not_attempted' ? 'Not attempted' : status}
                                     </span>
                                   </td>
                                 )}
-                                <td className="px-4 py-3 text-right text-xs text-navy-500">
+                                <td className="px-4 py-3 text-right text-xs text-navy-500 whitespace-nowrap">
                                   {att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : '—'}
                                 </td>
                                 {selected.attachment_url && (
@@ -455,7 +540,7 @@ export default function Submissions() {
                       <div className="sm:hidden border border-surface-200 rounded-xl overflow-hidden divide-y divide-surface-100">
                         {submissions.map((att) => {
                           const status = att.grading_status || (att.submission_url ? 'submitted' : 'graded')
-                          const showScore = !(selected.attachment_url && (status !== 'graded' || att.total === 0))
+                          const showScore = !att.not_attempted && !(selected.attachment_url && (status !== 'graded' || att.total === 0))
                           const showPct = !(selected.attachment_url && status !== 'graded')
                           return (
                             <div key={att.id} className="p-4 space-y-2.5">
@@ -463,10 +548,16 @@ export default function Submissions() {
                                 <p className="text-sm font-semibold text-navy-900 truncate">{att.student_name}</p>
                                 {selected.attachment_url ? (
                                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold shrink-0 ${
-                                    status === 'graded' ? 'bg-success/10 text-success-dark' : 'bg-info-light text-info-dark'
+                                    status === 'graded' ? 'bg-success/10 text-success-dark' :
+                                    status === 'not_attempted' ? 'bg-surface-100 text-navy-400' :
+                                    'bg-info-light text-info-dark'
                                   }`}>
                                     {status === 'graded' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                    {status}
+                                    {status === 'not_attempted' ? 'Not attempted' : status}
+                                  </span>
+                                ) : att.not_attempted ? (
+                                  <span className="inline-flex px-2 py-0.5 rounded-full text-2xs font-semibold shrink-0 bg-surface-100 text-navy-400 border border-surface-200">
+                                    Not attempted
                                   </span>
                                 ) : (
                                   <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-semibold shrink-0 ${
@@ -582,7 +673,7 @@ export default function Submissions() {
                 <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
                   {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
                     <button key={r.value} onClick={() => { setSessionTab(r.value); setActiveSemester(null); setActiveCourse(null) }}
-                      className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                      className={`px-5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400/50 ${
                         sessionTab === r.value
                           ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
                           : 'text-navy-400 hover:text-navy-600'
@@ -638,6 +729,25 @@ export default function Submissions() {
 
       {/* Grade Modal */}
       <Modal isOpen={showGradeModal} onClose={() => setShowGradeModal(false)} title="Grade Submission">
+        {selectedSub && (
+          <div className="flex items-center gap-3 pb-4 mb-4 border-b border-surface-100">
+            <span className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center shrink-0">
+              <UserIcon className="w-4 h-4 text-navy-950" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-navy-900 truncate">{selectedSub.student_name || 'Unknown'}</p>
+              <p className="text-2xs text-navy-400 truncate">
+                {selectedSub.roll_number ? `Roll: ${selectedSub.roll_number}` : selected?.title}
+              </p>
+            </div>
+            <span className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-surface-200 bg-surface-50 text-2xs font-bold text-navy-600">
+              <Star className="w-3 h-3 text-accent-500" />
+              {tab === 'quizzes' && selectedSub.total
+                ? `${selectedSub.score}/${selectedSub.total}`
+                : `out of ${selected?.max_marks || 100}`}
+            </span>
+          </div>
+        )}
         <form onSubmit={handleGrade} className="space-y-4">
           <div>
             <label className="input-label">Grade (out of {selected?.max_marks || 100})</label>
@@ -676,10 +786,10 @@ const SemesterGrid = React.memo(function SemesterGrid({ semesters, quizzes = fal
         <button
           key={s.key}
           onClick={() => onPick(s.key)}
-          className="group text-left rounded-2xl border border-surface-200 bg-white p-5 transition-all duration-200 hover:border-accent-300 hover:shadow-elevated"
+          className="group text-left rounded-2xl border border-surface-200 bg-white p-5 transition-all duration-200 hover:border-accent-300 hover:shadow-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400/50"
         >
           <div className="flex items-start justify-between gap-3">
-            <span className="w-11 h-11 rounded-xl bg-navy-900 text-white flex items-center justify-center">
+            <span className="w-11 h-11 rounded-xl bg-navy-900 text-white flex items-center justify-center transition-colors group-hover:bg-accent-500">
               <GraduationCap className="w-5 h-5" />
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-500/10 text-accent-600 text-2xs font-bold">
@@ -717,7 +827,7 @@ const CourseGrid = React.memo(function CourseGrid({ courses, quizzes = false, by
       {courses.map((c) => {
         const items = (byCourse && byCourse[c.id]) || []
         const totalSubs = quizzes
-          ? items.reduce((sum, q) => sum + ((counts[q.id] || []).length || 0), 0)
+          ? items.reduce((sum, q) => sum + realAttempts(counts[q.id]).length, 0)
           : items.reduce((sum, a) => sum + (counts[a.id]?.total || 0), 0)
         const toReview = quizzes
           ? items.reduce((sum, q) => sum + (counts[q.id] || []).filter((attempt) => attempt.submission_url && attempt.grading_status !== 'graded').length, 0)
@@ -729,10 +839,10 @@ const CourseGrid = React.memo(function CourseGrid({ courses, quizzes = false, by
           <button
             key={c.id}
             onClick={() => onPick(c)}
-            className="group text-left rounded-2xl border border-surface-200 bg-white p-5 transition-all duration-200 hover:border-accent-300 hover:shadow-elevated"
+            className="group text-left rounded-2xl border border-surface-200 bg-white p-5 transition-all duration-200 hover:border-accent-300 hover:shadow-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400/50"
           >
             <div className="flex items-start justify-between gap-3">
-              <span className="w-11 h-11 rounded-xl bg-navy-800 text-white flex items-center justify-center">
+              <span className="w-11 h-11 rounded-xl bg-navy-800 text-white flex items-center justify-center transition-colors group-hover:bg-accent-500">
                 <BookOpen className="w-5 h-5" />
               </span>
               {c.session && (
@@ -768,54 +878,54 @@ const CourseGrid = React.memo(function CourseGrid({ courses, quizzes = false, by
 
 const AssignmentList = React.memo(function AssignmentList({ items, selected, counts, onSelect }) {
   return (
-    <div className="space-y-2 mb-8">
+    <div className="space-y-3 mb-8">
       {items.map((a) => {
-        const toReview = (counts[a.id]?.total || 0) - (counts[a.id]?.graded || 0)
+        const total = counts[a.id]?.total || 0
+        const dueLabel = a.due_date
+          ? new Date(a.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+          : null
         return (
           <div
             key={a.id}
-            onClick={() => onSelect(a)}
-            className={`border rounded-xl p-4 cursor-pointer transition-all group ${
+            className={`rounded-2xl border bg-white p-4 sm:p-5 transition-all ${
               selected?.id === a.id
-                ? 'border-accent-500 ring-2 ring-accent-400/30 bg-accent-500/5'
-                : 'border-surface-200 hover:border-accent-300'
+                ? 'border-accent-400 ring-2 ring-accent-400/30 shadow-elevated'
+                : 'border-surface-100 shadow-sm hover:shadow-elevated'
             }`}
           >
-            <div className="flex items-start gap-3">
-              <span className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                selected?.id === a.id ? 'bg-accent-500 text-white' : 'bg-navy-900/5 text-navy-600 group-hover:bg-navy-900/10'
-              }`}>
-                <ClipboardList className="w-5 h-5" />
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-navy-900 truncate flex-1 min-w-0">{a.title}</h3>
-                  <ChevronRight className={`w-4 h-4 text-navy-300 shrink-0 transition-transform ${
-                    selected?.id === a.id ? 'translate-x-0.5 text-accent-600' : 'group-hover:translate-x-0.5'
-                  }`} />
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-                  <span className="inline-flex items-center gap-1 text-2xs text-navy-400">
-                    <Clock className="w-3 h-3 text-navy-300" />
-                    Due: {new Date(a.due_date).toLocaleDateString()}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-2xs text-navy-400">
-                    <Award className="w-3 h-3 text-navy-300" />
-                    Max {a.max_marks}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 mt-2.5">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-surface-200 bg-surface-50 text-2xs font-bold text-navy-600">
-                    <Inbox className="w-3 h-3" />
-                    {counts[a.id]?.total ?? 0} submissions
-                  </span>
-                  {toReview > 0 && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-200 bg-amber-50 text-2xs font-bold text-amber-700">
-                      <Clock className="w-3 h-3" />
-                      {toReview} to review
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <span className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                  <ClipboardList className="w-5 h-5" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-navy-900 truncate">{a.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-navy-950 text-white text-2xs font-bold">
+                      <Inbox className="w-3 h-3" />
+                      {total} submissions
                     </span>
-                  )}
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-100 text-navy-500 text-2xs font-bold">
+                      <Award className="w-3 h-3" />
+                      {a.max_marks} marks
+                    </span>
+                    {dueLabel && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-600 text-2xs font-bold">
+                        <Clock className="w-3 h-3" />
+                        Due {dueLabel}
+                      </span>
+                    )}
+                  </div>
                 </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 shrink-0 sm:ml-auto">
+                <button
+                  onClick={() => onSelect(a)}
+                  className="inline-flex items-center gap-1 px-4 py-2.5 rounded-xl bg-surface-100 text-navy-600 hover:bg-surface-200 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400/50"
+                >
+                  View submissions
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>
@@ -826,6 +936,8 @@ const AssignmentList = React.memo(function AssignmentList({ items, selected, cou
 })
 
 const SubmissionsTable = React.memo(function SubmissionsTable({ submissions, maxMarks, onGrade, gradedCount }) {
+  const graded = gradedCount(submissions)
+  const pct = submissions.length ? Math.round((graded / submissions.length) * 100) : 0
   return (
     <div className="border border-surface-200 rounded-xl bg-white overflow-hidden mt-6">
       <div className="px-4 sm:px-6 py-4 border-b border-surface-100 bg-surface-50/60 flex flex-wrap items-center justify-between gap-3">
@@ -833,14 +945,28 @@ const SubmissionsTable = React.memo(function SubmissionsTable({ submissions, max
           <h2 className="text-sm font-bold text-navy-900">
             Submissions ({submissions.length})
           </h2>
-          <p className="text-2xs text-navy-400 mt-0.5">
-            {gradedCount(submissions)} of {submissions.length} graded
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <div
+              className="h-1.5 w-24 rounded-full bg-surface-200 overflow-hidden shrink-0"
+              role="progressbar"
+              aria-valuenow={pct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Grading progress"
+            >
+              <div className="h-full rounded-full bg-success transition-all duration-500" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="text-2xs text-navy-400">
+              {graded} of {submissions.length} graded
+            </p>
+          </div>
         </div>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-success/20 bg-success-light text-success-dark text-2xs font-bold">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          {gradedCount(submissions)} graded
-        </span>
+        {submissions.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-success/20 bg-success-light text-success-dark text-2xs font-bold">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            {pct}% graded
+          </span>
+        )}
       </div>
 
       {submissions.length === 0 ? (
@@ -862,7 +988,7 @@ const SubmissionsTable = React.memo(function SubmissionsTable({ submissions, max
               </thead>
               <tbody className="divide-y divide-surface-100">
                 {submissions.map((s) => (
-                  <tr key={s.id} className="hover:bg-surface-50 transition-colors">
+                  <tr key={s.id} className="transition-colors hover:bg-accent-50/60">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
                         <span className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center shrink-0">

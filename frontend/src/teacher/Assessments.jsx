@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { parseDate, shortDate, MONTHS } from '../utils/format'
+import { parseDate, shortDate } from '../utils/format'
 import EmptyState from '../components/EmptyState'
 import {
   ClipboardList,
@@ -23,9 +23,10 @@ import {
   Copy,
   Check,
   ArrowRight,
+  Shuffle,
 } from 'lucide-react'
 import { assignmentsAPI, quizzesAPI, coursesAPI, materialsAPI } from '../services/api'
-import { ordinal, semLabel } from '../utils/format'
+import { semLabel } from '../utils/format'
 import CreateAssignment from './CreateAssignment'
 import CreateQuiz from './CreateQuiz'
 import Modal from '../components/Modal'
@@ -64,6 +65,7 @@ export default function Assessments() {
   const [quizDetails, setQuizDetails] = useState({})
   const [expandedQuiz, setExpandedQuiz] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [publishing, setPublishing] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [activeSemester, setActiveSemester] = useState(null)
   const [activeCourse, setActiveCourse] = useState(null)
@@ -149,6 +151,19 @@ export default function Assessments() {
     setDeleteTarget({ type, id, message: msg })
   }
 
+  const togglePublish = async (quiz) => {
+    setPublishing(quiz.id)
+    try {
+      const next = !quiz.is_published
+      await quizzesAPI.setPublished(quiz.id, next)
+      setQuizzes((list) => list.map((q) => (q.id === quiz.id ? { ...q, is_published: next } : q)))
+    } catch (err) {
+      window.alert(err.response?.data?.detail || 'Could not update publish status')
+    } finally {
+      setPublishing(null)
+    }
+  }
+
   const confirmDelete = async () => {
     if (!deleteTarget) return
     setDeleting(deleteTarget.id)
@@ -215,7 +230,8 @@ export default function Assessments() {
       setSourceItems({
         materials: mats.data || [],
         assignments: asgs.data || [],
-        quizzes: qzs.data || [],
+        // Quiz section is MCQ-only — document quizzes are not reusable
+        quizzes: (qzs.data || []).filter((q) => !q.attachment_url),
       })
     } catch (err) {
       console.error(err)
@@ -573,6 +589,22 @@ export default function Assessments() {
                                 )}
                               </div>
                               <button
+                                onClick={() => togglePublish(q)}
+                                disabled={publishing === q.id}
+                                title={q.is_published ? 'Visible to students — click to unpublish' : 'Hidden from students — click to publish'}
+                                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors shrink-0 disabled:opacity-50 ${
+                                  q.is_published
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+                                }`}
+                              >
+                                {publishing === q.id
+                                  ? 'Saving…'
+                                  : q.is_published
+                                    ? (<><CheckCircle2 className="w-3.5 h-3.5" /> Published</>)
+                                    : (<><Clock className="w-3.5 h-3.5" /> Draft</>)}
+                              </button>
+                              <button
                                 onClick={() => toggleQuiz(q)}
                                 className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors shrink-0 ${
                                   isOpen ? 'bg-navy-900 text-white' : 'bg-surface-100 text-navy-600 hover:bg-surface-200'
@@ -593,6 +625,11 @@ export default function Assessments() {
 
                             <div className="mt-4 flex flex-wrap items-center gap-2">
                               <Chip icon={HelpCircle}>{q.question_count} question{q.question_count === 1 ? '' : 's'}</Chip>
+                              {q.total_questions != null && (
+                                <Chip icon={Shuffle} tone="amber">
+                                  {q.total_questions} per student
+                                </Chip>
+                              )}
                               <Chip icon={Clock} tone={q.time_limit ? 'navy' : 'default'}>
                                 {q.time_limit ? `${q.time_limit} min limit` : 'No time limit'}
                               </Chip>

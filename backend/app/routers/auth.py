@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.dependencies.auth import (
-    create_access_token, get_current_user, hash_password
+    create_access_token, get_current_user
 )
 from app.dependencies.ratelimit import limiter
 from app.models import User
@@ -16,14 +16,14 @@ from app.schemas.auth import (
     MessageResponse, RegisterResponse,
 )
 from app.services.auth_service import (
-    get_user_by_email, get_user_by_phone, create_user, authenticate_user, update_password,
+    get_user_by_email, create_user, authenticate_user, update_password,
     get_student_by_roll_number,
 )
 from app.routers.courses import _student_session_label
 from app.services.otp_service import (
     create_otp, verify_otp, can_resend_otp
 )
-from app.services.sms_service import send_otp_sms
+from app.services.email_service import send_otp_email
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -40,10 +40,6 @@ def register(request: Request, data: RegisterRequest, bg_tasks: BackgroundTasks,
     existing = get_user_by_email(db, data.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-
-    phone_existing = get_user_by_phone(db, data.phone)
-    if phone_existing:
-        raise HTTPException(status_code=400, detail="Phone number already registered")
 
     session_type = data.session_type if data.session_type in ("morning", "evening") else "morning"
     roll_existing = get_student_by_roll_number(
@@ -70,16 +66,14 @@ def register(request: Request, data: RegisterRequest, bg_tasks: BackgroundTasks,
             detail="Roll number already exists for this semester, session, and shift",
         ) from exc
 
-    # Generate OTP for verification (defer SMS to background)
-    otp_record, otp_code = create_otp(db, user, purpose="registration", send_sms=False)
-    if user.phone:
-        bg_tasks.add_task(send_otp_sms, user.phone, otp_code)
+    # Generate OTP for verification (send email in the background)
+    otp_record, otp_code = create_otp(db, user, purpose="registration")
+    bg_tasks.add_task(send_otp_email, user.email, otp_code, "registration")
 
     # Don't auto-login — let the user verify OTP first
     return RegisterResponse(
         message="Registration successful. Please verify your OTP.",
         email=data.email,
-        phone=data.phone,
     )
 
 
@@ -190,26 +184,24 @@ def resend_otp(request: Request, data: OTPResendRequest, bg_tasks: BackgroundTas
             detail="Please wait before requesting a new OTP",
         )
 
-    otp_record, otp_code = create_otp(db, user, purpose="registration", send_sms=False)
-    if user.phone:
-        bg_tasks.add_task(send_otp_sms, user.phone, otp_code)
+    otp_record, otp_code = create_otp(db, user, purpose="registration")
+    bg_tasks.add_task(send_otp_email, user.email, otp_code, "registration")
     return MessageResponse(message="OTP sent successfully")
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
 @limiter.limit("5/minute")
 def forgot_password(request: Request, data: PasswordResetRequest, bg_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """Request password reset via OTP sent to phone."""
-    user = get_user_by_phone(db, data.phone)
+    """Request password reset via OTP sent to email."""
+    user = get_user_by_email(db, data.email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No account found with this phone number. Please register first.",
+            detail="No account found with this email address. Please register first.",
         )
 
-    otp_record, otp_code = create_otp(db, user, purpose="password_reset", send_sms=False)
-    if user.phone:
-        bg_tasks.add_task(send_otp_sms, user.phone, otp_code)
+    otp_record, otp_code = create_otp(db, user, purpose="password_reset")
+    bg_tasks.add_task(send_otp_email, user.email, otp_code, "password_reset")
     return MessageResponse(message="OTP sent successfully")
 
 
@@ -217,11 +209,11 @@ def forgot_password(request: Request, data: PasswordResetRequest, bg_tasks: Back
 @limiter.limit("5/minute")
 def reset_password(request: Request, data: PasswordResetConfirm, db: Session = Depends(get_db)):
     """Reset password using OTP."""
-    user = get_user_by_phone(db, data.phone)
+    user = get_user_by_email(db, data.email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No account found with this phone number.",
+            detail="No account found with this email address.",
         )
 
     success = verify_otp(db, user, data.otp_code, purpose="password_reset")

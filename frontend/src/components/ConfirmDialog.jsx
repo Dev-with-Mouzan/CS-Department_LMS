@@ -1,7 +1,24 @@
 import { useEffect } from 'react'
 import { AlertTriangle, Trash2, X } from 'lucide-react'
 
-export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, confirmLabel = 'Delete', loading = false }) {
+const TONES = {
+  danger: {
+    bar: 'from-danger via-red-400 to-danger',
+    iconBox: 'from-red-50 to-red-100 border-red-200/60',
+    icon: AlertTriangle,
+    iconColor: 'text-danger',
+    confirm: 'bg-gradient-to-b from-danger to-red-700 hover:from-red-600 hover:to-red-800 shadow-md shadow-danger/25 text-white',
+  },
+  info: {
+    bar: 'from-accent-400 via-accent-500 to-accent-600',
+    iconBox: 'from-accent-50 to-accent-100 border-accent-200/60',
+    icon: AlertTriangle,
+    iconColor: 'text-accent-600',
+    confirm: 'bg-accent-500 text-navy-950 hover:bg-accent-400 shadow-sm',
+  },
+}
+
+export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, confirmLabel = 'Delete', loading = false, tone = 'danger' }) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -14,6 +31,9 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
 
   if (!isOpen) return null
 
+  const t = TONES[tone] || TONES.danger
+  const Icon = t.icon
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
       {/* Backdrop */}
@@ -22,7 +42,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
       {/* Dialog */}
       <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.35)] overflow-hidden animate-slide-up">
         {/* Top accent bar */}
-        <div className="h-1 bg-gradient-to-r from-danger via-red-400 to-danger" />
+        <div className={`h-1 bg-gradient-to-r ${t.bar}`} />
 
         {/* Close button */}
         <button
@@ -35,8 +55,8 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
 
         <div className="px-7 pt-7 pb-6 text-center">
           {/* Icon */}
-          <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-red-50 to-red-100 border border-red-200/60 flex items-center justify-center mb-5 shadow-sm">
-            <AlertTriangle className="w-7 h-7 text-danger" />
+          <div className={`mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br ${t.iconBox} border flex items-center justify-center mb-5 shadow-sm`}>
+            <Icon className={`w-7 h-7 ${t.iconColor}`} />
           </div>
 
           {/* Title */}
@@ -57,12 +77,12 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
             <button
               onClick={onConfirm}
               disabled={loading}
-              className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-b from-danger to-red-700 hover:from-red-600 hover:to-red-800 rounded-xl shadow-md shadow-danger/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98]"
+              className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] ${t.confirm}`}
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <Trash2 className="w-4 h-4" />
+                <Icon className="w-4 h-4" />
               )}
               {confirmLabel}
             </button>

@@ -6,7 +6,6 @@ import {
   Mail,
   Lock,
   User,
-  Phone,
   CalendarDays,
   ShieldCheck,
   CheckCircle2,
@@ -14,7 +13,6 @@ import {
   Eye,
   EyeOff,
   ArrowLeft,
-  AlertTriangle,
 } from 'lucide-react'
 
 function getPasswordStrength(password) {
@@ -38,7 +36,6 @@ function getStrengthLabel(score) {
 function PasswordStrengthMeter({ password }) {
   const score = getPasswordStrength(password)
   const { label, color, textColor } = getStrengthLabel(score)
-  const percentage = (score / 5) * 100
 
   if (!password) return null
 
@@ -73,7 +70,7 @@ function PasswordStrengthMeter({ password }) {
 
 export default function Register() {
   const [form, setForm] = useState({
-    first_name: '', last_name: '', email: '', phone: '', password: '',
+    first_name: '', last_name: '', email: '', password: '',
     semester: '', roll_number: '', enrollment_year: '', session_type: 'morning',
   })
   const [error, setError] = useState('')
@@ -82,33 +79,14 @@ export default function Register() {
   const { register } = useAuth()
   const navigate = useNavigate()
 
-  const [phoneError, setPhoneError] = useState('')
-
   const handleChange = (e) => {
     const { name, value } = e.target
-    if (name === 'phone') {
-      // Only allow digits, max 10 characters
-      const digits = value.replace(/\D/g, '').slice(0, 10)
-      setForm({ ...form, phone: digits })
-      if (digits.length > 0 && digits.length < 10) {
-        setPhoneError('Phone number must be exactly 10 digits')
-      } else {
-        setPhoneError('')
-      }
-    } else {
-      setForm({ ...form, [name]: value })
-    }
+    setForm({ ...form, [name]: value })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    
-    // Validate phone number
-    if (form.phone.length !== 10) {
-      setError('Phone number must be exactly 10 digits after +92')
-      return
-    }
 
     // Validate password length
     if (form.password.length < 8) {
@@ -120,7 +98,6 @@ export default function Register() {
     try {
       const payload = {
         ...form,
-        phone: `+92${form.phone}`,
         semester: parseInt(form.semester, 10),
         enrollment_year: parseInt(form.enrollment_year, 10),
         session_type: form.session_type,
@@ -235,7 +212,7 @@ export default function Register() {
           {/* Student-only note */}
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-accent-200 bg-accent-50 mb-6 text-xs text-accent-800">
             <GraduationCap className="w-4 h-4 shrink-0 text-accent-600" />
-            Student registration only — accounts are verified via SMS OTP and your courses appear based on your session and semester.
+            Student registration only — accounts are verified via email OTP and your courses appear based on your session and semester.
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -265,27 +242,6 @@ export default function Register() {
                 <input type="email" name="email" value={form.email} onChange={handleChange}
                   className={inputBase} placeholder="you@example.com" required />
               </div>
-            </div>              <div>
-              <label className="input-label">Phone number <span className="text-danger">*</span></label>
-              <div className="relative flex">
-                <span className="flex items-center pl-3.5 pr-2 bg-surface-100 border border-r-0 border-surface-200 rounded-l-xl text-sm font-semibold text-navy-600 select-none">+92</span>
-                <input type="tel" name="phone" value={form.phone} onChange={handleChange}
-                  maxLength={10}
-                  className={`w-full px-4 py-2.5 bg-surface-0 border rounded-r-xl text-sm text-navy-900 placeholder-navy-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-400/30 focus:border-accent-400 hover:border-navy-300 ${phoneError ? 'border-danger focus:ring-danger/30 focus:border-danger' : 'border-surface-200'}`}
-                  placeholder="3XX XXXXXXX" required />
-              </div>
-              {phoneError && (
-                <p className="mt-1.5 text-xs text-danger font-medium flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  {phoneError}
-                </p>
-              )}
-              {!phoneError && form.phone.length === 10 && (
-                <p className="mt-1.5 text-xs text-success font-medium flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Valid phone number
-                </p>
-              )}
             </div>
 
             <div>
@@ -364,7 +320,7 @@ export default function Register() {
 
             <p className="flex items-center gap-2 text-xs text-navy-400">
               <ShieldCheck className="w-4 h-4 text-success shrink-0" />
-              An OTP will be sent to verify your phone number.
+              An OTP will be sent to your email address.
             </p>
 
             <button

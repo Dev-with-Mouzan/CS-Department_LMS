@@ -75,60 +75,16 @@
            focus:ring-accent-400 shadow-sm hover:shadow-md;
   }
 
-  .btn-secondary {
-    @apply btn bg-surface-100 text-navy-700 hover:bg-surface-200
-           focus:ring-navy-200 border border-surface-200;
-  }
-
-  .btn-danger {
-    @apply btn bg-danger text-white hover:bg-danger-dark
-           focus:ring-danger/30;
-  }
-
-  .btn-ghost {
-    @apply btn bg-transparent text-navy-600 hover:bg-surface-100
-           focus:ring-navy-200;
-  }
-
   /* Card styles */
   .card {
     @apply bg-surface-0 rounded-2xl border border-surface-200 shadow-card
            transition-all duration-200;
   }
 
-  .card-hover {
-    @apply card hover:shadow-card-hover hover:border-surface-300;
-  }
-
   /* Portal cards — lift them clearly off the page background */
   main .bg-white.border-surface-200.rounded-xl,
   main .bg-white.border-surface-200.rounded-2xl {
     box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 10px 28px -14px rgb(15 23 42 / 0.16);
-  }
-
-  /* Badge styles */
-  .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
-  }
-
-  .badge-success {
-    @apply badge bg-success-light text-success-dark;
-  }
-
-  .badge-warning {
-    @apply badge bg-warning-light text-warning-dark;
-  }
-
-  .badge-danger {
-    @apply badge bg-danger-light text-danger-dark;
-  }
-
-  .badge-info {
-    @apply badge bg-info-light text-info-dark;
-  }
-
-  .badge-neutral {
-    @apply badge bg-surface-100 text-navy-600;
   }
 
   /* ─── Scroll-reveal animations ─── */
@@ -143,30 +99,6 @@
   .scroll-reveal.scroll-revealed {
     opacity: 1;
     transform: translateY(0);
-  }
-
-  /* Variant: fade-in from left */
-  .scroll-reveal.from-left {
-    transform: translateX(-40px);
-  }
-  .scroll-reveal.from-left.scroll-revealed {
-    transform: translateX(0);
-  }
-
-  /* Variant: fade-in from right */
-  .scroll-reveal.from-right {
-    transform: translateX(40px);
-  }
-  .scroll-reveal.from-right.scroll-revealed {
-    transform: translateX(0);
-  }
-
-  /* Variant: scale up */
-  .scroll-reveal.scale-in {
-    transform: scale(0.92);
-  }
-  .scroll-reveal.scale-in.scroll-revealed {
-    transform: scale(1);
   }
 
   /* Stagger children inside a revealed container */
@@ -205,38 +137,6 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Floating animation for badges */
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
-
-  /* Page header */
-  .page-header {
-    @apply mb-8;
-  }
-
-  .page-title {
-    @apply text-display-sm text-navy-900 tracking-tight;
-  }
-
-  .page-subtitle {
-    @apply text-sm text-navy-400 mt-1;
-  }
-
-  /* Stat card */
-  .stat-card {
-    @apply card p-6 flex flex-col;
-  }
-
-  .stat-value {
-    @apply text-3xl font-bold text-navy-900 tracking-tight;
-  }
-
-  .stat-label {
-    @apply text-xs font-semibold text-navy-400 uppercase tracking-wider mt-1;
-  }
-
   /* ─── Hero dashboard card animations ─── */
   @keyframes fadeIn {
     from { opacity: 0; }
@@ -263,32 +163,6 @@
     animation: fadeIn 0.4s ease-out forwards;
   }
 
-  .item-fade-up {
-    opacity: 0;
-    transform: translateY(12px);
-    animation: itemFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  @keyframes itemFadeUp {
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* Bar chart: grow once on load, then pulse continuously */
-  .bar-grow {
-    height: 0;
-    animation: barGrowOnce 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards,
-               barPulse 3s ease-in-out 1.5s infinite;
-  }
-
-  @keyframes barGrowOnce {
-    to { height: var(--bar-height, 80%); }
-  }
-
-  @keyframes barPulse {
-    0%, 100% { opacity: 1; transform: scaleY(1); }
-    50% { opacity: 0.7; transform: scaleY(0.92); }
-  }
-
   /* Stat pill: gentle glow pulse */
   .stat-pulse {
     animation: statPulse 3s ease-in-out infinite;
@@ -297,16 +171,6 @@
   @keyframes statPulse {
     0%, 100% { box-shadow: 0 0 0 0 transparent; }
     50% { box-shadow: 0 0 12px 2px rgba(251, 191, 36, 0.15); }
-  }
-
-  /* Greeting text: subtle breathing */
-  .greeting-breathe {
-    animation: greetingBreathe 4s ease-in-out infinite;
-  }
-
-  @keyframes greetingBreathe {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
   }
 
   /* Window dots: cycle through dot active states */
@@ -319,15 +183,6 @@
     50% { background: rgba(251, 191, 36, 0.5); }
   }
 
-  /* Assignment row: slide-in repeat */
-  .assignment-slide {
-    animation: assignmentSlide 5s ease-in-out 2s infinite;
-  }
-
-  @keyframes assignmentSlide {
-    0%, 100% { transform: translateX(0); }
-    50% { transform: translateX(-4px); }
-  }
 }
 
 /* Particle animation for How It Works section */
@@ -401,15 +256,4 @@
   height: 4px;
   background: rgba(251, 191, 36, 0.3);
   animation-delay: -0.3s;
-}
-
-/* Password strength pulse animation */
-@keyframes strengthPulse {
-  0% { transform: scaleY(1); }
-  50% { transform: scaleY(1.2); }
-  100% { transform: scaleY(1); }
-}
-
-.password-strength-bar {
-  animation: strengthPulse 0.3s ease-out;
 }

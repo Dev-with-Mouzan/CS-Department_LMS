@@ -171,7 +171,6 @@ export default function Promotion() {
   }
 
   const totalStudents = semesters.reduce((sum, s) => sum + s.student_count, 0)
-  const currentSem = semesters.find((s) => s.semester === semesters.reduce((min, s) => s.student_count > 0 ? Math.max(min, s.semester) : min, 0))
   const studentsToPromote = students.filter((s) => !s.promoted && !s.is_graduated).length
   const filteredStudents = students.filter((s) => (s.session_type || 'morning') === sessionTab)
 

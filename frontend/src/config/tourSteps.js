@@ -28,7 +28,7 @@ export const landingTourSteps = [
     target: 'a[href="/register"]',
     title: 'Get Started',
     subtitle: 'Create your account',
-    content: 'Click here to register as a student or teacher. You will need your college email and phone number for OTP verification.',
+    content: 'Click here to register as a student or teacher. You will need your college email for OTP verification.',
     icon: Zap,
     placement: 'bottom',
   },
