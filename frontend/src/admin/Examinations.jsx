@@ -6,7 +6,6 @@ import { semLabel } from '../utils/format'
 import {
   Trophy, FileText, GraduationCap, ScrollText, Trash2,
   Download, BookOpen, ChevronRight, ChevronLeft, AlertTriangle,
-  Activity, Archive,
 } from 'lucide-react'
 
 const tabs = [
@@ -154,7 +153,7 @@ export default function Examinations() {
                   ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
                   : 'text-navy-400 hover:text-navy-600'
               }`}>
-              <Activity className="w-3.5 h-3.5" /> Active
+              Active
             </button>
             <button
               onClick={() => { setActiveTab('inactive'); setActiveSemester(null); setActiveCourse(null) }}
@@ -163,7 +162,7 @@ export default function Examinations() {
                   ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
                   : 'text-navy-400 hover:text-navy-600'
               }`}>
-              <Archive className="w-3.5 h-3.5" /> Inactive
+              Inactive
             </button>
           </div>
         </div>

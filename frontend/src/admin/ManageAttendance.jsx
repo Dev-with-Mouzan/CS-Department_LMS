@@ -4,7 +4,7 @@ import EmptyState from '../components/EmptyState'
 import { semLabel } from '../utils/format'
 import {
   CalendarCheck, XCircle, Users, Download, GraduationCap,
-  BookOpen, ChevronRight, ChevronLeft, Activity, Archive,
+  BookOpen, ChevronRight, ChevronLeft, Activity,
 } from 'lucide-react'
 
 const statusLabels = { present: 'Present', absent: 'Absent', late: 'Late', excused: 'Excused' }
@@ -188,7 +188,7 @@ export default function ManageAttendance() {
                   ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
                   : 'text-navy-400 hover:text-navy-600'
               }`}>
-              <Activity className="w-3.5 h-3.5" /> Active
+              Active
             </button>
             <button
               onClick={() => { setActiveTab('inactive'); setActiveSemester(null); setActiveCourse(null); setMatrix(null) }}
@@ -197,7 +197,7 @@ export default function ManageAttendance() {
                   ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-navy-900 shadow-sm shadow-amber-400/20'
                   : 'text-navy-400 hover:text-navy-600'
               }`}>
-              <Archive className="w-3.5 h-3.5" /> Inactive
+              Inactive
             </button>
           </div>
         </div>
