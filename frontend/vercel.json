@@ -1,6 +1,7 @@
 {
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "http://158.101.228.71/api/:path*" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/api(/.*)?", "dest": "http://158.101.228.71/api$1" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
