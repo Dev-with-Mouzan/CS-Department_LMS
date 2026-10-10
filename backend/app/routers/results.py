@@ -11,6 +11,7 @@ from app.schemas.result import ResultOut
 from app.services.file_service import save_file, delete_file
 from app.routers.courses import get_student_courses
 from app.dependencies.ratelimit import limiter
+from app.services.cache import cached
 
 router = APIRouter(prefix="/api/results", tags=["Results"])
 
@@ -60,34 +61,37 @@ def list_results(request: Request,
     - Admin: all results
     active=true returns only active course results, active=false returns inactive.
     """
-    role = current_user.role.name
-    query = db.query(Result)
+    def build():
+        role = current_user.role.name
+        query = db.query(Result)
 
-    if role == "teacher":
-        from app.routers.courses import get_teacher_course_ids
-        teacher_course_ids = get_teacher_course_ids(db, current_user.id)
-        if not teacher_course_ids:
-            return []
-        query = query.filter(Result.course_id.in_(teacher_course_ids))
-    elif role == "student":
-        student_course_ids = [c.id for c in get_student_courses(db, current_user)]
-        query = query.filter(Result.course_id.in_(student_course_ids))
+        if role == "teacher":
+            from app.routers.courses import get_teacher_course_ids
+            teacher_course_ids = get_teacher_course_ids(db, current_user.id)
+            if not teacher_course_ids:
+                return []
+            query = query.filter(Result.course_id.in_(teacher_course_ids))
+        elif role == "student":
+            student_course_ids = [c.id for c in get_student_courses(db, current_user)]
+            query = query.filter(Result.course_id.in_(student_course_ids))
 
-    if course_id:
-        query = query.filter(Result.course_id == course_id)
-    if exam_type:
-        query = query.filter(Result.exam_type == exam_type)
+        if course_id:
+            query = query.filter(Result.course_id == course_id)
+        if exam_type:
+            query = query.filter(Result.exam_type == exam_type)
 
-    if active is not None:
-        subq = db.query(Course.id).filter(Course.is_active == active).subquery()
-        query = query.filter(Result.course_id.in_(subq))
+        if active is not None:
+            subq = db.query(Course.id).filter(Course.is_active == active).subquery()
+            query = query.filter(Result.course_id.in_(subq))
 
-    results = query.order_by(Result.created_at.desc()).all()
-    course_ids = list({r.course_id for r in results})
-    uploader_ids = list({r.uploaded_by for r in results})
-    courses = {c.id: c for c in db.query(Course).filter(Course.id.in_(course_ids)).all()} if course_ids else {}
-    users = {u.id: u for u in db.query(User).filter(User.id.in_(uploader_ids)).all()} if uploader_ids else {}
-    return [_result_out(r, courses, users) for r in results]
+        results = query.order_by(Result.created_at.desc()).all()
+        course_ids = list({r.course_id for r in results})
+        uploader_ids = list({r.uploaded_by for r in results})
+        courses = {c.id: c for c in db.query(Course).filter(Course.id.in_(course_ids)).all()} if course_ids else {}
+        users = {u.id: u for u in db.query(User).filter(User.id.in_(uploader_ids)).all()} if uploader_ids else {}
+        return [_result_out(r, courses, users) for r in results]
+
+    return cached(f"results:{current_user.id}:{course_id}:{exam_type}:{active}", build)
 
 
 @limiter.limit("30/minute")

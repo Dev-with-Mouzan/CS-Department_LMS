@@ -20,6 +20,7 @@ from app.database.database import engine, SessionLocal, Base
 from app.dependencies.ratelimit import limiter
 from app.models import Assignment, Result, StudyMaterial, Submission, User, Quiz, QuizAttempt
 from app.services.auth_service import create_default_roles, create_default_admin
+from app.services.cache import _store as _cache_store
 from app.routers import auth, users, courses, assignments, attendance, materials, results, reviews, quizzes
 
 logger = logging.getLogger(__name__)
@@ -163,6 +164,9 @@ async def lifespan(app: FastAPI):
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Any write invalidates all cached reads (coarse but zero-staleness on writes)
+        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            _cache_store.clear()
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -171,7 +175,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
         path = request.url.path
-        if path.startswith("/api/courses/") and path.count("/") == 4:
+        if request.method == "GET" and (
+            path.startswith("/api/courses") or path.startswith("/api/results")
+            or path == "/api/users/stats/dashboard"
+        ):
+            response.headers["Cache-Control"] = "private, max-age=30"
+        elif path.startswith("/api/courses/") and path.count("/") == 4:
             response.headers["Cache-Control"] = "private, max-age=60"
         elif path == "/api/reviews/public":
             response.headers["Cache-Control"] = "public, max-age=300"

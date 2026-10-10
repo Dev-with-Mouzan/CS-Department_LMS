@@ -9,6 +9,7 @@ from app.dependencies.auth import get_current_user, require_admin, require_teach
 from app.models import User, Course, Role, StudentProfile, StudyMaterial, Assignment, Quiz, QuizQuestion, PromotionHistory
 from app.schemas.course import CourseCreate, CourseUpdate, CourseOut, ReusableCourseOut, ReuseRequest
 from app.dependencies.ratelimit import limiter
+from app.services.cache import cached
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
 
@@ -94,27 +95,29 @@ def list_courses(request: Request,
     current_user: User = Depends(get_current_user),
 ):
     """List courses based on role. Optional is_active and session_type filter."""
-    role = current_user.role.name
+    def build():
+        role = current_user.role.name
 
-    if role == "admin":
-        q = db.query(Course)
-        if is_active is not None:
-            q = q.filter(Course.is_active == is_active)
-        if session_type:
-            q = q.filter(Course.session_type == session_type)
-        courses = q.offset(skip).limit(limit).all()
-    elif role == "teacher":
-        q = db.query(Course).filter(
-            Course.teacher_id == current_user.id,
-            Course.is_active == True,
-        )
-        if session_type:
-            q = q.filter(Course.session_type == session_type)
-        courses = q.offset(skip).limit(limit).all()
-    else:  # student
-        courses = get_student_courses(db, current_user)
+        if role == "admin":
+            q = db.query(Course)
+            if is_active is not None:
+                q = q.filter(Course.is_active == is_active)
+            if session_type:
+                q = q.filter(Course.session_type == session_type)
+            rows = q.offset(skip).limit(limit).all()
+        elif role == "teacher":
+            q = db.query(Course).filter(
+                Course.teacher_id == current_user.id,
+                Course.is_active == True,
+            )
+            if session_type:
+                q = q.filter(Course.session_type == session_type)
+            rows = q.offset(skip).limit(limit).all()
+        else:  # student
+            rows = get_student_courses(db, current_user)
+        return [CourseOut.model_validate(c).model_dump() for c in rows]
 
-    return courses
+    return cached(f"courses:{current_user.id}:{skip}:{limit}:{is_active}:{session_type}", build)
 
 
 @limiter.limit("30/minute")

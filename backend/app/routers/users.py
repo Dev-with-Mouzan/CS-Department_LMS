@@ -16,6 +16,7 @@ from app.services.auth_service import (
     get_student_by_roll_number,
 )
 from app.services.email_service import send_credentials_email
+from app.services.cache import cached
 
 from app.routers.courses import _student_session_label as _session_label
 
@@ -156,19 +157,22 @@ def get_admin_stats(request: Request,
     current_user: User = Depends(require_admin),
 ):
     """Get admin dashboard statistics."""
-    total_users = db.query(User).count()
-    total_students = db.query(User).join(Role).filter(Role.name == "student").count()
-    total_teachers = db.query(User).join(Role).filter(Role.name == "teacher").count()
-    pending_verification = db.query(User).filter(User.is_verified == False).count()  # noqa: E712
-    active_users = db.query(User).filter(User.is_active == True).count()  # noqa: E712
+    def build():
+        total_users = db.query(User).count()
+        total_students = db.query(User).join(Role).filter(Role.name == "student").count()
+        total_teachers = db.query(User).join(Role).filter(Role.name == "teacher").count()
+        pending_verification = db.query(User).filter(User.is_verified == False).count()  # noqa: E712
+        active_users = db.query(User).filter(User.is_active == True).count()  # noqa: E712
 
-    return {
-        "total_users": total_users,
-        "total_students": total_students,
-        "total_teachers": total_teachers,
-        "active_users": active_users,
-        "pending_verification": pending_verification,
-    }
+        return {
+            "total_users": total_users,
+            "total_students": total_students,
+            "total_teachers": total_teachers,
+            "active_users": active_users,
+            "pending_verification": pending_verification,
+        }
+
+    return cached("stats:dashboard", build)
 
 
 # ── Dynamic routes ────────────────────────────────────

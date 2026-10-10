@@ -9,6 +9,7 @@ from app.dependencies.auth import get_current_user
 from app.models import User, Review, StudentProfile
 from app.schemas.review import ReviewCreate, ReviewOut
 from app.dependencies.ratelimit import limiter
+from app.services.cache import cached
 
 router = APIRouter(prefix="/api/reviews", tags=["Reviews"])
 
@@ -44,17 +45,20 @@ def list_public_reviews(request: Request,
     db: Session = Depends(get_db),
 ):
     """List approved reviews for the public landing page (no auth required)."""
-    reviews = (
-        db.query(Review)
-        .filter(Review.is_approved == True)
-        .order_by(func.random())
-        .limit(limit)
-        .all()
-    )
-    user_ids = list({r.user_id for r in reviews})
-    users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
-    profiles = {p.user_id: p for p in db.query(StudentProfile).filter(StudentProfile.user_id.in_(user_ids)).all()} if user_ids else {}
-    return [_review_out(r, users, profiles) for r in reviews]
+    def build():
+        reviews = (
+            db.query(Review)
+            .filter(Review.is_approved == True)
+            .order_by(func.random())
+            .limit(limit)
+            .all()
+        )
+        user_ids = list({r.user_id for r in reviews})
+        users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
+        profiles = {p.user_id: p for p in db.query(StudentProfile).filter(StudentProfile.user_id.in_(user_ids)).all()} if user_ids else {}
+        return [_review_out(r, users, profiles) for r in reviews]
+
+    return cached(f"reviews:public:{limit}", build)
 
 
 @limiter.limit("30/minute")
