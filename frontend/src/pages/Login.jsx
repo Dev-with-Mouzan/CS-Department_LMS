@@ -104,6 +104,11 @@ export default function Login() {
       {/* Right — Form */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-12">
         <div className="w-full max-w-md animate-fade-in">
+          <Link to="/" className="lg:hidden inline-flex items-center gap-2 text-sm font-medium text-navy-500 hover:text-navy-800 transition-colors mb-6">
+            <ArrowLeft className="w-4 h-4" />
+            Back to home
+          </Link>
+
           <div className="mb-8 text-center">
             <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-accent-500/10 text-accent-600 border border-accent-200 mb-5">
               <Lock className="w-6 h-6" />

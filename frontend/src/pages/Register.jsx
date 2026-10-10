@@ -187,6 +187,11 @@ export default function Register() {
       {/* Right — Form */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-12">
         <div className="w-full max-w-md animate-fade-in">
+          <Link to="/" className="lg:hidden inline-flex items-center gap-2 text-sm font-medium text-navy-500 hover:text-navy-800 transition-colors mb-4">
+            <ArrowLeft className="w-4 h-4" />
+            Back to home
+          </Link>
+
           {/* Mobile logo */}
           <Link to="/" className="flex items-center gap-3 mb-8 lg:hidden">
             <img src="/college-logo.png" alt="GGCB Logo" className="w-8 h-8 rounded-lg object-cover" />
