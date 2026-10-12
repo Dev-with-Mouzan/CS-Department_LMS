@@ -192,15 +192,11 @@ export default function Layout() {
   const links = navConfig[role] || []
   const { showTour, completeTour } = useTour('lms_dashboard_tour')
   const tourSteps = dashboardTourSteps[role] || []
-  // Graduation congrats: shows once per browser until the student dismisses it
-  const [gradDismissed, setGradDismissed] = useState(
-    () => localStorage.getItem('lms_graduation_congrats') === 'true'
-  )
+  // Graduation congrats: shows on every visit while the student is graduated;
+  // dismiss only lasts for the current page session
+  const [gradDismissed, setGradDismissed] = useState(false)
   const showGradCongrats = role === 'student' && user?.is_graduated && !gradDismissed
-  const dismissGradCongrats = () => {
-    localStorage.setItem('lms_graduation_congrats', 'true')
-    setGradDismissed(true)
-  }
+  const dismissGradCongrats = () => setGradDismissed(true)
 
   const handleLogout = () => {
     logout()
