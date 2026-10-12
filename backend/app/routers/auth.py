@@ -234,12 +234,14 @@ def get_me(request: Request, current_user: User = Depends(get_current_user), db:
     from app.models import StudentProfile
     semester = None
     session_type = None
+    is_graduated = False
     if current_user.role.name == "student":
         profile = db.query(StudentProfile).filter(
             StudentProfile.user_id == current_user.id
         ).first()
         semester = profile.semester if profile else None
         session_type = profile.session_type if profile else None
+        is_graduated = profile.is_graduated if profile else False
     return {
         "id": str(current_user.id),
         "first_name": current_user.first_name,
@@ -251,4 +253,5 @@ def get_me(request: Request, current_user: User = Depends(get_current_user), db:
         "is_active": current_user.is_active,
         "semester": semester,
         "session_type": session_type,
+        "is_graduated": is_graduated,
     }

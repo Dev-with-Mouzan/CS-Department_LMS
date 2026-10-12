@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Tour, { useTour } from './Tour'
+import CongratsGraduation from './CongratsGraduation'
 import { studentTourSteps, teacherTourSteps, adminTourSteps } from '../config/tourSteps'
 import {
   LayoutDashboard,
@@ -191,6 +192,15 @@ export default function Layout() {
   const links = navConfig[role] || []
   const { showTour, completeTour } = useTour('lms_dashboard_tour')
   const tourSteps = dashboardTourSteps[role] || []
+  // Graduation congrats: shows once per browser until the student dismisses it
+  const [gradDismissed, setGradDismissed] = useState(
+    () => localStorage.getItem('lms_graduation_congrats') === 'true'
+  )
+  const showGradCongrats = role === 'student' && user?.is_graduated && !gradDismissed
+  const dismissGradCongrats = () => {
+    localStorage.setItem('lms_graduation_congrats', 'true')
+    setGradDismissed(true)
+  }
 
   const handleLogout = () => {
     logout()
@@ -205,6 +215,9 @@ export default function Layout() {
       </main>
       {showTour && tourSteps.length > 0 && (
         <Tour steps={tourSteps} onComplete={completeTour} />
+      )}
+      {showGradCongrats && (
+        <CongratsGraduation onDismiss={dismissGradCongrats} firstName={user?.first_name} />
       )}
     </div>
   )
