@@ -54,7 +54,7 @@ export default function CongratsGraduation({ onDismiss, firstName }) {
           <p className="mt-3 text-sm text-navy-500 leading-relaxed">
             You've officially <strong className="text-navy-800">graduated</strong> from the
             CS Department, Govt. Graduate College Burewala. Your hard work and dedication
-            have paid off — we wish you the very best in everything ahead.
+            have paid off we wish you the very best in everything ahead.
           </p>
 
           <button

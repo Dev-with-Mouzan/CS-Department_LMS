@@ -133,8 +133,8 @@ export default function Examinations() {
 
       {/* Tabs Row */}
       {activeSemester == null && (
-        <div className="border border-surface-200 rounded-xl bg-white p-3 mb-5 flex justify-center">
-          <div className="flex gap-1 p-1 bg-surface-100 rounded-lg">
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex gap-1 p-1 bg-surface-100 rounded-lg">
             {[{ value: 'morning', label: 'Morning' }, { value: 'evening', label: 'Evening' }].map((r) => (
               <button key={r.value} onClick={() => setSessionTab(r.value)}
                 className={`px-3 sm:px-5 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${

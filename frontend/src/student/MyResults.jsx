@@ -255,11 +255,10 @@ export default function MyResults() {
             <button
               key={t.id}
               onClick={() => switchTab(t.id)}
-              className={`flex items-center justify-center gap-2 px-1 sm:px-5 py-2.5 rounded-lg text-[11px] sm:text-sm font-semibold whitespace-nowrap transition-all ${
-                tab === t.id
+              className={`flex items-center justify-center gap-2 px-1 sm:px-5 py-2.5 rounded-lg text-[11px] sm:text-sm font-semibold whitespace-nowrap transition-all ${tab === t.id
                   ? 'bg-accent-500 text-white shadow-md shadow-accent-500/20'
                   : 'text-navy-500 hover:text-navy-700 hover:bg-white sm:hover:bg-surface-50'
-              }`}
+                }`}
             >
               <t.icon className="w-4 h-4 shrink-0 hidden sm:block" />
               {t.label}

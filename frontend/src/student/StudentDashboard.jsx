@@ -39,17 +39,15 @@ const CourseCard = React.memo(function CourseCard({ course, att, isPast }) {
   const pct = a.percentage || (a.total_sessions ? (a.present_count / a.total_sessions) * 100 : 0)
   const tone = toneOf(pct)
   return (
-    <div className={`rounded-xl border p-3.5 transition-colors ${
-      isPast
+    <div className={`rounded-xl border p-3.5 transition-colors ${isPast
         ? 'border-surface-200 bg-surface-50/50 opacity-70'
         : 'border-surface-200 hover:border-accent-300'
-    }`}>
+      }`}>
       <div className="flex items-center gap-3">
-        <span className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-xs font-bold ${
-          isPast
+        <span className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-xs font-bold ${isPast
             ? 'bg-surface-200 text-navy-400'
             : 'bg-gradient-to-br from-navy-800 to-navy-950 text-white'
-        }`}>
+          }`}>
           {isPast ? <Lock className="w-4 h-4" /> : course.course_code.slice(0, 2).toUpperCase()}
         </span>
         <div className="min-w-0 flex-1">

@@ -127,11 +127,10 @@ export default function MyAssignments() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                tab === t.id
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${tab === t.id
                   ? 'bg-accent-500 text-white shadow-md shadow-accent-500/20'
                   : 'text-navy-500 hover:text-navy-700 hover:bg-surface-50'
-              }`}
+                }`}
             >
               <t.icon className="w-4 h-4 shrink-0" />
               {t.label}
@@ -141,9 +140,8 @@ export default function MyAssignments() {
       </div>
 
       {message && (
-        <div className={`flex items-start gap-3 px-4 py-3 rounded-xl mb-6 text-sm font-medium ${
-          message.includes('success') ? 'bg-success-light text-success-dark' : 'bg-danger-light text-danger-dark'
-        }`}>
+        <div className={`flex items-start gap-3 px-4 py-3 rounded-xl mb-6 text-sm font-medium ${message.includes('success') ? 'bg-success-light text-success-dark' : 'bg-danger-light text-danger-dark'
+          }`}>
           {message.includes('success') ? <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" /> : <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />}
           {message}
         </div>
@@ -350,19 +348,17 @@ function AssignmentList({ items, courseCode, openId, setOpenId, uploading, onFil
         const canSubmit = !a.submitted && !isPast
 
         return (
-          <div key={a.id} className={`border rounded-xl bg-white overflow-hidden transition-all ${
-            expanded ? 'border-accent-300 shadow-elevated' : a.submitted ? 'border-emerald-200' : isPast ? 'border-surface-200 opacity-75' : 'border-surface-200'
-          }`}>
+          <div key={a.id} className={`border rounded-xl bg-white overflow-hidden transition-all ${expanded ? 'border-accent-300 shadow-elevated' : a.submitted ? 'border-emerald-200' : isPast ? 'border-surface-200 opacity-75' : 'border-surface-200'
+            }`}>
             {/* Clickable summary */}
             <button
               onClick={() => setOpenId(expanded ? null : a.id)}
               className="w-full flex items-start gap-3.5 p-4 sm:p-5 text-left hover:bg-surface-50/60 transition-colors"
             >
-              <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                a.submitted
+              <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${a.submitted
                   ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
                   : 'bg-navy-950 text-accent-400 border-navy-950'
-              }`}>
+                }`}>
                 {a.submitted ? <CheckCircle2 className="w-5 h-5" /> : <ClipboardList className="w-5 h-5" />}
               </span>
               <div className="min-w-0 flex-1">
@@ -403,9 +399,8 @@ function AssignmentList({ items, courseCode, openId, setOpenId, uploading, onFil
                     Max: {a.max_marks}
                   </span>
                   {canSubmit && (
-                    <span className={`inline-flex items-center gap-1 text-2xs font-bold ${
-                      daysLeft <= 2 ? 'text-danger' : daysLeft <= 7 ? 'text-warning-dark' : 'text-navy-400'
-                    }`}>
+                    <span className={`inline-flex items-center gap-1 text-2xs font-bold ${daysLeft <= 2 ? 'text-danger' : daysLeft <= 7 ? 'text-warning-dark' : 'text-navy-400'
+                      }`}>
                       <Clock className="w-3 h-3" />
                       {daysLeft > 0 ? `${daysLeft} days left` : 'Today'}
                     </span>
@@ -493,9 +488,8 @@ function AssignmentList({ items, courseCode, openId, setOpenId, uploading, onFil
                     <label className="cursor-pointer block">
                       <input type="file" className="hidden"
                         onChange={(e) => e.target.files[0] && onFileSelect(a.id, e.target.files[0])} />
-                      <span className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold bg-accent-500 text-white hover:bg-accent-400 shadow-md shadow-accent-500/20 transition-colors ${
-                        uploading === a.id ? 'opacity-70 pointer-events-none' : ''
-                      }`}>
+                      <span className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold bg-accent-500 text-white hover:bg-accent-400 shadow-md shadow-accent-500/20 transition-colors ${uploading === a.id ? 'opacity-70 pointer-events-none' : ''
+                        }`}>
                         {uploading === a.id ? (
                           <span className="flex items-center gap-1.5">
                             <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -814,11 +808,10 @@ function QuizCard({ quiz, courseCode, attempted = null, onSubmitted }) {
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-navy-900">{quiz.title}</h3>
             {result ? (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-2xs font-bold ${
-                isDocumentQuiz && result.grading_status !== 'graded'
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-2xs font-bold ${isDocumentQuiz && result.grading_status !== 'graded'
                   ? 'bg-amber-50 text-amber-700 border-amber-200'
                   : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              }`}>
+                }`}>
                 {isDocumentQuiz && result.grading_status !== 'graded' ? <Clock className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
                 {isDocumentQuiz ? (result.grading_status === 'graded' ? 'Graded' : 'Awaiting grading') : 'Completed'}
               </span>
@@ -934,20 +927,18 @@ function QuizCard({ quiz, courseCode, attempted = null, onSubmitted }) {
             <div className="space-y-4">
               {isDocumentQuiz ? (
                 result.grading_status === 'graded' && result.grade != null ? (
-                  <div className={`flex items-center gap-4 p-4 rounded-xl border ${
-                    scorePercent >= 70
+                  <div className={`flex items-center gap-4 p-4 rounded-xl border ${scorePercent >= 70
                       ? 'bg-emerald-50 border-emerald-200'
                       : scorePercent >= 40
                         ? 'bg-amber-50 border-amber-200'
                         : 'bg-red-50 border-red-200'
-                  }`}>
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-extrabold ${
-                      scorePercent >= 70
+                    }`}>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-extrabold ${scorePercent >= 70
                         ? 'bg-emerald-500 text-white'
                         : scorePercent >= 40
                           ? 'bg-amber-500 text-white'
                           : 'bg-red-500 text-white'
-                    }`}>
+                      }`}>
                       {result.grade}/{effectiveMaxMarks}
                     </div>
                     <div>
@@ -965,20 +956,18 @@ function QuizCard({ quiz, courseCode, attempted = null, onSubmitted }) {
                   </div>
                 )
               ) : (
-                <div className={`flex items-center gap-4 p-4 rounded-xl border ${
-                  scorePercent >= 70
+                <div className={`flex items-center gap-4 p-4 rounded-xl border ${scorePercent >= 70
                     ? 'bg-emerald-50 border-emerald-200'
                     : scorePercent >= 40
                       ? 'bg-amber-50 border-amber-200'
                       : 'bg-red-50 border-red-200'
-                }`}>
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-extrabold ${
-                    scorePercent >= 70
+                  }`}>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-extrabold ${scorePercent >= 70
                       ? 'bg-emerald-500 text-white'
                       : scorePercent >= 40
                         ? 'bg-amber-500 text-white'
                         : 'bg-red-500 text-white'
-                  }`}>
+                    }`}>
                     {result.score}/{result.total}
                   </div>
                   <div>
@@ -1021,19 +1010,17 @@ function QuizCard({ quiz, courseCode, attempted = null, onSubmitted }) {
                     <span className="text-xs font-bold text-navy-500">
                       Question {Math.min(reviewQ, reviewAnswers.length - 1) + 1} of {reviewAnswers.length}
                     </span>
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${
-                      reviewItem.is_correct
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${reviewItem.is_correct
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                         : 'bg-red-50 border-red-200 text-red-600'
-                    }`}>
+                      }`}>
                       {reviewItem.is_correct ? <CheckCircle2 className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
                       {reviewItem.is_correct ? 'Correct' : reviewItem.selected_index < 0 ? 'Not answered' : 'Incorrect'}
                     </span>
                   </div>
 
-                  <div className={`rounded-xl border p-4 ${
-                    reviewItem.is_correct ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'
-                  }`}>
+                  <div className={`rounded-xl border p-4 ${reviewItem.is_correct ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'
+                    }`}>
                     <p className="text-sm font-semibold text-navy-900">
                       <span className="text-navy-400 font-bold mr-1.5">Q{Math.min(reviewQ, reviewAnswers.length - 1) + 1}.</span>
                       {reviewItem.question_text}
@@ -1043,16 +1030,14 @@ function QuizCard({ quiz, courseCode, attempted = null, onSubmitted }) {
                         const isCorrect = oi === reviewItem.correct_index
                         const isSelected = oi === reviewItem.selected_index
                         return (
-                          <div key={oi} className={`flex items-center gap-2.5 text-xs rounded-lg px-2.5 py-1.5 ${
-                            isCorrect ? 'bg-emerald-100 text-emerald-800 font-semibold' :
-                            isSelected && !isCorrect ? 'bg-red-100 text-red-700 line-through' :
-                            'text-navy-500'
-                          }`}>
-                            <span className={`w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${
-                              isCorrect ? 'border-emerald-500 bg-emerald-500 text-white' :
-                              isSelected ? 'border-red-500 bg-red-500 text-white' :
-                              'border-surface-300 text-navy-400'
+                          <div key={oi} className={`flex items-center gap-2.5 text-xs rounded-lg px-2.5 py-1.5 ${isCorrect ? 'bg-emerald-100 text-emerald-800 font-semibold' :
+                              isSelected && !isCorrect ? 'bg-red-100 text-red-700 line-through' :
+                                'text-navy-500'
                             }`}>
+                            <span className={`w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${isCorrect ? 'border-emerald-500 bg-emerald-500 text-white' :
+                                isSelected ? 'border-red-500 bg-red-500 text-white' :
+                                  'border-surface-300 text-navy-400'
+                              }`}>
                               {String.fromCharCode(65 + oi)}
                             </span>
                             <span>{opt}</span>
@@ -1099,11 +1084,10 @@ function QuizCard({ quiz, courseCode, attempted = null, onSubmitted }) {
 
               {secondsLeft != null && !perQuestionMode && (
                 <div
-                  className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold ${
-                    secondsLeft <= 60
+                  className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold ${secondsLeft <= 60
                       ? 'bg-red-50 border-red-200 text-red-600'
                       : 'bg-navy-950 border-navy-950 text-accent-400'
-                  }`}
+                    }`}
                 >
                   <Timer className={`w-4 h-4 shrink-0 ${secondsLeft <= 60 ? 'animate-pulse' : ''}`} />
                   {secondsLeft > 0
@@ -1128,11 +1112,10 @@ function QuizCard({ quiz, courseCode, attempted = null, onSubmitted }) {
                         Question {currentQ + 1} of {questions.length}
                       </span>
                       {qSecondsLeft != null ? (
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${
-                          qSecondsLeft <= 5
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${qSecondsLeft <= 5
                             ? 'bg-red-50 border-red-200 text-red-600 animate-pulse'
                             : 'bg-navy-950 border-navy-950 text-accent-400'
-                        }`}>
+                          }`}>
                           <Timer className="w-3.5 h-3.5" />
                           {qSecondsLeft > 0 ? `${qSecondsLeft}s` : "Time's up — moving..."}
                         </span>
@@ -1156,18 +1139,16 @@ function QuizCard({ quiz, courseCode, attempted = null, onSubmitted }) {
                               type="button"
                               onClick={() => selectAnswer(currentQuestion.id, oi)}
                               disabled={currentLocked}
-                              className={`w-full flex items-center gap-2.5 text-left text-xs rounded-lg px-3 py-2.5 border transition-all ${
-                                currentLocked ? 'opacity-60 cursor-not-allowed border-surface-200 bg-white' :
-                                answers[currentQuestion.id] === oi
-                                  ? 'border-accent-400 bg-accent-50 text-navy-900 font-semibold shadow-sm'
-                                  : 'border-surface-200 bg-white text-navy-600 hover:border-accent-200 hover:bg-surface-50'
-                              }`}
+                              className={`w-full flex items-center gap-2.5 text-left text-xs rounded-lg px-3 py-2.5 border transition-all ${currentLocked ? 'opacity-60 cursor-not-allowed border-surface-200 bg-white' :
+                                  answers[currentQuestion.id] === oi
+                                    ? 'border-accent-400 bg-accent-50 text-navy-900 font-semibold shadow-sm'
+                                    : 'border-surface-200 bg-white text-navy-600 hover:border-accent-200 hover:bg-surface-50'
+                                }`}
                             >
-                              <span className={`w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center font-bold text-[10px] transition-colors ${
-                                answers[currentQuestion.id] === oi
+                              <span className={`w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center font-bold text-[10px] transition-colors ${answers[currentQuestion.id] === oi
                                   ? 'border-accent-500 bg-accent-500 text-white'
                                   : 'border-surface-300 text-navy-400'
-                              }`}>
+                                }`}>
                                 {String.fromCharCode(65 + oi)}
                               </span>
                               <span>{opt}</span>
@@ -1218,41 +1199,39 @@ function QuizCard({ quiz, courseCode, attempted = null, onSubmitted }) {
                     </div>
                   </>
                 ) : (
-                detail.questions.map((q, i) => (
-                  <div key={q.id} className="rounded-xl border border-surface-100 bg-surface-50/70 p-4">
-                    <p className="text-sm font-semibold text-navy-900">
-                      <span className="text-navy-400 font-bold mr-1.5">Q{i + 1}.</span>
-                      {q.text}
-                    </p>
-                    {Array.isArray(q.options) && q.options.length > 0 ? (
-                      <div className="mt-3 space-y-2">
-                        {q.options.map((opt, oi) => (
-                          <button
-                            key={oi}
-                            type="button"
-                            onClick={() => selectAnswer(q.id, oi)}
-                            className={`w-full flex items-center gap-2.5 text-left text-xs rounded-lg px-3 py-2.5 border transition-all ${
-                              answers[q.id] === oi
-                                ? 'border-accent-400 bg-accent-50 text-navy-900 font-semibold shadow-sm'
-                                : 'border-surface-200 bg-white text-navy-600 hover:border-accent-200 hover:bg-surface-50'
-                            }`}
-                          >
-                            <span className={`w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center font-bold text-[10px] transition-colors ${
-                              answers[q.id] === oi
-                                ? 'border-accent-500 bg-accent-500 text-white'
-                                : 'border-surface-300 text-navy-400'
-                            }`}>
-                              {String.fromCharCode(65 + oi)}
-                            </span>
-                            <span>{opt}</span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-xs text-navy-400">Free-response question — no options provided.</p>
-                    )}
-                  </div>
-                ))
+                  detail.questions.map((q, i) => (
+                    <div key={q.id} className="rounded-xl border border-surface-100 bg-surface-50/70 p-4">
+                      <p className="text-sm font-semibold text-navy-900">
+                        <span className="text-navy-400 font-bold mr-1.5">Q{i + 1}.</span>
+                        {q.text}
+                      </p>
+                      {Array.isArray(q.options) && q.options.length > 0 ? (
+                        <div className="mt-3 space-y-2">
+                          {q.options.map((opt, oi) => (
+                            <button
+                              key={oi}
+                              type="button"
+                              onClick={() => selectAnswer(q.id, oi)}
+                              className={`w-full flex items-center gap-2.5 text-left text-xs rounded-lg px-3 py-2.5 border transition-all ${answers[q.id] === oi
+                                  ? 'border-accent-400 bg-accent-50 text-navy-900 font-semibold shadow-sm'
+                                  : 'border-surface-200 bg-white text-navy-600 hover:border-accent-200 hover:bg-surface-50'
+                                }`}
+                            >
+                              <span className={`w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center font-bold text-[10px] transition-colors ${answers[q.id] === oi
+                                  ? 'border-accent-500 bg-accent-500 text-white'
+                                  : 'border-surface-300 text-navy-400'
+                                }`}>
+                                {String.fromCharCode(65 + oi)}
+                              </span>
+                              <span>{opt}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-navy-400">Free-response question — no options provided.</p>
+                      )}
+                    </div>
+                  ))
                 )
               ) : (
                 <p className="text-sm text-navy-400 text-center py-4">No questions available for this quiz.</p>
